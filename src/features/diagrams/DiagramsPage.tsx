@@ -1,0 +1,433 @@
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { FormEvent } from "react";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../../app/AuthProvider";
+import { PageHeader, SearchForm } from "../../components/page";
+import type {
+  Diagram,
+  DiagramInput,
+  DiagramScopeItem,
+} from "../../lib/diagrams";
+import {
+  createDiagram,
+  deleteDiagram,
+  getDiagrams,
+  updateDiagram,
+} from "../../lib/diagrams";
+import type { Environment, Project, Provider } from "../../lib/inventory";
+import { paged } from "../../lib/inventory";
+import { useServerAccess } from "../../lib/useServerAccess";
+
+interface FormState {
+  name: string;
+  description: string;
+  isDefault: boolean;
+  providerId: string;
+  environmentId: string;
+  projectId: string;
+}
+
+const emptyForm: FormState = {
+  name: "",
+  description: "",
+  isDefault: false,
+  providerId: "",
+  environmentId: "",
+  projectId: "",
+};
+
+export function DiagramsPage() {
+  const { session } = useAuth();
+  const csrf = session?.csrfToken ?? "";
+  const access = useServerAccess();
+  const isSystemAdmin = access.data?.isSystemAdmin ?? false;
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const [search, setSearch] = useState("");
+  const [q, setQ] = useState("");
+  const [editing, setEditing] = useState<Diagram | "new" | null>(null);
+  const [form, setForm] = useState<FormState>(emptyForm);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const diagrams = useQuery({
+    queryKey: ["diagrams", q],
+    queryFn: () => getDiagrams(q),
+  });
+
+  const providers = useQuery({
+    queryKey: ["providers", "options"],
+    queryFn: () => paged<Provider>("/api/providers?pageSize=200"),
+  });
+  const environments = useQuery({
+    queryKey: ["environments", "options"],
+    queryFn: () => paged<Environment>("/api/environments?pageSize=200"),
+  });
+  const projects = useQuery({
+    queryKey: ["projects", "options"],
+    queryFn: () => paged<Project>("/api/projects?pageSize=200"),
+  });
+
+  const startCreate = () => {
+    setForm(emptyForm);
+    setError(null);
+    setEditing("new");
+  };
+
+  const startEdit = (diagram: Diagram) => {
+    const scope = (type: string) =>
+      String(
+        diagram.scopeItems.find((item) => item.scopeType === type)?.entityId ??
+          "",
+      );
+    setForm({
+      name: diagram.name,
+      description: diagram.description ?? "",
+      isDefault: diagram.isDefault,
+      providerId: scope("Provider"),
+      environmentId: scope("ProviderEnvironment"),
+      projectId: scope("Project"),
+    });
+    setError(null);
+    setEditing(diagram);
+  };
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      const scopeItems: DiagramScopeItem[] = [];
+      if (form.providerId)
+        scopeItems.push({
+          scopeType: "Provider",
+          entityId: Number(form.providerId),
+        });
+      if (form.environmentId)
+        scopeItems.push({
+          scopeType: "ProviderEnvironment",
+          entityId: Number(form.environmentId),
+        });
+      if (form.projectId)
+        scopeItems.push({
+          scopeType: "Project",
+          entityId: Number(form.projectId),
+        });
+
+      const input: DiagramInput = {
+        name: form.name,
+        description: form.description || null,
+        isDefault: form.isDefault,
+        scopeItems,
+      };
+
+      if (editing === "new") {
+        const created = await createDiagram(input, csrf);
+        setEditing(null);
+        await queryClient.invalidateQueries({ queryKey: ["diagrams"] });
+        navigate(`/diagrams/${created.id}`);
+        return;
+      }
+
+      if (editing) {
+        await updateDiagram(editing.id, input, csrf);
+        setEditing(null);
+        await queryClient.invalidateQueries({ queryKey: ["diagrams"] });
+      }
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Errore di salvataggio",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async (diagram: Diagram) => {
+    if (!window.confirm(`Eliminare il diagramma "${diagram.name}"?`)) return;
+    setError(null);
+    try {
+      await deleteDiagram(diagram.id, csrf);
+      await queryClient.invalidateQueries({ queryKey: ["diagrams"] });
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Errore di eliminazione",
+      );
+    }
+  };
+
+  const scopeLabel = (diagram: Diagram) =>
+    diagram.scopeItems
+      .map((item) => {
+        const options =
+          item.scopeType === "Provider"
+            ? providers.data?.items
+            : item.scopeType === "ProviderEnvironment"
+              ? environments.data?.items
+              : projects.data?.items;
+        const name =
+          options?.find((option) => option.id === item.entityId)?.name ??
+          `#${item.entityId}`;
+        return item.scopeType === "ProviderEnvironment"
+          ? `Ambiente ${name}`
+          : item.scopeType === "Provider"
+            ? `Provider ${name}`
+            : `Progetto ${name}`;
+      })
+      .join(", ") || "Vista globale";
+
+  const canCreate =
+    isSystemAdmin || (access.data?.adminEnvironmentIds.length ?? 0) > 0;
+
+  return (
+    <section className="space-y-4">
+      <PageHeader
+        title="Diagrammi"
+        description="Vista globale e diagrammi salvati."
+      >
+        <div className="flex gap-2">
+          <Link
+            to="/diagrams/default"
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+          >
+            Vista globale
+          </Link>
+          {canCreate && (
+            <button
+              type="button"
+              onClick={startCreate}
+              className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white"
+            >
+              Nuovo diagramma
+            </button>
+          )}
+        </div>
+      </PageHeader>
+      <SearchForm
+        value={search}
+        onChange={setSearch}
+        onSubmit={() => setQ(search)}
+      />
+
+      {error && (
+        <p
+          role="alert"
+          className="rounded-md bg-red-50 px-4 py-2 text-sm text-red-700"
+        >
+          {error}
+        </p>
+      )}
+
+      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        {diagrams.isLoading ? (
+          <p className="px-4 py-6 text-sm text-slate-500">Caricamento…</p>
+        ) : diagrams.data?.items.length === 0 ? (
+          <p className="px-4 py-6 text-sm text-slate-500">Nessun diagramma.</p>
+        ) : (
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <tr>
+                <th className="px-4 py-2">Nome</th>
+                <th className="px-4 py-2">Scope</th>
+                <th className="px-4 py-2">Predefinito</th>
+                <th className="px-4 py-2" />
+              </tr>
+            </thead>
+            <tbody>
+              {diagrams.data?.items.map((diagram) => (
+                <tr key={diagram.id} className="border-t border-slate-100">
+                  <td className="px-4 py-2">{diagram.name}</td>
+                  <td className="px-4 py-2 text-slate-600">
+                    {scopeLabel(diagram)}
+                  </td>
+                  <td className="px-4 py-2">{diagram.isDefault ? "sì" : ""}</td>
+                  <td className="space-x-3 px-4 py-2 text-right whitespace-nowrap">
+                    <Link
+                      to={`/diagrams/${diagram.id}`}
+                      className="text-sm font-medium underline"
+                    >
+                      Apri
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => startEdit(diagram)}
+                      className="text-sm underline"
+                    >
+                      Modifica
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void remove(diagram)}
+                      className="text-sm text-red-700 underline"
+                    >
+                      Elimina
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {editing !== null && (
+        <div className="fixed inset-0 z-10 flex items-center justify-center bg-slate-900/40 p-4">
+          <form
+            role="dialog"
+            aria-modal="true"
+            aria-label={
+              editing === "new" ? "Nuovo diagramma" : "Modifica diagramma"
+            }
+            onSubmit={(event) => void submit(event)}
+            className="w-full max-w-lg rounded-lg bg-white p-5 shadow-xl"
+          >
+            <h2 className="text-lg font-semibold">
+              {editing === "new" ? "Nuovo diagramma" : "Modifica diagramma"}
+            </h2>
+            <div className="mt-4 space-y-3">
+              <div>
+                <label
+                  htmlFor="diagram-name"
+                  className="block text-sm font-medium"
+                >
+                  Nome
+                </label>
+                <input
+                  id="diagram-name"
+                  value={form.name}
+                  onChange={(event) =>
+                    setForm({ ...form, name: event.target.value })
+                  }
+                  required
+                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="diagram-description"
+                  className="block text-sm font-medium"
+                >
+                  Descrizione
+                </label>
+                <textarea
+                  id="diagram-description"
+                  value={form.description}
+                  onChange={(event) =>
+                    setForm({ ...form, description: event.target.value })
+                  }
+                  rows={2}
+                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                />
+              </div>
+              {isSystemAdmin && (
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={form.isDefault}
+                    onChange={(event) =>
+                      setForm({ ...form, isDefault: event.target.checked })
+                    }
+                  />
+                  Usa come vista globale predefinita
+                </label>
+              )}
+              <div>
+                <label
+                  htmlFor="diagram-provider"
+                  className="block text-sm font-medium"
+                >
+                  Provider (opzionale)
+                </label>
+                <select
+                  id="diagram-provider"
+                  value={form.providerId}
+                  disabled={!isSystemAdmin}
+                  onChange={(event) =>
+                    setForm({ ...form, providerId: event.target.value })
+                  }
+                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                >
+                  <option value="">—</option>
+                  {providers.data?.items.map((provider) => (
+                    <option key={provider.id} value={provider.id}>
+                      {provider.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label
+                  htmlFor="diagram-environment"
+                  className="block text-sm font-medium"
+                >
+                  Ambiente (opzionale)
+                </label>
+                <select
+                  id="diagram-environment"
+                  value={form.environmentId}
+                  onChange={(event) =>
+                    setForm({ ...form, environmentId: event.target.value })
+                  }
+                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                >
+                  <option value="">—</option>
+                  {environments.data?.items.map((environment) => (
+                    <option key={environment.id} value={environment.id}>
+                      {environment.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label
+                  htmlFor="diagram-project"
+                  className="block text-sm font-medium"
+                >
+                  Progetto (opzionale)
+                </label>
+                <select
+                  id="diagram-project"
+                  value={form.projectId}
+                  disabled={!isSystemAdmin}
+                  onChange={(event) =>
+                    setForm({ ...form, projectId: event.target.value })
+                  }
+                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                >
+                  <option value="">—</option>
+                  {projects.data?.items.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {error && (
+              <p role="alert" className="mt-3 text-sm text-red-700">
+                {error}
+              </p>
+            )}
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setEditing(null)}
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+              >
+                Annulla
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+              >
+                Salva
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+    </section>
+  );
+}

@@ -14,4 +14,4 @@ Leggi `../AGENTS.md` e `../PLAN.md`.
 
 ## Stato
 
-Fase 3: shell autenticata, menu e pagine CRUD di inventario e catalogo. La Fase 4 aggiunge topologia e diagrammi. Comandi reali nel README.
+Fase 4: shell autenticata, menu, pagine CRUD di inventario e catalogo, canvas React Flow per i diagrammi. La Fase 5 aggiunge la gestione remota. Comandi reali nel README.

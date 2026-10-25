@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { NavLink, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import {
   ApplicationDetailPage,
@@ -26,6 +26,17 @@ import type { Menu } from "../lib/api";
 import { getMenus } from "../lib/api";
 import { AuthProvider, useAuth } from "./AuthProvider";
 
+const DiagramPage = lazy(() =>
+  import("../features/diagrams/DiagramPage").then((module) => ({
+    default: module.DiagramPage,
+  })),
+);
+const DiagramsPage = lazy(() =>
+  import("../features/diagrams/DiagramsPage").then((module) => ({
+    default: module.DiagramsPage,
+  })),
+);
+
 export function App() {
   return (
     <Routes>
@@ -50,22 +61,26 @@ function AuthenticatedApp() {
   if (!session) return <Centered>Reindirizzamento al login…</Centered>;
 
   return (
-    <Routes>
-      <Route element={<Shell />}>
-        <Route index element={<HomePage />} />
-        <Route path="providers" element={<ProvidersPage />} />
-        <Route path="providers/:id" element={<ProviderDetailPage />} />
-        <Route path="environments" element={<EnvironmentsPage />} />
-        <Route path="environments/:id" element={<EnvironmentDetailPage />} />
-        <Route path="servers" element={<ServersPage />} />
-        <Route path="servers/:id" element={<ServerDetailPage />} />
-        <Route path="applications" element={<ApplicationsPage />} />
-        <Route path="applications/:id" element={<ApplicationDetailPage />} />
-        <Route path="projects" element={<ProjectsPage />} />
-        <Route path="projects/:id" element={<ProjectDetailPage />} />
-        <Route path="*" element={<PlaceholderPage />} />
-      </Route>
-    </Routes>
+    <Suspense fallback={<Centered>Caricamento pagina…</Centered>}>
+      <Routes>
+        <Route element={<Shell />}>
+          <Route index element={<HomePage />} />
+          <Route path="providers" element={<ProvidersPage />} />
+          <Route path="providers/:id" element={<ProviderDetailPage />} />
+          <Route path="environments" element={<EnvironmentsPage />} />
+          <Route path="environments/:id" element={<EnvironmentDetailPage />} />
+          <Route path="servers" element={<ServersPage />} />
+          <Route path="servers/:id" element={<ServerDetailPage />} />
+          <Route path="applications" element={<ApplicationsPage />} />
+          <Route path="applications/:id" element={<ApplicationDetailPage />} />
+          <Route path="projects" element={<ProjectsPage />} />
+          <Route path="projects/:id" element={<ProjectDetailPage />} />
+          <Route path="diagrams" element={<DiagramsPage />} />
+          <Route path="diagrams/:id" element={<DiagramPage />} />
+          <Route path="*" element={<PlaceholderPage />} />
+        </Route>
+      </Routes>
+    </Suspense>
   );
 }
 
@@ -173,9 +188,8 @@ function HomePage() {
         Benvenuto, {session?.user.name} {session?.user.surname}.
       </p>
       <div className="mt-6 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
-        Inventario disponibile: provider, ambienti, server, applicazioni e
-        progetti. Topologia, diagrammi e gestione remota arrivano nelle fasi
-        successive.
+        Inventario, topologia e diagrammi disponibili. La gestione remota arriva
+        nella prossima fase.
       </div>
     </section>
   );

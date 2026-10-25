@@ -1,16 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { expect, type Page, test } from "@playwright/test";
-
-async function login(page: Page) {
-  await page.goto("/");
-  await page.waitForURL(/localhost:8080\/realms\/infraorgit/);
-  await page.fill("#username", "admin");
-  await page.fill("#password", "dev-admin");
-  await page.click("#kc-login");
-  await expect(
-    page.getByRole("heading", { name: "InfraOrgIT" }),
-  ).toBeVisible();
-}
+import { expect, test } from "@playwright/test";
+import { login } from "./helpers";
 
 test("inventario: provider, ambiente, applicazione e progetto", async ({
   page,
