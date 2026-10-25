@@ -1,0 +1,12 @@
+name: frontend-ci
+
+on:
+  workflow_dispatch:
+
+# TODO Fase 2: aggiungere push/pull_request quando esiste il progetto Vite.
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: 'echo "Frontend non ancora scaffoldato: i gate arrivano in Fase 2."'
