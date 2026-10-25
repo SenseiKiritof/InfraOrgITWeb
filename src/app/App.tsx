@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import { useState } from "react";
 import { NavLink, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import type { Menu } from "../lib/api";
 import { getMenus } from "../lib/api";
@@ -41,6 +42,18 @@ function AuthenticatedApp() {
 function Shell() {
   const { session, logout } = useAuth();
   const menus = useQuery({ queryKey: ["menus"], queryFn: getMenus });
+  const [logoutError, setLogoutError] = useState<string | null>(null);
+
+  const handleLogout = async () => {
+    setLogoutError(null);
+    if (await logout()) {
+      window.location.assign("/auth/login");
+      return;
+    }
+    setLogoutError(
+      "Logout non riuscito. La sessione è ancora attiva: riprova.",
+    );
+  };
 
   return (
     <div className="flex h-full bg-slate-50 text-slate-900">
@@ -70,12 +83,20 @@ function Shell() {
           </div>
           <button
             type="button"
-            onClick={() => void logout()}
+            onClick={() => void handleLogout()}
             className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
           >
             Logout
           </button>
         </header>
+        {logoutError && (
+          <p
+            role="alert"
+            className="border-b border-red-200 bg-red-50 px-6 py-2 text-sm text-red-700"
+          >
+            {logoutError}
+          </p>
+        )}
         <main className="min-h-0 flex-1 overflow-auto p-6">
           <Outlet />
         </main>

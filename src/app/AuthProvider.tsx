@@ -14,7 +14,7 @@ interface AuthContextValue {
   session: Session | null;
   loading: boolean;
   error: string | null;
-  logout: () => Promise<void>;
+  logout: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -54,15 +54,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadSession, session]);
 
   const logout = useCallback(async () => {
-    if (session) {
-      try {
-        await postLogout(session.csrfToken);
-      } catch {
-        // il cookie viene comunque rimosso dal backend; si prosegue
-      }
+    if (!session) return true;
+
+    try {
+      await postLogout(session.csrfToken);
+      setSession(null);
+      return true;
+    } catch {
+      return false;
     }
-    setSession(null);
-    window.location.assign("/auth/login");
   }, [session]);
 
   const value = useMemo(
