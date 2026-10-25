@@ -12,6 +12,7 @@ import type {
   ApplicationApiQueryParam,
   ApplicationVersion,
   ApplicationVersionApi,
+  Paged,
   Project,
 } from "../../lib/inventory";
 import { deleteEntity, listOf, paged, saveEntity } from "../../lib/inventory";
@@ -129,7 +130,9 @@ export function ApplicationDetailPage() {
   const versions = useQuery({
     queryKey: ["application-versions", "application", applicationId],
     queryFn: () =>
-      listOf<ApplicationVersion>(`/api/applications/${applicationId}/versions`),
+      apiFetch<Paged<ApplicationVersion>>(
+        `/api/applications/${applicationId}/versions?pageSize=200`,
+      ),
     enabled: Number.isInteger(applicationId),
   });
 
@@ -202,7 +205,7 @@ export function ApplicationDetailPage() {
       </div>
       <EntitySection
         title="Versioni"
-        rows={versions.data}
+        rows={versions.data?.items}
         columns={[
           { key: "id", label: "ID", render: (row) => row.id },
           {
@@ -222,7 +225,7 @@ export function ApplicationDetailPage() {
         onDelete={removeVersion}
         createLabel="Nuova versione"
       />
-      {versions.data?.map((version) => (
+      {versions.data?.items.map((version) => (
         <NestedSection
           key={version.id}
           title={`API della versione ${version.versionNumber}`}
@@ -274,8 +277,8 @@ function ApiSection({
   const apis = useQuery({
     queryKey: ["application-version-apis", version.id],
     queryFn: () =>
-      listOf<ApplicationVersionApi>(
-        `/api/application-versions/${version.id}/apis`,
+      apiFetch<Paged<ApplicationVersionApi>>(
+        `/api/application-versions/${version.id}/apis?pageSize=200`,
       ),
   });
 
@@ -314,7 +317,7 @@ function ApiSection({
   return (
     <>
       <EntitySection
-        rows={apis.data}
+        rows={apis.data?.items}
         columns={[
           { key: "method", label: "Metodo", render: (row) => row.requestType },
           { key: "url", label: "URL", render: (row) => row.url },
@@ -358,7 +361,7 @@ function ApiSection({
         onDelete={remove}
         createLabel="Nuova API"
       />
-      {apis.data?.map((api) => (
+      {apis.data?.items.map((api) => (
         <NestedSection
           key={api.id}
           title={`Query param di ${api.requestType} ${api.url}`}
@@ -387,8 +390,8 @@ function QueryParamSection({
   const params = useQuery({
     queryKey: ["application-api-query-params", api.id],
     queryFn: () =>
-      listOf<ApplicationApiQueryParam>(
-        `/api/application-version-apis/${api.id}/query-params`,
+      apiFetch<Paged<ApplicationApiQueryParam>>(
+        `/api/application-version-apis/${api.id}/query-params?pageSize=200`,
       ),
   });
 
@@ -431,7 +434,7 @@ function QueryParamSection({
 
   return (
     <EntitySection
-      rows={params.data}
+      rows={params.data?.items}
       columns={[
         { key: "name", label: "Nome", render: (row) => row.name },
         { key: "type", label: "Tipo", render: (row) => row.paramType },
