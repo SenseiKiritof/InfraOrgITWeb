@@ -10,7 +10,8 @@ Leggi `../AGENTS.md` e `../PLAN.md`.
 - React Flow confinato in `features/diagrams`; `buildGraph`, layout e routing sono funzioni pure testabili.
 - `api/schema.d.ts` generato dall'OpenAPI; la CI fallisce se è driftato.
 - Nessuna libreria di stato globale finché non serve davvero.
+- RBAC D7 = B: menu e azioni filtrati; non fidarsi della UI, l'API è la fonte di verità.
 
 ## Stato
 
-Fase 0: nessun progetto. Non inventare comandi o file.
+Fase 2: shell autenticata e menu. Le pagine di dominio arrivano dalla Fase 3. Comandi reali nel README.

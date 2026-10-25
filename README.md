@@ -4,35 +4,54 @@ Frontend di InfraOrgIT: SPA Vite + React 19 + TypeScript.
 
 ## Stato
 
-Fase 0 — solo documentazione e CI skeleton. Nessun progetto, build o test disponibile.
+Fase 2 — shell autenticata — 2026-10-25. Implementati login BFF, sessione, menu filtrato dal ruolo, shell e pagine placeholder. Le pagine di inventario arrivano in Fase 3.
 
 ## Stack
 
-- Vite + React 19 + TypeScript
-- React Router 7, TanStack Query/Table, React Hook Form + Zod
-- React Flow 12 (`@xyflow/react`) in `features/diagrams`
-- Tailwind 4 + Radix + Heroicons
+- Vite 8 + React 19 + TypeScript
+- React Router 7, TanStack Query
+- Tailwind 4
 - Biome 2 + `tsc --noEmit`
-- Vitest + Testing Library + MSW, Playwright
+- Vitest + Testing Library, Playwright
 
-## Struttura prevista
+## Struttura
 
 ```
 src/
-  app/{router.tsx, providers.tsx, layout/}
-  features/{providers, environments, servers, applications, projects, diagrams, remote, admin}/
-  api/{client.ts, schema.d.ts}
-  components/
-  lib/
+  app/{App.tsx, AuthProvider.tsx}
+  lib/{api.ts, menu.ts}
+  test/setup.ts
+e2e/login.spec.ts
 ```
-
-`api/schema.d.ts` è generato dall'OpenAPI del backend: non modificarlo a mano.
 
 ## Comandi
 
-Non ancora disponibili. Arrivano con lo scaffolding della Fase 2 e verranno documentati qui.
+```bash
+yarn dev              # Vite :3000, proxy /api e /auth → API :5298
+yarn build            # tsc --noEmit + vite build
+yarn biome ci .
+yarn tsc --noEmit
+yarn vitest run
+yarn playwright test  # richiede lo stack avviato con make dev
+```
+
+Con il meta repo:
+
+```bash
+cd ../AllInfraOrgIT
+make dev
+make e2e
+```
+
+## Auth
+
+- La SPA chiama `/api/session`; se 401 va a `/auth/login`.
+- Il backend gestisce callback e cookie HttpOnly; nessun token in JavaScript.
+- Logout: `POST /auth/logout` con `X-CSRF-Token` dalla sessione.
+- Menu: `/api/menus` filtrato per ruolo; voci admin solo `SystemAdmin`.
 
 ## Riferimenti
 
-- `../PLAN.md` §5.4, §5.8
-- `../AllInfraOrgIT/docs/adr/002-frontend-vite.md`
+- `../PLAN.md` §5.4, §5.5
+- `../AllInfraOrgIT/docs/ux/pages.md`
+- ADR 002, 003, 005, 007

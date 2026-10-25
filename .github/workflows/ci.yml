@@ -1,12 +1,25 @@
 name: frontend-ci
 
 on:
-  workflow_dispatch:
+  push:
+  pull_request:
 
-# TODO Fase 2: aggiungere push/pull_request quando esiste il progetto Vite.
 jobs:
-  placeholder:
+  lint-test-build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: 'echo "Frontend non ancora scaffoldato: i gate arrivano in Fase 2."'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "yarn"
+      - name: Install
+        run: yarn install --frozen-lockfile
+      - name: Lint
+        run: yarn biome ci .
+      - name: Typecheck
+        run: yarn tsc --noEmit
+      - name: Unit test
+        run: yarn vitest run
+      - name: Build
+        run: yarn build
