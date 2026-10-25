@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useAuth } from "../../app/AuthProvider";
@@ -149,7 +150,9 @@ export function ApplicationDetailPage() {
     values: FormValues,
   ) => {
     await saveEntity(
-      `/api/applications/${applicationId}/versions`,
+      row
+        ? "/api/application-versions"
+        : `/api/applications/${applicationId}/versions`,
       row?.id ?? null,
       { applicationId, versionNumber: values.versionNumber },
       csrf,
@@ -220,12 +223,12 @@ export function ApplicationDetailPage() {
         createLabel="Nuova versione"
       />
       {versions.data?.map((version) => (
-        <ApiSection
+        <NestedSection
           key={version.id}
-          version={version}
-          canWrite={isAdmin}
-          csrfToken={csrf}
-        />
+          title={`API della versione ${version.versionNumber}`}
+        >
+          <ApiSection version={version} canWrite={isAdmin} csrfToken={csrf} />
+        </NestedSection>
       ))}
       <EntitySection
         title="Progetti collegati"
@@ -281,7 +284,9 @@ function ApiSection({
     values: FormValues,
   ) => {
     await saveEntity(
-      `/api/application-versions/${version.id}/apis`,
+      row
+        ? "/api/application-version-apis"
+        : `/api/application-versions/${version.id}/apis`,
       row?.id ?? null,
       {
         applicationVersionId: version.id,
@@ -309,7 +314,6 @@ function ApiSection({
   return (
     <>
       <EntitySection
-        title={`API della versione ${version.versionNumber}`}
         rows={apis.data}
         columns={[
           { key: "method", label: "Metodo", render: (row) => row.requestType },
@@ -355,12 +359,16 @@ function ApiSection({
         createLabel="Nuova API"
       />
       {apis.data?.map((api) => (
-        <QueryParamSection
+        <NestedSection
           key={api.id}
-          api={api}
-          canWrite={canWrite}
-          csrfToken={csrfToken}
-        />
+          title={`Query param di ${api.requestType} ${api.url}`}
+        >
+          <QueryParamSection
+            api={api}
+            canWrite={canWrite}
+            csrfToken={csrfToken}
+          />
+        </NestedSection>
       ))}
     </>
   );
@@ -389,7 +397,9 @@ function QueryParamSection({
     values: FormValues,
   ) => {
     await saveEntity(
-      `/api/application-version-apis/${api.id}/query-params`,
+      row
+        ? "/api/application-api-query-params"
+        : `/api/application-version-apis/${api.id}/query-params`,
       row?.id ?? null,
       {
         applicationApiId: api.id,
@@ -421,7 +431,6 @@ function QueryParamSection({
 
   return (
     <EntitySection
-      title={`Query param di ${api.requestType} ${api.url}`}
       rows={params.data}
       columns={[
         { key: "name", label: "Nome", render: (row) => row.name },
@@ -444,5 +453,33 @@ function QueryParamSection({
       onDelete={remove}
       createLabel="Nuovo query param"
     />
+  );
+}
+
+function NestedSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="rounded-lg border border-slate-200 bg-white">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-slate-700"
+      >
+        {title}
+        <span aria-hidden="true">{open ? "−" : "+"}</span>
+      </button>
+      {open && (
+        <div className="space-y-2 border-t border-slate-200 p-2">
+          {children}
+        </div>
+      )}
+    </section>
   );
 }

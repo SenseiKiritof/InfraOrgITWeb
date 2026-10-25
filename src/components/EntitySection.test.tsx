@@ -33,6 +33,28 @@ describe("EntitySection", () => {
     expect(onSave).toHaveBeenCalledWith(null, { name: "Secondo" });
   });
 
+  it("nasconde la creazione quando canCreate è false", () => {
+    render(
+      <EntitySection
+        rows={rows}
+        columns={[{ key: "name", label: "Nome", render: (row) => row.name }]}
+        fields={[]}
+        empty={{}}
+        toForm={() => ({})}
+        canWrite
+        canCreate={false}
+        onSave={async () => {}}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Nuovo" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Modifica" }),
+    ).toBeInTheDocument();
+  });
+
   it("nasconde le azioni di scrittura senza permesso", () => {
     render(
       <EntitySection

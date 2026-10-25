@@ -169,6 +169,7 @@ export function EnvironmentDetailPage() {
         empty={{ name: "", description: "" }}
         toForm={(row) => ({ name: row.name, description: row.description })}
         canWrite={isAdmin}
+        canCreate={false}
         onSave={saveEnvironment}
       />
       <EntitySection

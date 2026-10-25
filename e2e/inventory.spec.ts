@@ -16,7 +16,7 @@ test("inventario: provider, ambiente, applicazione e progetto", async ({
   page,
 }) => {
   const suffix = randomUUID().slice(0, 8);
-  const provider = `Provider E2E ${suffix}`;
+  let provider = `Provider E2E ${suffix}`;
   const environment = `Ambiente E2E ${suffix}`;
   const application = `Applicazione E2E ${suffix}`;
   const project = `Progetto E2E ${suffix}`;
@@ -25,6 +25,15 @@ test("inventario: provider, ambiente, applicazione e progetto", async ({
 
   await page.goto("/providers");
   await page.getByRole("button", { name: "Nuovo provider" }).click();
+  await page.getByLabel("Nome").fill(provider);
+  await page.getByRole("button", { name: "Salva" }).click();
+  await expect(page.getByRole("cell", { name: provider })).toBeVisible();
+
+  await page
+    .getByRole("row", { name: provider })
+    .getByRole("button", { name: "Modifica" })
+    .click();
+  provider = `${provider} (mod)`;
   await page.getByLabel("Nome").fill(provider);
   await page.getByRole("button", { name: "Salva" }).click();
   await expect(page.getByRole("cell", { name: provider })).toBeVisible();
@@ -60,10 +69,44 @@ test("inventario: provider, ambiente, applicazione e progetto", async ({
   await page.getByLabel("Numero versione").fill("1.0.0");
   await page.getByRole("button", { name: "Salva" }).click();
   await expect(page.getByRole("cell", { name: "1.0.0" })).toBeVisible();
+
+  await page
+    .getByRole("row", { name: "1.0.0" })
+    .getByRole("button", { name: "Modifica" })
+    .click();
+  await page.getByLabel("Numero versione").fill("1.0.1");
+  await page.getByRole("button", { name: "Salva" }).click();
+  await expect(page.getByRole("cell", { name: "1.0.1" })).toBeVisible();
+
+  await page.getByRole("button", { name: "API della versione 1.0.1" }).click();
   await page.getByRole("button", { name: "Nuova API" }).click();
   await page.getByLabel("URL").fill("/health");
   await page.getByRole("button", { name: "Salva" }).click();
   await expect(page.getByRole("cell", { name: "/health" })).toBeVisible();
+
+  await page
+    .getByRole("row", { name: "/health" })
+    .getByRole("button", { name: "Modifica" })
+    .click();
+  await page.getByLabel("URL").fill("/healthz");
+  await page.getByRole("button", { name: "Salva" }).click();
+  await expect(page.getByRole("cell", { name: "/healthz" })).toBeVisible();
+
+  await page
+    .getByRole("button", { name: "Query param di GET /healthz" })
+    .click();
+  await page.getByRole("button", { name: "Nuovo query param" }).click();
+  await page.getByLabel("Nome").fill("verbose");
+  await page.getByRole("button", { name: "Salva" }).click();
+  await expect(page.getByRole("cell", { name: "verbose" })).toBeVisible();
+
+  await page
+    .getByRole("row", { name: "verbose" })
+    .getByRole("button", { name: "Modifica" })
+    .click();
+  await page.getByLabel("Nome").fill("debug");
+  await page.getByRole("button", { name: "Salva" }).click();
+  await expect(page.getByRole("cell", { name: "debug" })).toBeVisible();
 
   await page.goto("/projects");
   await page.getByRole("button", { name: "Nuovo progetto" }).click();

@@ -131,7 +131,7 @@ export function saveEntity(
   csrfToken: string,
 ): Promise<unknown> {
   return apiFetch(
-    path,
+    id === null ? path : `${path}/${id}`,
     {
       method: id === null ? "POST" : "PUT",
       body: JSON.stringify(body),

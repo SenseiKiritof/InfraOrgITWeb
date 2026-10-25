@@ -26,6 +26,7 @@ interface EntitySectionProps<T extends { id: number }> {
   empty: FormValues;
   toForm: (row: T) => FormValues;
   canWrite: boolean;
+  canCreate?: boolean;
   canEditRow?: (row: T) => boolean;
   canDeleteRow?: (row: T) => boolean;
   onSave: (row: T | null, values: FormValues) => Promise<void>;
@@ -42,6 +43,7 @@ export function EntitySection<T extends { id: number }>({
   empty,
   toForm,
   canWrite,
+  canCreate = true,
   canEditRow,
   canDeleteRow,
   onSave,
@@ -110,7 +112,7 @@ export function EntitySection<T extends { id: number }>({
         ) : (
           <span />
         )}
-        {canWrite && (
+        {canWrite && canCreate && (
           <button
             type="button"
             onClick={startCreate}

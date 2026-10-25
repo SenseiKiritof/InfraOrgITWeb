@@ -90,10 +90,14 @@ export function ServersPage() {
             type: "select",
             required: true,
             options:
-              environments.data?.items.map((environment) => ({
-                value: String(environment.id),
-                label: environment.label,
-              })) ?? [],
+              environments.data?.items
+                .filter((environment) =>
+                  adminEnvironmentIds.includes(environment.id),
+                )
+                .map((environment) => ({
+                  value: String(environment.id),
+                  label: environment.label,
+                })) ?? [],
           },
           { name: "name", label: "Nome", required: true },
           { name: "ipAddress", label: "Indirizzo IP", required: true },

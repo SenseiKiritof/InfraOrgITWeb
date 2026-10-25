@@ -167,6 +167,7 @@ export function ProjectDetailPage() {
           description: row.description ?? "",
         })}
         canWrite={isAdmin}
+        canCreate={false}
         onSave={saveProject}
       />
       <EntitySection

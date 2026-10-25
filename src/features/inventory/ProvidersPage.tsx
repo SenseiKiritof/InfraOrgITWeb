@@ -116,6 +116,7 @@ export function ProviderDetailPage() {
         empty={{ name: "" }}
         toForm={(row) => ({ name: row.name })}
         canWrite={isAdmin}
+        canCreate={false}
         onSave={save}
       />
       <EntitySection
