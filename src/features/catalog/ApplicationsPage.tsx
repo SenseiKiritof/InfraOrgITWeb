@@ -16,6 +16,15 @@ import type {
   Project,
 } from "../../lib/inventory";
 import { deleteEntity, listOf, paged, saveEntity } from "../../lib/inventory";
+import type {
+  ApplicationActionConfig,
+  CommandTemplate,
+} from "../../lib/remote";
+import {
+  getApplicationActions,
+  getCommandTemplates,
+  saveApplicationAction,
+} from "../../lib/remote";
 import { useIsSystemAdmin } from "../../lib/useServerAccess";
 
 const requestTypes = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
@@ -148,6 +157,57 @@ export function ApplicationDetailPage() {
     queryFn: () => paged<Project>("/api/projects?pageSize=200"),
   });
 
+  const commandTemplates = useQuery({
+    queryKey: ["command-templates", "options"],
+    queryFn: getCommandTemplates,
+    enabled: isAdmin,
+    retry: false,
+  });
+
+  const actions = useQuery({
+    queryKey: ["application-actions", applicationId],
+    queryFn: () => getApplicationActions(applicationId),
+    enabled: isAdmin && Number.isInteger(applicationId),
+    retry: false,
+  });
+
+  const saveAction = async (
+    row: ApplicationActionConfig | null,
+    values: FormValues,
+  ) => {
+    let parameterValues: Record<string, string>;
+    try {
+      parameterValues = values.parameterValues
+        ? (JSON.parse(values.parameterValues) as Record<string, string>)
+        : {};
+    } catch {
+      throw new Error("ParameterValues deve essere un oggetto JSON valido.");
+    }
+
+    const commandTemplateId = values.commandTemplateId
+      ? Number(values.commandTemplateId)
+      : null;
+    await saveApplicationAction(
+      applicationId,
+      row?.id ?? null,
+      {
+        label: values.label,
+        order: Number(values.order || 0),
+        commandTemplateId,
+        customScript: commandTemplateId ? null : values.customScript,
+        parameterValues,
+        requiresConfirmation: values.requiresConfirmation === "true",
+      },
+      csrf,
+    );
+    await queryClient.invalidateQueries({ queryKey: ["application-actions"] });
+  };
+
+  const removeAction = async (row: ApplicationActionConfig) => {
+    await deleteEntity(`/api/application-actions/${row.id}`, csrf);
+    await queryClient.invalidateQueries({ queryKey: ["application-actions"] });
+  };
+
   const saveVersion = async (
     row: ApplicationVersion | null,
     values: FormValues,
@@ -233,6 +293,75 @@ export function ApplicationDetailPage() {
           <ApiSection version={version} canWrite={isAdmin} csrfToken={csrf} />
         </NestedSection>
       ))}
+      {isAdmin && (
+        <EntitySection
+          title="Azioni applicazione"
+          rows={actions.data}
+          columns={[
+            { key: "label", label: "Etichetta", render: (row) => row.label },
+            { key: "order", label: "Ordine", render: (row) => row.order },
+            {
+              key: "template",
+              label: "Comando",
+              render: (row) => row.commandTemplateName ?? "script custom",
+            },
+            {
+              key: "confirm",
+              label: "Conferma",
+              render: (row) => (row.requiresConfirmation ? "sì" : ""),
+            },
+          ]}
+          fields={[
+            { name: "label", label: "Etichetta", required: true },
+            { name: "order", label: "Ordine", type: "number" },
+            {
+              name: "commandTemplateId",
+              label: "Comando base",
+              type: "select",
+              options:
+                commandTemplates.data?.items.map(
+                  (template: CommandTemplate) => ({
+                    value: String(template.id),
+                    label: template.name,
+                  }),
+                ) ?? [],
+            },
+            { name: "customScript", label: "Script custom", type: "textarea" },
+            {
+              name: "parameterValues",
+              label: "Valori parametri (JSON)",
+              type: "textarea",
+            },
+            {
+              name: "requiresConfirmation",
+              label: "Richiede conferma",
+              type: "checkbox",
+            },
+          ]}
+          empty={{
+            label: "",
+            order: "0",
+            commandTemplateId: "",
+            customScript: "",
+            parameterValues: "{}",
+            requiresConfirmation: "false",
+          }}
+          toForm={(row) => ({
+            label: row.label,
+            order: String(row.order),
+            commandTemplateId: row.commandTemplateId
+              ? String(row.commandTemplateId)
+              : "",
+            customScript: row.customScript ?? "",
+            parameterValues: JSON.stringify(row.parameterValues),
+            requiresConfirmation: String(row.requiresConfirmation),
+          })}
+          canWrite={isAdmin}
+          onSave={saveAction}
+          onDelete={removeAction}
+          createLabel="Nuova azione"
+        />
+      )}
       <EntitySection
         title="Progetti collegati"
         rows={projects.data}

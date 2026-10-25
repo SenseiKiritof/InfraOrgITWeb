@@ -22,6 +22,10 @@ import {
   ServerDetailPage,
   ServersPage,
 } from "../features/inventory/ServersPage";
+import { CommandsPage } from "../features/remote/CommandsPage";
+import { CredentialsPage } from "../features/remote/CredentialsPage";
+import { ExecutionsPage } from "../features/remote/ExecutionsPage";
+import { ReachabilityPage } from "../features/remote/ReachabilityPage";
 import type { Menu } from "../lib/api";
 import { getMenus } from "../lib/api";
 import { AuthProvider, useAuth } from "./AuthProvider";
@@ -71,6 +75,10 @@ function AuthenticatedApp() {
           <Route path="environments/:id" element={<EnvironmentDetailPage />} />
           <Route path="servers" element={<ServersPage />} />
           <Route path="servers/:id" element={<ServerDetailPage />} />
+          <Route path="credentials" element={<CredentialsPage />} />
+          <Route path="commands" element={<CommandsPage />} />
+          <Route path="reachability" element={<ReachabilityPage />} />
+          <Route path="executions" element={<ExecutionsPage />} />
           <Route path="applications" element={<ApplicationsPage />} />
           <Route path="applications/:id" element={<ApplicationDetailPage />} />
           <Route path="projects" element={<ProjectsPage />} />

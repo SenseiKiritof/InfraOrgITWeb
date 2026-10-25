@@ -14,4 +14,4 @@ Leggi `../AGENTS.md` e `../PLAN.md`.
 
 ## Stato
 
-Fase 4: shell autenticata, menu, pagine CRUD di inventario e catalogo, canvas React Flow per i diagrammi. La Fase 5 aggiunge la gestione remota. Comandi reali nel README.
+Fase 5: shell autenticata, menu, inventario, diagrammi e gestione remota (credenziali, comandi, reachability, esecuzioni, console). La Fase 6 aggiunge admin/RBAC completo. Comandi reali nel README.

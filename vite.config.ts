@@ -8,7 +8,10 @@ export default defineConfig({
     port: 3000,
     strictPort: true,
     proxy: {
-      "/api": "http://localhost:5298",
+      "/api": {
+        target: "http://localhost:5298",
+        ws: true,
+      },
       "/auth": "http://localhost:5298",
     },
   },

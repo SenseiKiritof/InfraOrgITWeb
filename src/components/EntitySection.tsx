@@ -7,7 +7,7 @@ export type FormValues = Record<string, string>;
 export interface Field {
   name: string;
   label: string;
-  type?: "text" | "number" | "textarea" | "select";
+  type?: "text" | "number" | "textarea" | "select" | "checkbox";
   options?: { value: string; label: string }[];
   required?: boolean;
 }
@@ -222,7 +222,20 @@ export function EntitySection<T extends { id: number }>({
                   >
                     {field.label}
                   </label>
-                  {field.type === "select" ? (
+                  {field.type === "checkbox" ? (
+                    <input
+                      id={`field-${field.name}`}
+                      type="checkbox"
+                      checked={values[field.name] === "true"}
+                      onChange={(event) =>
+                        setValues({
+                          ...values,
+                          [field.name]: event.target.checked ? "true" : "false",
+                        })
+                      }
+                      className="ml-2 align-middle"
+                    />
+                  ) : field.type === "select" ? (
                     <select
                       id={`field-${field.name}`}
                       value={values[field.name] ?? ""}
