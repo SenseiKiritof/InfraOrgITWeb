@@ -4,7 +4,7 @@ Frontend di InfraOrgIT: SPA Vite + React 19 + TypeScript.
 
 ## Stato
 
-Fase 2 — shell autenticata — 2026-10-25. Implementati login BFF, sessione, menu filtrato dal ruolo, shell e pagine placeholder. Le pagine di inventario arrivano in Fase 3.
+Fase 3 — inventario — 2026-10-25. Implementati login BFF, sessione, menu filtrato dal ruolo e le pagine di inventario: provider, ambienti, server, applicazioni con versioni/API/query param, progetti. Le azioni sono nascoste senza permesso; l'API resta la fonte di verità.
 
 ## Stack
 
@@ -19,9 +19,11 @@ Fase 2 — shell autenticata — 2026-10-25. Implementati login BFF, sessione, m
 ```
 src/
   app/{App.tsx, AuthProvider.tsx}
-  lib/{api.ts, menu.ts}
+  components/{EntitySection.tsx, page.tsx}
+  features/{inventory, catalog}/*.tsx
+  lib/{api.ts, inventory.ts, useServerAccess.ts}
   test/setup.ts
-e2e/login.spec.ts
+e2e/{login,inventory}.spec.ts
 ```
 
 ## Comandi

@@ -14,4 +14,4 @@ Leggi `../AGENTS.md` e `../PLAN.md`.
 
 ## Stato
 
-Fase 2: shell autenticata e menu. Le pagine di dominio arrivano dalla Fase 3. Comandi reali nel README.
+Fase 3: shell autenticata, menu e pagine CRUD di inventario e catalogo. La Fase 4 aggiunge topologia e diagrammi. Comandi reali nel README.

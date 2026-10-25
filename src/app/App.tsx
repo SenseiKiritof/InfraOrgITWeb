@@ -2,6 +2,26 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { NavLink, Outlet, Route, Routes, useLocation } from "react-router-dom";
+import {
+  ApplicationDetailPage,
+  ApplicationsPage,
+} from "../features/catalog/ApplicationsPage";
+import {
+  ProjectDetailPage,
+  ProjectsPage,
+} from "../features/catalog/ProjectsPage";
+import {
+  EnvironmentDetailPage,
+  EnvironmentsPage,
+} from "../features/inventory/EnvironmentsPage";
+import {
+  ProviderDetailPage,
+  ProvidersPage,
+} from "../features/inventory/ProvidersPage";
+import {
+  ServerDetailPage,
+  ServersPage,
+} from "../features/inventory/ServersPage";
 import type { Menu } from "../lib/api";
 import { getMenus } from "../lib/api";
 import { AuthProvider, useAuth } from "./AuthProvider";
@@ -33,6 +53,16 @@ function AuthenticatedApp() {
     <Routes>
       <Route element={<Shell />}>
         <Route index element={<HomePage />} />
+        <Route path="providers" element={<ProvidersPage />} />
+        <Route path="providers/:id" element={<ProviderDetailPage />} />
+        <Route path="environments" element={<EnvironmentsPage />} />
+        <Route path="environments/:id" element={<EnvironmentDetailPage />} />
+        <Route path="servers" element={<ServersPage />} />
+        <Route path="servers/:id" element={<ServerDetailPage />} />
+        <Route path="applications" element={<ApplicationsPage />} />
+        <Route path="applications/:id" element={<ApplicationDetailPage />} />
+        <Route path="projects" element={<ProjectsPage />} />
+        <Route path="projects/:id" element={<ProjectDetailPage />} />
         <Route path="*" element={<PlaceholderPage />} />
       </Route>
     </Routes>
@@ -143,8 +173,9 @@ function HomePage() {
         Benvenuto, {session?.user.name} {session?.user.surname}.
       </p>
       <div className="mt-6 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
-        Shell autenticata con sessione BFF. Le funzioni di inventario, topologia
-        e gestione remota arrivano nelle fasi successive.
+        Inventario disponibile: provider, ambienti, server, applicazioni e
+        progetti. Topologia, diagrammi e gestione remota arrivano nelle fasi
+        successive.
       </div>
     </section>
   );
