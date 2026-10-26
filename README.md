@@ -4,7 +4,7 @@ Frontend di InfraOrgIT: SPA Vite + React 19 + TypeScript.
 
 ## Stato
 
-Fase 5 — gestione remota — 2026-10-26. Implementati login BFF, sessione, menu filtrato, inventario, diagrammi e gestione remota: credenziali write-only, template comandi, test di rete, registro esecuzioni, blocco SSH/host key, azioni deploy, console WebSocket. React Flow e la console sono in chunk separati.
+Fase 6 — admin e RBAC — 2026-10-26. Implementati login BFF, sessione, menu filtrato, inventario, diagrammi, gestione remota e pagine admin: utenti con gruppi/ruoli, gruppi, ruoli, menu e ruoli per ambiente. React Flow e la console sono in chunk separati; 5 E2E Playwright.
 
 ## Stack
 
@@ -20,10 +20,10 @@ Fase 5 — gestione remota — 2026-10-26. Implementati login BFF, sessione, men
 src/
   app/{App.tsx, AuthProvider.tsx}
   components/{EntitySection.tsx, page.tsx}
-  features/{inventory, catalog, diagrams, remote}/*.tsx
-  lib/{api.ts, inventory.ts, diagrams.ts, buildGraph.ts, remote.ts, useServerAccess.ts}
+  features/{inventory, catalog, diagrams, remote, admin}/*.tsx
+  lib/{api.ts, inventory.ts, diagrams.ts, buildGraph.ts, remote.ts, admin.ts, useServerAccess.ts}
   test/setup.ts
-e2e/{login,inventory,diagrams,remote}.spec.ts
+e2e/{login,inventory,diagrams,remote,admin}.spec.ts
 ```
 
 ## Comandi

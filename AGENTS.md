@@ -14,4 +14,4 @@ Leggi `../AGENTS.md` e `../PLAN.md`.
 
 ## Stato
 
-Fase 5: shell autenticata, menu, inventario, diagrammi e gestione remota (credenziali, comandi, reachability, esecuzioni, console). La Fase 6 aggiunge admin/RBAC completo. Comandi reali nel README.
+Fase 6: shell, menu, inventario, diagrammi, gestione remota e admin/RBAC (utenti, gruppi, ruoli, menu). La Fase 7 è la migrazione legacy. Comandi reali nel README.

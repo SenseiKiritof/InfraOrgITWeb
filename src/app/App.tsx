@@ -2,6 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { lazy, Suspense, useState } from "react";
 import { NavLink, Outlet, Route, Routes, useLocation } from "react-router-dom";
+import { GroupsPage } from "../features/admin/GroupsPage";
+import { MenusPage } from "../features/admin/MenusPage";
+import { RolesPage } from "../features/admin/RolesPage";
+import { UsersPage } from "../features/admin/UsersPage";
 import {
   ApplicationDetailPage,
   ApplicationsPage,
@@ -75,6 +79,10 @@ function AuthenticatedApp() {
           <Route path="environments/:id" element={<EnvironmentDetailPage />} />
           <Route path="servers" element={<ServersPage />} />
           <Route path="servers/:id" element={<ServerDetailPage />} />
+          <Route path="users" element={<UsersPage />} />
+          <Route path="groups" element={<GroupsPage />} />
+          <Route path="roles" element={<RolesPage />} />
+          <Route path="menu" element={<MenusPage />} />
           <Route path="credentials" element={<CredentialsPage />} />
           <Route path="commands" element={<CommandsPage />} />
           <Route path="reachability" element={<ReachabilityPage />} />
@@ -176,9 +184,9 @@ function MenuList({ menus }: { menus: Menu[] }) {
           >
             {menu.name}
           </NavLink>
-          {menu.childrens.length > 0 && (
+          {menu.children.length > 0 && (
             <div className="ml-3 border-l border-slate-200 pl-2">
-              <MenuList menus={menu.childrens} />
+              <MenuList menus={menu.children} />
             </div>
           )}
         </li>

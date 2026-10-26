@@ -5,6 +5,12 @@ import { useAuth } from "../../app/AuthProvider";
 import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
 import { PageHeader, SearchForm } from "../../components/page";
+import type {
+  AdminGroup,
+  AdminRole,
+  EnvironmentGroupRole,
+} from "../../lib/admin";
+import { getEnvironmentGroupRoles, getGroups, getRoles } from "../../lib/admin";
 import { apiFetch } from "../../lib/api";
 import type {
   Environment,
@@ -99,6 +105,19 @@ export function EnvironmentDetailPage() {
     queryFn: () => paged<Provider>("/api/providers"),
   });
 
+  const groups = useQuery({
+    queryKey: ["groups", "options"],
+    queryFn: getGroups,
+  });
+  const roles = useQuery({ queryKey: ["roles", "options"], queryFn: getRoles });
+
+  const groupRoles = useQuery({
+    queryKey: ["provider-environment-group-roles", environmentId],
+    queryFn: () => getEnvironmentGroupRoles(environmentId),
+    enabled: Number.isInteger(environmentId),
+    retry: false,
+  });
+
   const links = useQuery({
     queryKey: ["provider-environments", "environment", environmentId],
     queryFn: () =>
@@ -144,6 +163,31 @@ export function EnvironmentDetailPage() {
     await deleteEntity(`/api/provider-environments/${row.id}`, csrf);
     await queryClient.invalidateQueries({
       queryKey: ["provider-environments"],
+    });
+  };
+
+  const saveGroupRole = async (
+    _row: EnvironmentGroupRole | null,
+    values: FormValues,
+  ) => {
+    await saveEntity(
+      `/api/provider-environments/${environmentId}/group-roles`,
+      null,
+      { groupId: Number(values.groupId), roleId: Number(values.roleId) },
+      csrf,
+    );
+    await queryClient.invalidateQueries({
+      queryKey: ["provider-environment-group-roles", environmentId],
+    });
+  };
+
+  const removeGroupRole = async (row: EnvironmentGroupRole) => {
+    await deleteEntity(
+      `/api/provider-environments/${environmentId}/group-roles/${row.id}`,
+      csrf,
+    );
+    await queryClient.invalidateQueries({
+      queryKey: ["provider-environment-group-roles", environmentId],
     });
   };
 
@@ -202,6 +246,47 @@ export function EnvironmentDetailPage() {
         onSave={saveLink}
         onDelete={removeLink}
         createLabel="Collega provider"
+      />
+      <EntitySection
+        title="Ruoli per ambiente"
+        rows={groupRoles.data?.items}
+        columns={[
+          { key: "group", label: "Gruppo", render: (row) => row.groupName },
+          { key: "role", label: "Ruolo", render: (row) => row.roleName },
+        ]}
+        fields={[
+          {
+            name: "groupId",
+            label: "Gruppo",
+            type: "select",
+            required: true,
+            options:
+              groups.data?.items.map((group: AdminGroup) => ({
+                value: String(group.id),
+                label: group.name,
+              })) ?? [],
+          },
+          {
+            name: "roleId",
+            label: "Ruolo",
+            type: "select",
+            required: true,
+            options:
+              roles.data?.items
+                .filter((role: AdminRole) => role.scopeEnum === "Environment")
+                .map((role) => ({
+                  value: String(role.id),
+                  label: role.label,
+                })) ?? [],
+          },
+        ]}
+        empty={{ groupId: "", roleId: "" }}
+        toForm={() => ({})}
+        canWrite={isAdmin}
+        canEditRow={() => false}
+        onSave={saveGroupRole}
+        onDelete={removeGroupRole}
+        createLabel="Assegna ruolo"
       />
     </section>
   );

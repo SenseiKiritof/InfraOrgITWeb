@@ -20,7 +20,7 @@ export interface Menu {
   isVisible: boolean;
   order: number | null;
   parentId: number | null;
-  childrens: Menu[];
+  children: Menu[];
 }
 
 export class ApiError extends Error {
