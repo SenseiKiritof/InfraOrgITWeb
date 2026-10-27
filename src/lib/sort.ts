@@ -28,26 +28,26 @@ export function nextSort(current: SortState, key: string): SortState {
 export function sortedRows<T>(
   rows: T[] | undefined,
   sort: SortState,
-  valueOf: (row: T, key: string) => unknown = (row, key) =>
+  value: (row: T, key: string) => unknown = (row, key) =>
     (row as Record<string, unknown>)[key],
 ): T[] | undefined {
   if (!rows || !sort) return rows;
   const factor = sort.direction === "asc" ? 1 : -1;
   return [...rows].sort(
     (left, right) =>
-      factor * compareValues(valueOf(left, sort.key), valueOf(right, sort.key)),
+      factor * compareValues(value(left, sort.key), value(right, sort.key)),
   );
 }
 
 /** Sorting state and rows for a table whose keys are not plain row fields. */
 export function useSortedRows<T>(
   rows: T[] | undefined,
-  valueOf: (row: T, key: string) => unknown,
+  value: (row: T, key: string) => unknown,
 ) {
   const [sort, setSort] = useState<SortState>(null);
   const sorted = useMemo(
-    () => sortedRows(rows, sort, valueOf),
-    [rows, sort, valueOf],
+    () => sortedRows(rows, sort, value),
+    [rows, sort, value],
   );
   return { rows: sorted, sort, setSort };
 }
