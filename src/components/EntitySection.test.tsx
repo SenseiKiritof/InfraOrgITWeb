@@ -67,6 +67,30 @@ describe("EntitySection", () => {
     expect(onSave).toHaveBeenCalledWith(null, { name: "Secondo" });
   });
 
+  it("pagina le righe", () => {
+    const many = Array.from({ length: 21 }, (_, index) => ({
+      id: index + 1,
+      name: `Voce ${index + 1}`,
+    }));
+
+    render(
+      <EntitySection
+        rows={many}
+        columns={[{ key: "name", label: "Nome", render: (row) => row.name }]}
+        fields={[]}
+        empty={{}}
+        toForm={() => ({})}
+        canWrite={false}
+        onSave={async () => {}}
+      />,
+    );
+
+    expect(screen.getAllByRole("row")).toHaveLength(21);
+    fireEvent.click(screen.getByRole("button", { name: "Successiva" }));
+    expect(screen.getAllByRole("row")).toHaveLength(2);
+    expect(screen.getByText("Voce 21")).toBeInTheDocument();
+  });
+
   it("nasconde la creazione quando canCreate è false", () => {
     render(
       <EntitySection

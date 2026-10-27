@@ -120,7 +120,9 @@ export function listUrl(path: string, q?: string): string {
 }
 
 export function paged<T>(path: string, q?: string): Promise<Paged<T>> {
-  return apiFetch<Paged<T>>(listUrl(path, q));
+  const params = new URLSearchParams({ pageSize: "200" });
+  if (q) params.set("q", q);
+  return apiFetch<Paged<T>>(`${path}?${params}`);
 }
 
 export function listOf<T>(path: string): Promise<T[]> {

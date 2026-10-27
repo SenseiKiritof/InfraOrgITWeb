@@ -2,11 +2,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { FormEvent } from "react";
 import { useState } from "react";
 import { useAuth } from "../../app/AuthProvider";
+import { Pagination } from "../../components/Pagination";
 import { PageHeader } from "../../components/page";
 import { SortableTh } from "../../components/SortableTh";
 import type { AdminMenu } from "../../lib/admin";
 import { getAdminMenus, getRoles } from "../../lib/admin";
 import { deleteEntity, saveEntity } from "../../lib/inventory";
+import { usePagination } from "../../lib/pagination";
 import { nextSort, useSortedRows } from "../../lib/sort";
 
 interface MenuForm {
@@ -126,6 +128,8 @@ export function MenusPage() {
         : [...form.roleIds, id],
     });
 
+  const paginated = usePagination(ordered.rows);
+
   return (
     <section className="space-y-4">
       <PageHeader
@@ -210,6 +214,11 @@ export function MenusPage() {
               ))}
             </tbody>
           </table>
+          <Pagination
+            page={paginated.page}
+            pageCount={paginated.pageCount}
+            onPage={paginated.setPage}
+          />
         </div>
       </div>
 

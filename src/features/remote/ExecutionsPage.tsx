@@ -1,7 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { Pagination } from "../../components/Pagination";
 import { PageHeader, SearchForm } from "../../components/page";
 import { SortableTh } from "../../components/SortableTh";
+import { usePagination } from "../../lib/pagination";
 import { getExecutions } from "../../lib/remote";
 import { nextSort, useSortedRows } from "../../lib/sort";
 
@@ -20,6 +22,8 @@ export function ExecutionsPage() {
         ? (row.exitCode ?? -1)
         : (row as unknown as Record<string, unknown>)[key],
   );
+
+  const paginated = usePagination(ordered.rows);
 
   return (
     <section className="space-y-4">
@@ -40,58 +44,65 @@ export function ExecutionsPage() {
             Nessuna esecuzione.
           </p>
         ) : (
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                {[
-                  ["Data", "startedAt"],
-                  ["Utente", "username"],
-                  ["Server", "serverName"],
-                  ["Tipo", "kind"],
-                  ["Etichetta", "label"],
-                  ["Exit", "exitCode"],
-                ].map(([label, key]) => (
-                  <SortableTh
-                    key={key}
-                    label={label}
-                    sortKey={key}
-                    sort={ordered.sort}
-                    onSort={(next) =>
-                      ordered.setSort((current) => nextSort(current, next))
-                    }
-                  />
-                ))}
-                <th className="px-4 py-2">Output</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(ordered.rows ?? []).map((execution) => (
-                <tr
-                  key={execution.id}
-                  className="border-t border-slate-100 align-top"
-                >
-                  <td className="px-4 py-2 whitespace-nowrap">
-                    {new Date(execution.startedAt).toLocaleString()}
-                  </td>
-                  <td className="px-4 py-2">{execution.username}</td>
-                  <td className="px-4 py-2">{execution.serverName}</td>
-                  <td className="px-4 py-2">{execution.kind}</td>
-                  <td className="px-4 py-2">{execution.label}</td>
-                  <td className="px-4 py-2">{execution.exitCode ?? "—"}</td>
-                  <td className="px-4 py-2">
-                    <details>
-                      <summary className="cursor-pointer underline">
-                        Dettaglio
-                      </summary>
-                      <pre className="mt-2 max-h-48 max-w-xl overflow-auto rounded bg-slate-900 p-2 text-xs text-slate-100">
-                        {execution.output || "(vuoto)"}
-                      </pre>
-                    </details>
-                  </td>
+          <>
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  {[
+                    ["Data", "startedAt"],
+                    ["Utente", "username"],
+                    ["Server", "serverName"],
+                    ["Tipo", "kind"],
+                    ["Etichetta", "label"],
+                    ["Exit", "exitCode"],
+                  ].map(([label, key]) => (
+                    <SortableTh
+                      key={key}
+                      label={label}
+                      sortKey={key}
+                      sort={ordered.sort}
+                      onSort={(next) =>
+                        ordered.setSort((current) => nextSort(current, next))
+                      }
+                    />
+                  ))}
+                  <th className="px-4 py-2">Output</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {(paginated.items ?? []).map((execution) => (
+                  <tr
+                    key={execution.id}
+                    className="border-t border-slate-100 align-top"
+                  >
+                    <td className="px-4 py-2 whitespace-nowrap">
+                      {new Date(execution.startedAt).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-2">{execution.username}</td>
+                    <td className="px-4 py-2">{execution.serverName}</td>
+                    <td className="px-4 py-2">{execution.kind}</td>
+                    <td className="px-4 py-2">{execution.label}</td>
+                    <td className="px-4 py-2">{execution.exitCode ?? "—"}</td>
+                    <td className="px-4 py-2">
+                      <details>
+                        <summary className="cursor-pointer underline">
+                          Dettaglio
+                        </summary>
+                        <pre className="mt-2 max-h-48 max-w-xl overflow-auto rounded bg-slate-900 p-2 text-xs text-slate-100">
+                          {execution.output || "(vuoto)"}
+                        </pre>
+                      </details>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <Pagination
+              page={paginated.page}
+              pageCount={paginated.pageCount}
+              onPage={paginated.setPage}
+            />
+          </>
         )}
       </div>
     </section>

@@ -2,11 +2,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { FormEvent } from "react";
 import { useState } from "react";
 import { useAuth } from "../../app/AuthProvider";
+import { Pagination } from "../../components/Pagination";
 import { PageHeader, SearchForm } from "../../components/page";
 import { SortableTh } from "../../components/SortableTh";
 import type { AdminUser } from "../../lib/admin";
 import { getGroups, getRoles, getUsers } from "../../lib/admin";
 import { deleteEntity, saveEntity } from "../../lib/inventory";
+import { usePagination } from "../../lib/pagination";
 import { nextSort, useSortedRows } from "../../lib/sort";
 
 const userSortValue = (user: AdminUser, key: string) =>
@@ -93,6 +95,8 @@ export function UsersPage() {
     }
   };
 
+  const paginated = usePagination(ordered.rows);
+
   return (
     <section className="space-y-4">
       <PageHeader
@@ -152,7 +156,7 @@ export function UsersPage() {
               </tr>
             </thead>
             <tbody>
-              {(ordered.rows ?? []).map((user) => (
+              {(paginated.items ?? []).map((user) => (
                 <tr key={user.id} className="border-t border-slate-100">
                   <td className="px-4 py-2">{user.username}</td>
                   <td className="px-4 py-2">
@@ -184,6 +188,11 @@ export function UsersPage() {
               ))}
             </tbody>
           </table>
+          <Pagination
+            page={paginated.page}
+            pageCount={paginated.pageCount}
+            onPage={paginated.setPage}
+          />
         </div>
       </div>
 

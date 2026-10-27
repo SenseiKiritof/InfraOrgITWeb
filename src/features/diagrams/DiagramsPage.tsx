@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../app/AuthProvider";
+import { Pagination } from "../../components/Pagination";
 import { PageHeader, SearchForm } from "../../components/page";
 import { SortableTh } from "../../components/SortableTh";
 import type {
@@ -18,6 +19,7 @@ import {
 } from "../../lib/diagrams";
 import type { Environment, Project, Provider } from "../../lib/inventory";
 import { paged } from "../../lib/inventory";
+import { usePagination } from "../../lib/pagination";
 import { nextSort, useSortedRows } from "../../lib/sort";
 import { useServerAccess } from "../../lib/useServerAccess";
 
@@ -188,6 +190,8 @@ export function DiagramsPage() {
   const canCreate =
     isSystemAdmin || (access.data?.adminEnvironmentIds.length ?? 0) > 0;
 
+  const paginated = usePagination(ordered.rows);
+
   return (
     <section className="space-y-4">
       <PageHeader
@@ -239,63 +243,70 @@ export function DiagramsPage() {
               Nessun diagramma.
             </p>
           ) : (
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                <tr>
-                  {[
-                    ["Nome", "name"],
-                    ["Scope", "scope"],
-                    ["Predefinito", "isDefault"],
-                  ].map(([label, key]) => (
-                    <SortableTh
-                      key={key}
-                      label={label}
-                      sortKey={key}
-                      sort={ordered.sort}
-                      onSort={(next) =>
-                        ordered.setSort((current) => nextSort(current, next))
-                      }
-                    />
-                  ))}
-                  <th className="px-4 py-2" />
-                </tr>
-              </thead>
-              <tbody>
-                {(ordered.rows ?? []).map((diagram) => (
-                  <tr key={diagram.id} className="border-t border-slate-100">
-                    <td className="px-4 py-2">{diagram.name}</td>
-                    <td className="px-4 py-2 text-slate-600">
-                      {scopeLabel(diagram)}
-                    </td>
-                    <td className="px-4 py-2">
-                      {diagram.isDefault ? "sì" : ""}
-                    </td>
-                    <td className="space-x-3 px-4 py-2 text-right whitespace-nowrap">
-                      <Link
-                        to={`/diagrams/${diagram.id}`}
-                        className="text-sm font-medium underline"
-                      >
-                        Apri
-                      </Link>
-                      <button
-                        type="button"
-                        onClick={() => startEdit(diagram)}
-                        className="text-sm underline"
-                      >
-                        Modifica
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void remove(diagram)}
-                        className="text-sm text-red-700 underline"
-                      >
-                        Elimina
-                      </button>
-                    </td>
+            <>
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                  <tr>
+                    {[
+                      ["Nome", "name"],
+                      ["Scope", "scope"],
+                      ["Predefinito", "isDefault"],
+                    ].map(([label, key]) => (
+                      <SortableTh
+                        key={key}
+                        label={label}
+                        sortKey={key}
+                        sort={ordered.sort}
+                        onSort={(next) =>
+                          ordered.setSort((current) => nextSort(current, next))
+                        }
+                      />
+                    ))}
+                    <th className="px-4 py-2" />
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {(paginated.items ?? []).map((diagram) => (
+                    <tr key={diagram.id} className="border-t border-slate-100">
+                      <td className="px-4 py-2">{diagram.name}</td>
+                      <td className="px-4 py-2 text-slate-600">
+                        {scopeLabel(diagram)}
+                      </td>
+                      <td className="px-4 py-2">
+                        {diagram.isDefault ? "sì" : ""}
+                      </td>
+                      <td className="space-x-3 px-4 py-2 text-right whitespace-nowrap">
+                        <Link
+                          to={`/diagrams/${diagram.id}`}
+                          className="text-sm font-medium underline"
+                        >
+                          Apri
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => startEdit(diagram)}
+                          className="text-sm underline"
+                        >
+                          Modifica
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void remove(diagram)}
+                          className="text-sm text-red-700 underline"
+                        >
+                          Elimina
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <Pagination
+                page={paginated.page}
+                pageCount={paginated.pageCount}
+                onPage={paginated.setPage}
+              />
+            </>
           )}
         </div>
       </div>

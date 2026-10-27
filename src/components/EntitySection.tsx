@@ -1,7 +1,9 @@
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { usePagination } from "../lib/pagination";
 import { nextSort, type SortState, sortedRows } from "../lib/sort";
+import { Pagination } from "./Pagination";
 import { SortableTh } from "./SortableTh";
 
 export type FormValues = Record<string, string>;
@@ -68,6 +70,7 @@ export function EntitySection<T extends { id: number }>({
   }, [editing]);
 
   const ordered = sortedRows(rows, sort);
+  const paginated = usePagination(ordered);
 
   const startCreate = () => {
     setValues(empty);
@@ -167,7 +170,7 @@ export function EntitySection<T extends { id: number }>({
               </tr>
             </thead>
             <tbody>
-              {(ordered ?? []).map((row) => {
+              {(paginated.items ?? []).map((row) => {
                 const editable = canWrite && (canEditRow?.(row) ?? true);
                 const deletable = canWrite && (canDeleteRow?.(row) ?? true);
                 return (
@@ -212,6 +215,14 @@ export function EntitySection<T extends { id: number }>({
             </tbody>
           </table>
         </div>
+      )}
+
+      {rows !== undefined && rows.length > 0 && (
+        <Pagination
+          page={paginated.page}
+          pageCount={paginated.pageCount}
+          onPage={paginated.setPage}
+        />
       )}
 
       {editing !== null && (
