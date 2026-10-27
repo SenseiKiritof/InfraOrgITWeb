@@ -52,6 +52,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadSession]);
 
   useEffect(() => {
+    // I timer in background vengono rallentati dal browser: al ritorno sulla
+    // scheda riallineiamo la sessione prima che l'utente continui a lavorare.
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void loadSession();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [loadSession]);
+
+  useEffect(() => {
     const sync = (event: Event) =>
       setSession((event as CustomEvent<Session>).detail);
     window.addEventListener(SESSION_REFRESHED_EVENT, sync);

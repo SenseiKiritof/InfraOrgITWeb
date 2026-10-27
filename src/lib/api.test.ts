@@ -42,6 +42,38 @@ describe("apiFetch", () => {
     vi.unstubAllGlobals();
   });
 
+  it("rinnova la sessione e ripete la richiesta dopo 401", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ code: "unauthorized" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ ...payload, csrfToken: "fresh" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ id: 1 }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      apiFetch<{ id: number }>("/api/servers", { method: "POST" }, "stale"),
+    ).resolves.toEqual({ id: 1 });
+
+    expect(fetchMock.mock.calls[1][0]).toBe("/api/session");
+    const headers = new Headers(fetchMock.mock.calls[2][1]?.headers);
+    expect(headers.get("X-CSRF-Token")).toBe("fresh");
+  });
+
   it("retries once with a fresh CSRF token", async () => {
     const fetchMock = vi
       .fn()

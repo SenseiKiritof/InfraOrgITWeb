@@ -71,6 +71,22 @@ export async function apiFetch<T>(
   };
 
   let response = await send(csrfToken);
+  if (response.status === 401) {
+    const problem = await problemFrom(response);
+    // L'access token può essere scaduto mentre la scheda era in background:
+    // /api/session rinnova la sessione, poi la richiesta viene ripetuta una volta.
+    const fresh = await getSession();
+    if (!fresh) {
+      redirectToLogin();
+      throw problem;
+    }
+    window.dispatchEvent(
+      new CustomEvent<Session>(SESSION_REFRESHED_EVENT, { detail: fresh }),
+    );
+    response = await send(fresh.csrfToken);
+    if (!response.ok) throw await problemFrom(response);
+    return parse(response);
+  }
   if (response.status === 403) {
     const problem = await problemFrom(response);
     if (problem.code === "csrf_failed") {
