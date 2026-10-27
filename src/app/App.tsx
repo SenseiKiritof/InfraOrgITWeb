@@ -1,7 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { lazy, Suspense, useState } from "react";
-import { NavLink, Outlet, Route, Routes, useLocation } from "react-router-dom";
+import { lazy, Suspense, useEffect, useState } from "react";
+import {
+  Link,
+  NavLink,
+  Outlet,
+  Route,
+  Routes,
+  useLocation,
+} from "react-router-dom";
 import { GroupsPage } from "../features/admin/GroupsPage";
 import { MenusPage } from "../features/admin/MenusPage";
 import { RolesPage } from "../features/admin/RolesPage";
@@ -27,11 +34,25 @@ import {
   ServersPage,
 } from "../features/inventory/ServersPage";
 import { CommandsPage } from "../features/remote/CommandsPage";
+import {
+  ConsoleProvider,
+  clearConsoleSessions,
+} from "../features/remote/ConsoleProvider";
 import { CredentialsPage } from "../features/remote/CredentialsPage";
 import { ExecutionsPage } from "../features/remote/ExecutionsPage";
 import { ReachabilityPage } from "../features/remote/ReachabilityPage";
 import type { Menu } from "../lib/api";
 import { getMenus } from "../lib/api";
+import {
+  ArrowLeftIcon,
+  ArrowRightOnRectangleIcon,
+  ArrowsPointingInIcon,
+  ArrowsPointingOutIcon,
+  iconForPath,
+  MoonIcon,
+  SunIcon,
+  UserCircleIcon,
+} from "../lib/icons";
 import { AuthProvider, useAuth } from "./AuthProvider";
 
 const DiagramPage = lazy(() =>
@@ -69,36 +90,47 @@ function AuthenticatedApp() {
   if (!session) return <Centered>Reindirizzamento al login…</Centered>;
 
   return (
-    <Suspense fallback={<Centered>Caricamento pagina…</Centered>}>
-      <Routes>
-        <Route element={<Shell />}>
-          <Route index element={<HomePage />} />
-          <Route path="providers" element={<ProvidersPage />} />
-          <Route path="providers/:id" element={<ProviderDetailPage />} />
-          <Route path="environments" element={<EnvironmentsPage />} />
-          <Route path="environments/:id" element={<EnvironmentDetailPage />} />
-          <Route path="servers" element={<ServersPage />} />
-          <Route path="servers/:id" element={<ServerDetailPage />} />
-          <Route path="users" element={<UsersPage />} />
-          <Route path="groups" element={<GroupsPage />} />
-          <Route path="roles" element={<RolesPage />} />
-          <Route path="menu" element={<MenusPage />} />
-          <Route path="credentials" element={<CredentialsPage />} />
-          <Route path="commands" element={<CommandsPage />} />
-          <Route path="reachability" element={<ReachabilityPage />} />
-          <Route path="executions" element={<ExecutionsPage />} />
-          <Route path="applications" element={<ApplicationsPage />} />
-          <Route path="applications/:id" element={<ApplicationDetailPage />} />
-          <Route path="projects" element={<ProjectsPage />} />
-          <Route path="projects/:id" element={<ProjectDetailPage />} />
-          <Route path="diagrams" element={<DiagramsPage />} />
-          <Route path="diagrams/:id" element={<DiagramPage />} />
-          <Route path="*" element={<PlaceholderPage />} />
-        </Route>
-      </Routes>
-    </Suspense>
+    <ConsoleProvider>
+      <Suspense fallback={<Centered>Caricamento pagina…</Centered>}>
+        <Routes>
+          <Route element={<Shell />}>
+            <Route index element={<HomePage />} />
+            <Route path="providers" element={<ProvidersPage />} />
+            <Route path="providers/:id" element={<ProviderDetailPage />} />
+            <Route path="environments" element={<EnvironmentsPage />} />
+            <Route
+              path="environments/:id"
+              element={<EnvironmentDetailPage />}
+            />
+            <Route path="servers" element={<ServersPage />} />
+            <Route path="servers/:id" element={<ServerDetailPage />} />
+            <Route path="users" element={<UsersPage />} />
+            <Route path="groups" element={<GroupsPage />} />
+            <Route path="roles" element={<RolesPage />} />
+            <Route path="menu" element={<MenusPage />} />
+            <Route path="credentials" element={<CredentialsPage />} />
+            <Route path="commands" element={<CommandsPage />} />
+            <Route path="reachability" element={<ReachabilityPage />} />
+            <Route path="executions" element={<ExecutionsPage />} />
+            <Route path="applications" element={<ApplicationsPage />} />
+            <Route
+              path="applications/:id"
+              element={<ApplicationDetailPage />}
+            />
+            <Route path="projects" element={<ProjectsPage />} />
+            <Route path="projects/:id" element={<ProjectDetailPage />} />
+            <Route path="diagrams" element={<DiagramsPage />} />
+            <Route path="diagrams/:id" element={<DiagramPage />} />
+            <Route path="*" element={<PlaceholderPage />} />
+          </Route>
+        </Routes>
+      </Suspense>
+    </ConsoleProvider>
   );
 }
+
+const DETAIL_ROUTE =
+  /^\/(servers|applications|projects|providers|environments|diagrams)\/\d+$/;
 
 function Shell() {
   const { session, logout } = useAuth();
@@ -107,6 +139,17 @@ function Shell() {
   const [dark, setDark] = useState(() =>
     document.documentElement.classList.contains("dark"),
   );
+  const [fullscreen, setFullscreen] = useState(
+    () => document.fullscreenElement !== null,
+  );
+  const location = useLocation();
+  const detailParent = DETAIL_ROUTE.exec(location.pathname)?.[1];
+
+  useEffect(() => {
+    const sync = () => setFullscreen(document.fullscreenElement !== null);
+    document.addEventListener("fullscreenchange", sync);
+    return () => document.removeEventListener("fullscreenchange", sync);
+  }, []);
 
   const toggleTheme = () => {
     const next = !dark;
@@ -115,9 +158,19 @@ function Shell() {
     localStorage.setItem("infraorgit-theme", next ? "dark" : "light");
   };
 
+  const toggleFullscreen = async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+    } catch {
+      // fullscreen non disponibile: nessuna azione
+    }
+  };
+
   const handleLogout = async () => {
     setLogoutError(null);
     if (await logout()) {
+      clearConsoleSessions();
       window.location.assign("/auth/login");
       return;
     }
@@ -127,13 +180,19 @@ function Shell() {
   };
 
   return (
-    <div className="flex h-full bg-slate-50 text-slate-900">
-      <aside className="w-64 shrink-0 border-r border-slate-200 bg-white">
-        <div className="flex h-16 flex-col justify-center border-b border-slate-200 px-4">
+    <div className="flex h-full overflow-hidden bg-slate-50 text-slate-900">
+      <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white">
+        <div className="flex h-16 shrink-0 flex-col justify-center border-b border-slate-200 px-4">
           <p className="text-lg leading-tight font-semibold">InfraOrgIT</p>
-          <p className="text-xs text-slate-500">Infrastructure organizer</p>
+          <p className="text-xs text-slate-500">
+            Infrastructure organizer ·{" "}
+            {import.meta.env.VITE_APP_VERSION ?? "dev"}
+          </p>
         </div>
-        <nav aria-label="Menu principale" className="p-3">
+        <nav
+          aria-label="Menu principale"
+          className="min-h-0 flex-1 overflow-y-auto p-3"
+        >
           {menus.isLoading && (
             <p className="px-2 text-sm text-slate-500">Caricamento menu…</p>
           )}
@@ -145,29 +204,81 @@ function Shell() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6">
-          <div>
-            <p data-testid="current-user" className="text-sm font-medium">
-              {session?.user.name} {session?.user.surname}
-            </p>
-            <p className="text-xs text-slate-500">{session?.user.username}</p>
+        <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-slate-200 bg-white px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            {detailParent && (
+              <Link
+                to={`/${detailParent}`}
+                className="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
+              >
+                <ArrowLeftIcon className="h-4 w-4" aria-hidden="true" />
+                Indietro
+              </Link>
+            )}
+            <div className="min-w-0">
+              <p
+                data-testid="current-user"
+                className="truncate text-sm font-medium"
+              >
+                {session?.user.name} {session?.user.surname}
+              </p>
+              <p className="truncate text-xs text-slate-500">
+                {session?.user.username}
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={toggleTheme}
               aria-label={dark ? "Passa al tema chiaro" : "Passa al tema scuro"}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+              title={dark ? "Tema chiaro" : "Tema scuro"}
+              className="rounded-md border border-slate-300 p-2 text-slate-700 hover:bg-slate-100"
             >
-              {dark ? "Tema chiaro" : "Tema scuro"}
+              {dark ? (
+                <SunIcon className="h-5 w-5" aria-hidden="true" />
+              ) : (
+                <MoonIcon className="h-5 w-5" aria-hidden="true" />
+              )}
             </button>
             <button
               type="button"
-              onClick={() => void handleLogout()}
-              className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
+              onClick={() => void toggleFullscreen()}
+              aria-label={
+                fullscreen ? "Esci dallo schermo intero" : "Schermo intero"
+              }
+              title={
+                fullscreen ? "Esci dallo schermo intero" : "Schermo intero"
+              }
+              className="rounded-md border border-slate-300 p-2 text-slate-700 hover:bg-slate-100"
             >
-              Logout
+              {fullscreen ? (
+                <ArrowsPointingInIcon className="h-5 w-5" aria-hidden="true" />
+              ) : (
+                <ArrowsPointingOutIcon className="h-5 w-5" aria-hidden="true" />
+              )}
             </button>
+            <details className="relative">
+              <summary className="flex cursor-pointer list-none items-center gap-2 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 [&::-webkit-details-marker]:hidden">
+                <UserCircleIcon className="h-5 w-5" aria-hidden="true" />
+                <span className="max-w-[12rem] truncate">
+                  {session?.user.username}
+                </span>
+              </summary>
+              <div className="absolute right-0 z-30 mt-2 w-48 rounded-md border border-slate-200 bg-white p-1 shadow-lg">
+                <button
+                  type="button"
+                  onClick={() => void handleLogout()}
+                  className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
+                >
+                  <ArrowRightOnRectangleIcon
+                    className="h-4 w-4"
+                    aria-hidden="true"
+                  />
+                  Logout
+                </button>
+              </div>
+            </details>
           </div>
         </header>
         {logoutError && (
@@ -189,28 +300,32 @@ function Shell() {
 function MenuList({ menus }: { menus: Menu[] }) {
   return (
     <ul className="space-y-1">
-      {menus.map((menu) => (
-        <li key={menu.id}>
-          <NavLink
-            to={menu.path}
-            end={menu.path === "/"}
-            className={({ isActive }) =>
-              `block rounded-md px-3 py-2 text-sm ${
-                isActive
-                  ? "bg-slate-900 text-white"
-                  : "text-slate-700 hover:bg-slate-100"
-              }`
-            }
-          >
-            {menu.name}
-          </NavLink>
-          {menu.children.length > 0 && (
-            <div className="ml-3 border-l border-slate-200 pl-2">
-              <MenuList menus={menu.children} />
-            </div>
-          )}
-        </li>
-      ))}
+      {menus.map((menu) => {
+        const Icon = iconForPath(menu.path);
+        return (
+          <li key={menu.id}>
+            <NavLink
+              to={menu.path}
+              end={menu.path === "/"}
+              className={({ isActive }) =>
+                `flex items-center gap-2 rounded-md px-3 py-2 text-sm ${
+                  isActive
+                    ? "bg-slate-900 text-white"
+                    : "text-slate-700 hover:bg-slate-100"
+                }`
+              }
+            >
+              <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span className="truncate">{menu.name}</span>
+            </NavLink>
+            {menu.children.length > 0 && (
+              <div className="ml-3 border-l border-slate-200 pl-2">
+                <MenuList menus={menu.children} />
+              </div>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }

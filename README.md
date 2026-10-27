@@ -1,4 +1,4 @@
-# infraorgit-web
+# InfraOrgITWeb
 
 Frontend di InfraOrgIT: SPA Vite + React 19 + TypeScript.
 
@@ -54,6 +54,14 @@ make e2e
 
 ## Riferimenti
 
-- `../PLAN.md` §5.4, §5.5
 - `../AllInfraOrgIT/docs/ux/pages.md`
 - ADR 002, 003, 005, 007
+
+## Immagine Docker
+
+`Dockerfile` multi-stage (Node 24 → Caddy 2) e `Caddyfile` con fallback SPA.
+
+- workflow `.github/workflows/docker.yml` sui tag `v*`
+- immagine `ghcr.io/senseikiritof/infraorgit-web`, tag `X.Y.Z`, `X.Y`, `sha-<commit>`, `latest`
+- build locale: `docker build --build-arg APP_VERSION=v0.8.0 -t infraorgit-web:0.8.0 .`
+- la SPA è servita su porta 80; la versione è baked in `VITE_APP_VERSION` e mostrata nella sidebar

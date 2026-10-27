@@ -237,6 +237,28 @@ body {
   outline: 2px solid #2563eb;
   outline-offset: 1px;
 }
+/* Cursore della console SSH: lampeggia col focus, resta visibile senza. */
+@keyframes console-caret-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+.console-caret {
+  display: inline-block;
+  width: 0.6ch;
+  height: 1.1em;
+  margin-bottom: -0.2em;
+  background: #e2e8f0;
+  animation: console-caret-blink 1s step-end infinite;
+}
+.console-caret-idle {
+  animation: none;
+}
 section:fullscreen {
   box-sizing: border-box;
   padding: 16px;

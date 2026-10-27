@@ -1,24 +1,57 @@
-import { useEffect, useRef, useState } from "react";
-
-const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[0-9;?]*[A-Za-z]`, "g");
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type AnsiSegment, parseAnsi } from "../../lib/ansi";
 
 export function ConsoleModal({
   serverId,
   serverName,
+  minimized,
+  closing,
+  resumeId,
+  onSessionId,
+  onMinimize,
   onClose,
 }: {
   serverId: number;
   serverName: string;
+  minimized: boolean;
+  closing?: boolean;
+  resumeId?: string;
+  onSessionId?: (id: string) => void;
+  onMinimize: () => void;
   onClose: () => void;
 }) {
   const [output, setOutput] = useState("");
   const [status, setStatus] = useState("Connessione…");
+  const [focused, setFocused] = useState(false);
   const socket = useRef<WebSocket | null>(null);
+  const terminal = useRef<HTMLDivElement | null>(null);
+  const sessionCallback = useRef(onSessionId);
+  sessionCallback.current = onSessionId;
+  const closeCallback = useRef(onClose);
+  closeCallback.current = onClose;
+  const closed = useRef(false);
+  const initialResume = useRef(resumeId);
+  const screen = useMemo(() => parseAnsi(output), [output]);
+
+  useEffect(() => {
+    if (!minimized) terminal.current?.focus();
+  }, [minimized]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: deve riallineare dopo ogni chunk di output
+  useEffect(() => {
+    const element = terminal.current;
+    if (!element) return;
+    const atBottom =
+      element.scrollHeight - element.scrollTop - element.clientHeight < 40;
+    if (atBottom) element.scrollTop = element.scrollHeight;
+  }, [output]);
 
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+    const query = new URLSearchParams({ cols: "100", rows: "30" });
+    if (initialResume.current) query.set("resume", initialResume.current);
     const ws = new WebSocket(
-      `${protocol}://${window.location.host}/api/socket/servers/${serverId}/console?cols=100&rows=30`,
+      `${protocol}://${window.location.host}/api/socket/servers/${serverId}/console?${query}`,
     );
     ws.binaryType = "arraybuffer";
     const decoder = new TextDecoder();
@@ -29,13 +62,13 @@ export function ConsoleModal({
       ws.send(JSON.stringify({ type: "resize", cols: 100, rows: 30 }));
     };
     ws.onmessage = (event) => {
-      const text =
-        typeof event.data === "string"
-          ? event.data
-          : decoder.decode(event.data as ArrayBuffer);
-      setOutput((current) =>
-        (current + text.replace(ANSI, "")).slice(-100_000),
-      );
+      if (typeof event.data === "string") {
+        handleControl(event.data, sessionCallback.current);
+        return;
+      }
+
+      const text = decoder.decode(event.data as ArrayBuffer);
+      setOutput((current) => (current + text).slice(-100_000));
     };
     ws.onerror = () => setStatus("Errore di connessione");
     ws.onclose = () => setStatus((current) => `${current} · sessione chiusa`);
@@ -46,52 +79,192 @@ export function ConsoleModal({
     };
   }, [serverId]);
 
+  useEffect(() => {
+    if (!closing || closed.current) return;
+    closed.current = true;
+    terminate(socket.current);
+    closeCallback.current();
+  }, [closing]);
+
   const send = (value: string) => {
     if (socket.current?.readyState === WebSocket.OPEN)
       socket.current.send(new TextEncoder().encode(value));
   };
 
-  const onKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "Enter") send("\r");
-    else if (event.key === "Backspace") send("\x7f");
+    else if (event.key === "Backspace") send("\u007f");
+    else if (event.key === "Delete") send("\u001b[3~");
     else if (event.key === "Tab") send("\t");
-    else if (event.key === "ArrowUp") send("\x1b[A");
-    else if (event.key === "ArrowDown") send("\x1b[B");
-    else if (event.key === "ArrowRight") send("\x1b[C");
-    else if (event.key === "ArrowLeft") send("\x1b[D");
+    else if (event.key === "ArrowUp") send("\u001b[A");
+    else if (event.key === "ArrowDown") send("\u001b[B");
+    else if (event.key === "ArrowRight") send("\u001b[C");
+    else if (event.key === "ArrowLeft") send("\u001b[D");
+    else if (event.key === "Home") send("\u0001");
+    else if (event.key === "End") send("\u0005");
     else if (event.key.length === 1) send(event.key);
     else return;
     event.preventDefault();
   };
 
+  if (minimized) return null;
+
   return (
-    <div className="fixed inset-0 z-20 flex items-center justify-center bg-slate-900/50 p-4">
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4">
       <div className="flex h-[80vh] w-full max-w-4xl flex-col rounded-lg bg-slate-950 p-4 shadow-xl">
         <div className="mb-2 flex items-center justify-between text-sm text-slate-200">
           <p>
             Console SSH · {serverName}{" "}
             <span className="text-slate-400">({status})</span>
           </p>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded border border-slate-500 px-2 py-1"
-          >
-            Chiudi
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onMinimize}
+              className="rounded border border-slate-500 px-2 py-1"
+              title="Lascia la sessione aperta e torna al sito"
+            >
+              Riduci
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                closed.current = true;
+                terminate(socket.current);
+                onClose();
+              }}
+              className="rounded border border-slate-500 px-2 py-1"
+            >
+              Chiudi
+            </button>
+          </div>
         </div>
-        <textarea
-          readOnly
+        <div
           aria-label="Terminale SSH"
-          value={output || "Clicca qui e premi Invio per iniziare."}
+          role="log"
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: il terminale deve ricevere la tastiera; textarea non può colorare l'output
+          tabIndex={0}
+          ref={terminal}
           onKeyDown={onKeyDown}
-          className="min-h-0 flex-1 resize-none rounded bg-black p-3 font-mono text-xs text-slate-100 outline-none"
-        />
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          className="min-h-0 flex-1 cursor-text overflow-auto whitespace-pre rounded bg-black p-3 font-mono text-xs text-slate-100 outline-none ring-emerald-400/70 focus:ring-2"
+        >
+          {output ? (
+            screen.rows.map((row, index) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: righe posizionali del terminale
+              <div key={index} className="min-h-[1.2em]">
+                <TerminalRow
+                  segments={row}
+                  caret={index === screen.cursor.row ? screen.cursor.col : null}
+                  focused={focused}
+                />
+              </div>
+            ))
+          ) : (
+            <span className="text-slate-400">
+              Clicca qui e premi Invio per iniziare.
+            </span>
+          )}
+          {!output && (
+            <span
+              aria-hidden="true"
+              className={
+                focused ? "console-caret" : "console-caret console-caret-idle"
+              }
+            />
+          )}
+        </div>
         <p className="mt-2 text-xs text-slate-400">
-          Clicca nel terminale per digitare. La sessione ha durata massima
-          limitata e viene registrata.
+          Il terminale ha il focus: digita direttamente. Cliccalo se perdi il
+          cursore. La sessione ha durata massima limitata e viene registrata.
         </p>
       </div>
     </div>
   );
+}
+
+function terminate(socket: WebSocket | null) {
+  if (socket?.readyState === WebSocket.OPEN)
+    socket.send(JSON.stringify({ type: "terminate" }));
+}
+
+function handleControl(message: string, onSessionId?: (id: string) => void) {
+  try {
+    const value = JSON.parse(message) as { type?: string; id?: string };
+    if (value.type === "session" && value.id) onSessionId?.(value.id);
+  } catch {
+    // frame di controllo malformato: ignorato
+  }
+}
+
+function Caret({ focused }: { focused: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={focused ? "console-caret" : "console-caret console-caret-idle"}
+    />
+  );
+}
+
+function TerminalRow({
+  segments,
+  caret,
+  focused,
+}: {
+  segments: AnsiSegment[];
+  caret: number | null;
+  focused: boolean;
+}) {
+  const nodes: ReactNode[] = [];
+  let offset = 0;
+  let placed = caret === null;
+
+  segments.forEach((segment) => {
+    const style = {
+      color: segment.fg,
+      backgroundColor: segment.bg,
+      fontWeight: segment.bold ? 600 : undefined,
+      opacity: segment.dim ? 0.75 : undefined,
+      textDecoration: segment.underline ? "underline" : undefined,
+    };
+    const start = offset;
+    const end = offset + segment.text.length;
+
+    if (!placed && caret !== null && caret > start && caret < end) {
+      const cut = caret - start;
+      nodes.push(
+        <span key={`s${start}a`} style={style}>
+          {segment.text.slice(0, cut)}
+        </span>,
+      );
+      nodes.push(<Caret key={`c${start}`} focused={focused} />);
+      nodes.push(
+        <span key={`s${start}b`} style={style}>
+          {segment.text.slice(cut)}
+        </span>,
+      );
+      placed = true;
+    } else {
+      if (!placed && caret !== null && caret === start) {
+        nodes.push(<Caret key={`c${start}`} focused={focused} />);
+        placed = true;
+      }
+      nodes.push(
+        <span key={`s${start}`} style={style}>
+          {segment.text}
+        </span>,
+      );
+    }
+
+    offset = end;
+  });
+
+  if (!placed && caret !== null) {
+    const padding = caret - offset;
+    if (padding > 0) nodes.push(<span key="pad">{" ".repeat(padding)}</span>);
+    nodes.push(<Caret key="caret" focused={focused} />);
+  }
+
+  return <>{nodes}</>;
 }

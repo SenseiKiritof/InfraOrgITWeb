@@ -31,7 +31,7 @@ import {
   runServerReachability,
 } from "../../lib/remote";
 import { useServerAccess } from "../../lib/useServerAccess";
-import { ConsoleModal } from "../remote/ConsoleModal";
+import { useConsole } from "../remote/ConsoleProvider";
 
 export function ServersPage() {
   const { session } = useAuth();
@@ -192,7 +192,7 @@ export function ServerDetailPage() {
       server.data.providerEnvironmentId,
     );
 
-  const [consoleOpen, setConsoleOpen] = useState(false);
+  const console = useConsole();
   const [credentialId, setCredentialId] = useState("");
   const [sshPort, setSshPort] = useState("22");
   const [sshMessage, setSshMessage] = useState<string | null>(null);
@@ -329,7 +329,9 @@ export function ServerDetailPage() {
         {isAdmin && (
           <button
             type="button"
-            onClick={() => setConsoleOpen(true)}
+            onClick={() =>
+              console.open(serverId, server.data?.name ?? "Server")
+            }
             className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white"
           >
             Console SSH
@@ -522,13 +524,6 @@ export function ServerDetailPage() {
             csrfToken={csrf}
           />
         ))}
-      {consoleOpen && (
-        <ConsoleModal
-          serverId={serverId}
-          serverName={server.data?.name ?? ""}
-          onClose={() => setConsoleOpen(false)}
-        />
-      )}
     </section>
   );
 }
