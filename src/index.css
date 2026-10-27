@@ -249,14 +249,25 @@ body {
   }
 }
 .console-caret {
+  position: relative;
   display: inline-block;
-  width: 0.6ch;
+  width: 0;
   height: 1.1em;
   margin-bottom: -0.2em;
+}
+/* Il blocco è disegnato sopra la cella: non deve occupare spazio, altrimenti
+   sposta il testo della riga mentre il cursore è a inizio riga (progress bar). */
+.console-caret::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0.6ch;
+  height: 1.1em;
   background: #e2e8f0;
   animation: console-caret-blink 1s step-end infinite;
 }
-.console-caret-idle {
+.console-caret-idle::after {
   animation: none;
 }
 section:fullscreen {

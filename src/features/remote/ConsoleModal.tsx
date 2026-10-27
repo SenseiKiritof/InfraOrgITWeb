@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { type AnsiSegment, parseAnsi } from "../../lib/ansi";
+import { appendOutput } from "../../lib/terminalBuffer";
 
 export function ConsoleModal({
   serverId,
@@ -67,8 +68,8 @@ export function ConsoleModal({
         return;
       }
 
-      const text = decoder.decode(event.data as ArrayBuffer);
-      setOutput((current) => (current + text).slice(-100_000));
+      const text = decoder.decode(event.data as ArrayBuffer, { stream: true });
+      setOutput((current) => appendOutput(current, text));
     };
     ws.onerror = () => setStatus("Errore di connessione");
     ws.onclose = () => setStatus((current) => `${current} · sessione chiusa`);

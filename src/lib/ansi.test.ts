@@ -45,6 +45,25 @@ describe("parseAnsi", () => {
     expect(text("10%\r100%\nfine")).toEqual(["100%", "fine"]);
   });
 
+  it("riscrive le righe di avanzamento docker senza residui", () => {
+    const input = [
+      "Pulling from library/debian\r\n\r\n",
+      `${ESC}[1A${ESC}[2K\r41b: Pulling fs layer \r${ESC}[1B`,
+      `${ESC}[1A${ESC}[2K\r41b: Already exists \r${ESC}[1B`,
+      "\r\n",
+      `${ESC}[1A${ESC}[2K\r33c: Downloading  1.049MB/2.36MB\r${ESC}[1B`,
+      `${ESC}[1A${ESC}[2K\r33c: Download complete \r${ESC}[1B`,
+      "Digest: sha256:x",
+    ].join("");
+
+    expect(text(input)).toEqual([
+      "Pulling from library/debian",
+      "41b: Already exists",
+      "33c: Download complete",
+      "Digest: sha256:x",
+    ]);
+  });
+
   it("conserva le righe con terminazione CRLF", () => {
     expect(text("prima\r\nseconda\r\n")).toEqual(["prima", "seconda", ""]);
   });
