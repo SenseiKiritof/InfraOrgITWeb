@@ -19,8 +19,10 @@ export function CredentialsPage() {
   const csrf = session?.csrfToken ?? "";
   const queryClient = useQueryClient();
   const [managing, setManaging] = useState<ServerCredential | null>(null);
-  const [selectedServerId, setSelectedServerId] = useState("");
+  const [selectedServerIds, setSelectedServerIds] = useState<number[]>([]);
+  const [serverFilter, setServerFilter] = useState("");
   const [managerError, setManagerError] = useState<string | null>(null);
+  const [managerMessage, setManagerMessage] = useState<string | null>(null);
   const [managerBusy, setManagerBusy] = useState(false);
 
   const credentials = useQuery({
@@ -58,8 +60,10 @@ export function CredentialsPage() {
 
   const openManager = (row: ServerCredential) => {
     setManaging(row);
-    setSelectedServerId("");
+    setSelectedServerIds([]);
+    setServerFilter("");
     setManagerError(null);
+    setManagerMessage(null);
   };
 
   const updateCredential = async (
@@ -86,14 +90,66 @@ export function CredentialsPage() {
       ? splitServersByCredential(servers.data.items, managing.id)
       : { assigned: [], available: [] };
 
-  const addServer = async () => {
-    if (!managing) return;
-    const server = split.available.find(
-      (candidate) => candidate.id === Number(selectedServerId),
+  const filter = serverFilter.trim().toLowerCase();
+  const visibleAvailable = split.available.filter(
+    (server) =>
+      !filter ||
+      [server.name, server.providerEnvironmentLabel, server.ipAddress].some(
+        (value) => value.toLowerCase().includes(filter),
+      ),
+  );
+  const allVisibleSelected =
+    visibleAvailable.length > 0 &&
+    visibleAvailable.every((server) => selectedServerIds.includes(server.id));
+
+  const toggleServer = (serverId: number) => {
+    setSelectedServerIds((current) =>
+      current.includes(serverId)
+        ? current.filter((id) => id !== serverId)
+        : [...current, serverId],
     );
-    if (!server) return;
-    await updateCredential(server, managing.id);
-    setSelectedServerId("");
+  };
+
+  const toggleAllVisible = () => {
+    setSelectedServerIds((current) => {
+      const visibleIds = visibleAvailable.map((server) => server.id);
+      if (visibleIds.every((id) => current.includes(id))) {
+        return current.filter((id) => !visibleIds.includes(id));
+      }
+      return [...new Set([...current, ...visibleIds])];
+    });
+  };
+
+  const addServers = async () => {
+    if (!managing || selectedServerIds.length === 0) return;
+    const targets = split.available.filter((server) =>
+      selectedServerIds.includes(server.id),
+    );
+    if (targets.length === 0) return;
+
+    setManagerBusy(true);
+    setManagerError(null);
+    setManagerMessage(null);
+    const failures: string[] = [];
+    let added = 0;
+    for (const server of targets) {
+      try {
+        await assignServerSsh(server.id, managing.id, server.sshPort, csrf);
+        added++;
+      } catch (cause) {
+        failures.push(
+          `${server.name}: ${cause instanceof Error ? cause.message : "errore"}`,
+        );
+      }
+    }
+
+    await queryClient.invalidateQueries({ queryKey: ["server-credentials"] });
+    await queryClient.invalidateQueries({ queryKey: ["servers"] });
+    setSelectedServerIds([]);
+    setManagerBusy(false);
+    if (added > 0) setManagerMessage(`${added} server aggiunti.`);
+    if (failures.length > 0)
+      setManagerError(`Non aggiunti: ${failures.join("; ")}`);
   };
 
   return (
@@ -201,6 +257,9 @@ export function CredentialsPage() {
                 {managerError}
               </p>
             )}
+            {managerMessage && (
+              <p className="mt-3 text-sm text-emerald-700">{managerMessage}</p>
+            )}
 
             <div className="mt-4 space-y-5">
               <section>
@@ -243,36 +302,71 @@ export function CredentialsPage() {
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
                   Aggiungi server senza credenziale
                 </h3>
-                <div className="mt-2 flex gap-2">
-                  <select
-                    aria-label="Server da associare"
-                    value={selectedServerId}
-                    onChange={(event) =>
-                      setSelectedServerId(event.target.value)
-                    }
-                    className="min-w-0 flex-1 rounded-md border border-slate-300 px-3 py-1.5 text-sm"
-                  >
-                    <option value="">—</option>
-                    {split.available.map((server) => (
-                      <option key={server.id} value={server.id}>
-                        {server.name} · {server.providerEnvironmentLabel} · :
-                        {server.sshPort}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    disabled={!selectedServerId || managerBusy}
-                    onClick={() => void addServer()}
-                    className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
-                  >
-                    Aggiungi
-                  </button>
-                </div>
-                {split.available.length === 0 && (
+                {split.available.length === 0 ? (
                   <p className="mt-2 text-sm text-slate-500">
                     Nessun server senza credenziale disponibile.
                   </p>
+                ) : (
+                  <div className="mt-2 space-y-2">
+                    <input
+                      aria-label="Cerca server"
+                      placeholder="Cerca server…"
+                      value={serverFilter}
+                      onChange={(event) => setServerFilter(event.target.value)}
+                      className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                    />
+                    <div className="rounded-md border border-slate-200">
+                      <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2">
+                        <label className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={allVisibleSelected}
+                            onChange={toggleAllVisible}
+                          />
+                          Seleziona tutti visibili
+                        </label>
+                        <span className="text-sm text-slate-500">
+                          {selectedServerIds.length} selezionati
+                        </span>
+                      </div>
+                      {visibleAvailable.length === 0 ? (
+                        <p className="px-3 py-4 text-sm text-slate-500">
+                          Nessun server corrisponde.
+                        </p>
+                      ) : (
+                        <ul className="max-h-56 divide-y divide-slate-100 overflow-auto">
+                          {visibleAvailable.map((server) => (
+                            <li key={server.id}>
+                              <label className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedServerIds.includes(
+                                    server.id,
+                                  )}
+                                  onChange={() => toggleServer(server.id)}
+                                />
+                                <span className="min-w-0">
+                                  {server.name}
+                                  <span className="ml-2 text-slate-500">
+                                    {server.providerEnvironmentLabel} · :
+                                    {server.sshPort}
+                                  </span>
+                                </span>
+                              </label>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      disabled={selectedServerIds.length === 0 || managerBusy}
+                      onClick={() => void addServers()}
+                      className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+                    >
+                      Aggiungi selezionati ({selectedServerIds.length})
+                    </button>
+                  </div>
                 )}
               </section>
             </div>
