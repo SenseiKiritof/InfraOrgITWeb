@@ -30,6 +30,7 @@ import {
   runAction,
   runServerReachability,
 } from "../../lib/remote";
+import { useQueryFilter } from "../../lib/useQueryFilter";
 import { useServerAccess } from "../../lib/useServerAccess";
 import { useConsole } from "../remote/ConsoleProvider";
 
@@ -39,8 +40,7 @@ export function ServersPage() {
   const access = useServerAccess();
   const adminEnvironmentIds = access.data?.adminEnvironmentIds ?? [];
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
-  const [q, setQ] = useState("");
+  const { search, setSearch, q, setQ } = useQueryFilter();
 
   const servers = useQuery({
     queryKey: ["servers", q],

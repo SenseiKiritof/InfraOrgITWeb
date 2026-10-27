@@ -1,15 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
 import { Pagination } from "../../components/Pagination";
 import { PageHeader, SearchForm } from "../../components/page";
 import { SortableTh } from "../../components/SortableTh";
+import { columnWidths } from "../../lib/columnWidths";
 import { usePagination } from "../../lib/pagination";
+import type { CommandExecution } from "../../lib/remote";
 import { getExecutions } from "../../lib/remote";
 import { nextSort, useSortedRows } from "../../lib/sort";
+import { useQueryFilter } from "../../lib/useQueryFilter";
 
 export function ExecutionsPage() {
-  const [search, setSearch] = useState("");
-  const [q, setQ] = useState("");
+  const { search, setSearch, q, setQ } = useQueryFilter();
   const executions = useQuery({
     queryKey: ["command-executions", q],
     queryFn: () => getExecutions(q),
@@ -24,6 +25,22 @@ export function ExecutionsPage() {
   );
 
   const paginated = usePagination(ordered.rows);
+  const widths = columnWidths(
+    [
+      {
+        label: "Data",
+        render: (row: CommandExecution) =>
+          new Date(row.startedAt).toLocaleString(),
+      },
+      { label: "Utente", render: (row: CommandExecution) => row.username },
+      { label: "Server", render: (row: CommandExecution) => row.serverName },
+      { label: "Tipo", render: (row: CommandExecution) => row.kind },
+      { label: "Etichetta", render: (row: CommandExecution) => row.label },
+      { label: "Exit", render: (row: CommandExecution) => row.exitCode ?? "—" },
+    ],
+    ordered.rows,
+    12,
+  );
 
   return (
     <section className="space-y-4">
@@ -46,6 +63,12 @@ export function ExecutionsPage() {
         ) : (
           <>
             <table className="w-full text-left text-sm">
+              <colgroup>
+                {widths.map((width, index) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: columns are positional
+                  <col key={index} style={{ width }} />
+                ))}
+              </colgroup>
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
                   {[
@@ -100,6 +123,7 @@ export function ExecutionsPage() {
             <Pagination
               page={paginated.page}
               pageCount={paginated.pageCount}
+              total={paginated.total}
               onPage={paginated.setPage}
             />
           </>

@@ -25,6 +25,7 @@ import {
   getCommandTemplates,
   saveApplicationAction,
 } from "../../lib/remote";
+import { useQueryFilter } from "../../lib/useQueryFilter";
 import { useIsSystemAdmin } from "../../lib/useServerAccess";
 
 const requestTypes = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
@@ -42,8 +43,7 @@ export function ApplicationsPage() {
   const csrf = session?.csrfToken ?? "";
   const isAdmin = useIsSystemAdmin();
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
-  const [q, setQ] = useState("");
+  const { search, setSearch, q, setQ } = useQueryFilter();
 
   const applications = useQuery({
     queryKey: ["applications", q],

@@ -7,9 +7,11 @@ import { PageHeader, SearchForm } from "../../components/page";
 import { SortableTh } from "../../components/SortableTh";
 import type { AdminUser } from "../../lib/admin";
 import { getGroups, getRoles, getUsers } from "../../lib/admin";
+import { columnWidths } from "../../lib/columnWidths";
 import { deleteEntity, saveEntity } from "../../lib/inventory";
 import { usePagination } from "../../lib/pagination";
 import { nextSort, useSortedRows } from "../../lib/sort";
+import { useQueryFilter } from "../../lib/useQueryFilter";
 
 const userSortValue = (user: AdminUser, key: string) =>
   key === "name" ? `${user.name} ${user.surname}` : user.username;
@@ -18,8 +20,7 @@ export function UsersPage() {
   const { session } = useAuth();
   const csrf = session?.csrfToken ?? "";
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
-  const [q, setQ] = useState("");
+  const { search, setSearch, q, setQ } = useQueryFilter();
   const [editing, setEditing] = useState<AdminUser | "new" | null>(null);
   const [form, setForm] = useState({ username: "", name: "", surname: "" });
   const [groupIds, setGroupIds] = useState<number[]>([]);
@@ -96,6 +97,25 @@ export function UsersPage() {
   };
 
   const paginated = usePagination(ordered.rows);
+  const widths = columnWidths(
+    [
+      { label: "Username", render: (user: AdminUser) => user.username },
+      {
+        label: "Nome",
+        render: (user: AdminUser) => `${user.name} ${user.surname}`,
+      },
+      {
+        label: "Gruppi",
+        render: (user: AdminUser) => user.groups.map((x) => x.name).join(", "),
+      },
+      {
+        label: "Ruoli",
+        render: (user: AdminUser) => user.roles.map((x) => x.label).join(", "),
+      },
+    ],
+    ordered.rows,
+    20,
+  );
 
   return (
     <section className="space-y-4">
@@ -132,6 +152,12 @@ export function UsersPage() {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
+            <colgroup>
+              {widths.map((width, index) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: columns are positional
+                <col key={index} style={{ width }} />
+              ))}
+            </colgroup>
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <SortableTh
@@ -191,6 +217,7 @@ export function UsersPage() {
           <Pagination
             page={paginated.page}
             pageCount={paginated.pageCount}
+            total={paginated.total}
             onPage={paginated.setPage}
           />
         </div>

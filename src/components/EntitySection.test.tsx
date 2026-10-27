@@ -86,9 +86,12 @@ describe("EntitySection", () => {
     );
 
     expect(screen.getAllByRole("row")).toHaveLength(21);
+    expect(screen.getByText(/21 elementi/)).toBeInTheDocument();
+    expect(screen.getByText(/Pagina 1 di 2/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Successiva" }));
     expect(screen.getAllByRole("row")).toHaveLength(2);
     expect(screen.getByText("Voce 21")).toBeInTheDocument();
+    expect(screen.getByText(/Pagina 2 di 2/)).toBeInTheDocument();
   });
 
   it("nasconde la creazione quando canCreate è false", () => {

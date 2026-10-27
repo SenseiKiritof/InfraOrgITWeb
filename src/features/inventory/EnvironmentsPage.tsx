@@ -1,5 +1,4 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useAuth } from "../../app/AuthProvider";
 import type { FormValues } from "../../components/EntitySection";
@@ -19,6 +18,7 @@ import type {
   ProviderEnvironment,
 } from "../../lib/inventory";
 import { deleteEntity, paged, saveEntity } from "../../lib/inventory";
+import { useQueryFilter } from "../../lib/useQueryFilter";
 import { useIsSystemAdmin } from "../../lib/useServerAccess";
 
 export function EnvironmentsPage() {
@@ -26,8 +26,7 @@ export function EnvironmentsPage() {
   const csrf = session?.csrfToken ?? "";
   const isAdmin = useIsSystemAdmin();
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
-  const [q, setQ] = useState("");
+  const { search, setSearch, q, setQ } = useQueryFilter();
 
   const environments = useQuery({
     queryKey: ["environments", q],

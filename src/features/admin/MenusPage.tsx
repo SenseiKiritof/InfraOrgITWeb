@@ -7,6 +7,7 @@ import { PageHeader } from "../../components/page";
 import { SortableTh } from "../../components/SortableTh";
 import type { AdminMenu } from "../../lib/admin";
 import { getAdminMenus, getRoles } from "../../lib/admin";
+import { columnWidths } from "../../lib/columnWidths";
 import { deleteEntity, saveEntity } from "../../lib/inventory";
 import { usePagination } from "../../lib/pagination";
 import { nextSort, useSortedRows } from "../../lib/sort";
@@ -129,6 +130,28 @@ export function MenusPage() {
     });
 
   const paginated = usePagination(ordered.rows);
+  const widths = columnWidths(
+    [
+      { label: "Nome", render: (menu: AdminMenu) => menu.name },
+      { label: "Path", render: (menu: AdminMenu) => menu.path },
+      {
+        label: "Padre",
+        render: (menu: AdminMenu) => parentName(menu.parentId),
+      },
+      { label: "Ordine", render: (menu: AdminMenu) => menu.order ?? "" },
+      {
+        label: "Attivo",
+        render: (menu: AdminMenu) => (menu.isActive ? "sì" : "no"),
+      },
+      {
+        label: "Visibile",
+        render: (menu: AdminMenu) => (menu.isVisible ? "sì" : "no"),
+      },
+      { label: "Ruoli", render: (menu: AdminMenu) => menu.roleIds.length },
+    ],
+    ordered.rows,
+    20,
+  );
 
   return (
     <section className="space-y-4">
@@ -160,6 +183,12 @@ export function MenusPage() {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
+            <colgroup>
+              {widths.map((width, index) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: columns are positional
+                <col key={index} style={{ width }} />
+              ))}
+            </colgroup>
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 {[
@@ -185,7 +214,7 @@ export function MenusPage() {
               </tr>
             </thead>
             <tbody>
-              {menus.data?.map((menu) => (
+              {(paginated.items ?? []).map((menu) => (
                 <tr key={menu.id} className="border-t border-slate-100">
                   <td className="px-4 py-2">{menu.name}</td>
                   <td className="px-4 py-2">{menu.path}</td>
@@ -217,6 +246,7 @@ export function MenusPage() {
           <Pagination
             page={paginated.page}
             pageCount={paginated.pageCount}
+            total={paginated.total}
             onPage={paginated.setPage}
           />
         </div>

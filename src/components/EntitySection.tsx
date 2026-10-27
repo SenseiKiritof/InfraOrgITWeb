@@ -1,6 +1,7 @@
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { columnWidths } from "../lib/columnWidths";
 import { usePagination } from "../lib/pagination";
 import { nextSort, type SortState, sortedRows } from "../lib/sort";
 import { Pagination } from "./Pagination";
@@ -71,6 +72,11 @@ export function EntitySection<T extends { id: number }>({
 
   const ordered = sortedRows(rows, sort);
   const paginated = usePagination(ordered);
+  const widths = columnWidths(
+    columns,
+    rows,
+    rowHref || rowActions || canWrite ? 18 : 3,
+  );
 
   const startCreate = () => {
     setValues(empty);
@@ -150,6 +156,12 @@ export function EntitySection<T extends { id: number }>({
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
+            <colgroup>
+              {widths.map((width, index) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: columns are positional
+                <col key={index} style={{ width }} />
+              ))}
+            </colgroup>
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 {columns.map((column) => (
@@ -217,10 +229,11 @@ export function EntitySection<T extends { id: number }>({
         </div>
       )}
 
-      {rows !== undefined && rows.length > 0 && (
+      {rows !== undefined && (
         <Pagination
           page={paginated.page}
           pageCount={paginated.pageCount}
+          total={paginated.total}
           onPage={paginated.setPage}
         />
       )}

@@ -6,6 +6,7 @@ import { useAuth } from "../../app/AuthProvider";
 import { Pagination } from "../../components/Pagination";
 import { PageHeader, SearchForm } from "../../components/page";
 import { SortableTh } from "../../components/SortableTh";
+import { columnWidths } from "../../lib/columnWidths";
 import type {
   Diagram,
   DiagramInput,
@@ -21,6 +22,7 @@ import type { Environment, Project, Provider } from "../../lib/inventory";
 import { paged } from "../../lib/inventory";
 import { usePagination } from "../../lib/pagination";
 import { nextSort, useSortedRows } from "../../lib/sort";
+import { useQueryFilter } from "../../lib/useQueryFilter";
 import { useServerAccess } from "../../lib/useServerAccess";
 
 interface FormState {
@@ -48,8 +50,7 @@ export function DiagramsPage() {
   const isSystemAdmin = access.data?.isSystemAdmin ?? false;
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [search, setSearch] = useState("");
-  const [q, setQ] = useState("");
+  const { search, setSearch, q, setQ } = useQueryFilter();
   const [editing, setEditing] = useState<Diagram | "new" | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [error, setError] = useState<string | null>(null);
@@ -191,6 +192,18 @@ export function DiagramsPage() {
     isSystemAdmin || (access.data?.adminEnvironmentIds.length ?? 0) > 0;
 
   const paginated = usePagination(ordered.rows);
+  const widths = columnWidths(
+    [
+      { label: "Nome", render: (row: Diagram) => row.name },
+      { label: "Scope", render: (row: Diagram) => scopeLabel(row) },
+      {
+        label: "Predefinito",
+        render: (row: Diagram) => (row.isDefault ? "sì" : ""),
+      },
+    ],
+    ordered.rows,
+    20,
+  );
 
   return (
     <section className="space-y-4">
@@ -245,6 +258,12 @@ export function DiagramsPage() {
           ) : (
             <>
               <table className="w-full text-left text-sm">
+                <colgroup>
+                  {widths.map((width, index) => (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: columns are positional
+                    <col key={index} style={{ width }} />
+                  ))}
+                </colgroup>
                 <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                   <tr>
                     {[
@@ -304,6 +323,7 @@ export function DiagramsPage() {
               <Pagination
                 page={paginated.page}
                 pageCount={paginated.pageCount}
+                total={paginated.total}
                 onPage={paginated.setPage}
               />
             </>

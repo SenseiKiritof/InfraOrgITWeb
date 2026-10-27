@@ -8,6 +8,7 @@ import {
   Route,
   Routes,
   useLocation,
+  useNavigate,
 } from "react-router-dom";
 import { GroupsPage } from "../features/admin/GroupsPage";
 import { MenusPage } from "../features/admin/MenusPage";
@@ -144,7 +145,13 @@ function Shell() {
     () => document.fullscreenElement !== null,
   );
   const location = useLocation();
+  const navigate = useNavigate();
   const detailParent = DETAIL_ROUTE.exec(location.pathname)?.[1];
+
+  const goBack = () => {
+    if ((window.history.state?.idx ?? 0) > 0) navigate(-1);
+    else if (detailParent) navigate(`/${detailParent}`);
+  };
 
   useEffect(() => {
     const sync = () => setFullscreen(document.fullscreenElement !== null);
@@ -210,6 +217,11 @@ function Shell() {
             {detailParent && (
               <Link
                 to={`/${detailParent}`}
+                onClick={(event) => {
+                  if (event.metaKey || event.ctrlKey || event.shiftKey) return;
+                  event.preventDefault();
+                  goBack();
+                }}
                 className="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
               >
                 <ArrowLeftIcon className="h-4 w-4" aria-hidden="true" />
