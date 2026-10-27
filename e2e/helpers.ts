@@ -6,7 +6,5 @@ export async function login(page: Page) {
   await page.fill("#username", "admin");
   await page.fill("#password", "dev-admin");
   await page.click("#kc-login");
-  await expect(
-    page.getByRole("heading", { name: "InfraOrgIT" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "InfraOrgIT" })).toBeVisible();
 }

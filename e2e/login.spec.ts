@@ -8,9 +8,7 @@ test("login BFF, menu e logout", async ({ page }) => {
   await page.fill("#password", "dev-admin");
   await page.click("#kc-login");
 
-  await expect(
-    page.getByRole("heading", { name: "InfraOrgIT" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "InfraOrgIT" })).toBeVisible();
   await expect(page.getByText("Dev Admin", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Users" })).toBeVisible();
 
