@@ -65,6 +65,7 @@ export function ServersPage() {
         ipAddress: values.ipAddress,
         hostname: values.hostname,
         sshPort: Number(values.sshPort || 22),
+        jumpServerId: values.jumpServerId ? Number(values.jumpServerId) : null,
       },
       csrf,
     );
@@ -98,6 +99,11 @@ export function ServersPage() {
           },
           { key: "ipAddress", label: "IP", render: (row) => row.ipAddress },
           { key: "sshPort", label: "Porta SSH", render: (row) => row.sshPort },
+          {
+            key: "jumpServerName",
+            label: "Proxy",
+            render: (row) => row.jumpServerName ?? "—",
+          },
         ]}
         fields={[
           {
@@ -119,6 +125,16 @@ export function ServersPage() {
           { name: "ipAddress", label: "Indirizzo IP", required: true },
           { name: "hostname", label: "Hostname", required: true },
           { name: "sshPort", label: "Porta SSH", type: "number" },
+          {
+            name: "jumpServerId",
+            label: "Server proxy (jump)",
+            type: "select",
+            options:
+              servers.data?.items.map((item) => ({
+                value: String(item.id),
+                label: `${item.name} (${item.ipAddress})`,
+              })) ?? [],
+          },
         ]}
         empty={{
           providerEnvironmentId: "",
@@ -126,6 +142,7 @@ export function ServersPage() {
           ipAddress: "",
           hostname: "",
           sshPort: "22",
+          jumpServerId: "",
         }}
         toForm={(row) => ({
           providerEnvironmentId: String(row.providerEnvironmentId),
@@ -133,6 +150,7 @@ export function ServersPage() {
           ipAddress: row.ipAddress,
           hostname: row.hostname,
           sshPort: String(row.sshPort),
+          jumpServerId: row.jumpServerId ? String(row.jumpServerId) : "",
         })}
         canWrite={adminEnvironmentIds.length > 0}
         canEditRow={(row) =>
@@ -348,6 +366,8 @@ export function ServerDetailPage() {
             <dd>{server.data.hostname}</dd>
             <dt className="text-slate-500">Porta SSH</dt>
             <dd>{server.data.sshPort}</dd>
+            <dt className="text-slate-500">Server proxy</dt>
+            <dd>{server.data.jumpServerName ?? "—"}</dd>
             <dt className="text-slate-500">Host key</dt>
             <dd>{server.data.hasHostKey ? "registrata" : "non registrata"}</dd>
           </dl>

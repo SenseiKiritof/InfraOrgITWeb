@@ -40,6 +40,8 @@ export interface Server {
   sshPort: number;
   credentialId: number | null;
   hasHostKey: boolean;
+  jumpServerId: number | null;
+  jumpServerName: string | null;
 }
 
 export interface ServerApplication {

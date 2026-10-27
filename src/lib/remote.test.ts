@@ -12,6 +12,8 @@ const server = (id: number, credentialId: number | null): Server => ({
   sshPort: 22,
   credentialId,
   hasHostKey: false,
+  jumpServerId: null,
+  jumpServerName: null,
 });
 
 describe("splitServersByCredential", () => {
