@@ -83,18 +83,48 @@ describe("ConsoleProvider", () => {
     );
   });
 
-  it("affianca e separa la console senza riconnettere", () => {
+  it("divide e unisce i terminali senza riconnettere", () => {
+    render(
+      <ConsoleProvider>
+        <Opener serverId={44} serverName="srv-alpha" />
+        <Opener serverId={45} serverName="srv-beta" />
+      </ConsoleProvider>,
+    );
+    fireEvent.click(screen.getAllByText("Apri console")[0]);
+
+    const panes = () => screen.getAllByTestId(/console-pane-/);
+    expect(panes()).toHaveLength(1);
+    expect(panes()[0].hasAttribute("hidden")).toBe(false);
+
+    fireEvent.click(screen.getByLabelText("Dividi le console"));
+    expect(panes().filter((pane) => !pane.hasAttribute("hidden"))).toHaveLength(
+      1,
+    );
+
+    fireEvent.click(screen.getAllByText("Apri console")[1]);
+    expect(panes()).toHaveLength(2);
+    expect(panes().filter((pane) => !pane.hasAttribute("hidden"))).toHaveLength(
+      2,
+    );
+
+    fireEvent.click(screen.getByLabelText("Unisci le console"));
+    expect(panes().filter((pane) => !pane.hasAttribute("hidden"))).toHaveLength(
+      1,
+    );
+    expect(FakeSocket.instances).toHaveLength(2);
+  });
+
+  it("riserva solo la barra quando il pannello è ridotto", () => {
     renderWithProvider();
     fireEvent.click(screen.getByText("Apri console"));
+    expect(
+      document.documentElement.style.getPropertyValue("--console-dock-height"),
+    ).toBe("calc(45vh + 2.75rem)");
 
-    fireEvent.click(screen.getByText("Separa"));
-    expect(screen.getByLabelText("Terminale SSH")).toBeTruthy();
-    expect(screen.getByText("Affianca")).toBeTruthy();
-
-    fireEvent.click(screen.getByText("Affianca"));
-    expect(screen.getByLabelText("Terminale SSH")).toBeTruthy();
-    expect(screen.getByText("Separa")).toBeTruthy();
-    expect(FakeSocket.instances).toHaveLength(1);
+    fireEvent.click(screen.getByLabelText("Riduci la barra delle console"));
+    expect(
+      document.documentElement.style.getPropertyValue("--console-dock-height"),
+    ).toBe("2.25rem");
   });
 
   it("riduce la barra a una riga e la riapre", () => {

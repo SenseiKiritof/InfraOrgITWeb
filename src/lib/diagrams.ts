@@ -110,6 +110,7 @@ export interface DiagramGraph {
   topology: Topology;
   nodes: DiagramNode[];
   edges: DiagramEdge[];
+  canWrite: boolean;
 }
 
 export interface DiagramInput {

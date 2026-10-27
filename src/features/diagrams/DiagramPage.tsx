@@ -3,6 +3,7 @@ import type { Edge, Node } from "@xyflow/react";
 import {
   Background,
   Controls,
+  MiniMap,
   ReactFlow,
   useEdgesState,
   useNodesState,
@@ -14,6 +15,12 @@ import { PageHeader } from "../../components/page";
 import type { ApiError } from "../../lib/api";
 import type { GraphEdgeData, GraphNodeData } from "../../lib/buildGraph";
 import { buildGraph } from "../../lib/buildGraph";
+import {
+  type AddedDiagramNode,
+  addedDiagramNodes,
+  addedSummary,
+  addedTypeLabel,
+} from "../../lib/diagramChanges";
 import type { DiagramEdge, DiagramNode } from "../../lib/diagrams";
 import {
   createDiagram,
@@ -29,6 +36,28 @@ import {
 import { useServerAccess } from "../../lib/useServerAccess";
 import { nodeTypes as graphNodeTypes } from "./GraphNodes";
 import { edgeTypes as graphEdgeTypes } from "./ProxyEdge";
+
+function toPayload(nodes: Node<GraphNodeData>[]): DiagramNode[] {
+  return nodes.map((node) => {
+    const data = node.data;
+    if (!data) throw new Error("Nodo senza dati");
+    const width =
+      node.measured?.width ??
+      (typeof node.style?.width === "number" ? node.style.width : null);
+    const height =
+      node.measured?.height ??
+      (typeof node.style?.height === "number" ? node.style.height : null);
+    return {
+      nodeType: data.nodeType,
+      entityId: data.entityId,
+      x: node.position.x,
+      y: node.position.y,
+      width,
+      height,
+      collapsed: false,
+    };
+  });
+}
 
 export function DiagramPage() {
   const { id } = useParams<{ id: string }>();
@@ -82,17 +111,31 @@ export function DiagramPage() {
   const [selected, setSelected] = useState<GraphNodeData | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [added, setAdded] = useState<AddedDiagramNode[] | null>(null);
+  const [showAddedDetails, setShowAddedDetails] = useState(false);
+  const synced = useRef<string | null>(null);
 
   useEffect(() => {
     if (!graphQuery.data) return;
-    const built = buildGraph(
-      graphQuery.data.topology,
-      graphQuery.data.nodes,
-      graphQuery.data.edges,
-    );
+    const graph = graphQuery.data;
+    const built = buildGraph(graph.topology, graph.nodes, graph.edges);
     setNodes(built.nodes);
     setEdges(built.edges);
-  }, [graphQuery.data, setNodes, setEdges]);
+
+    const missing = addedDiagramNodes(built.nodes, graph.nodes);
+    if (missing.length === 0 || graph.nodes.length === 0 || !graph.canWrite)
+      return;
+
+    const marker = `${graph.diagram.id}:${graphQuery.dataUpdatedAt}`;
+    if (synced.current === marker) return;
+    synced.current = marker;
+
+    void saveNodes(graph.diagram.id, toPayload(built.nodes), csrf)
+      .then(() => setAdded(missing))
+      .catch(() => {
+        // Salvataggio automatico non riuscito: il layout resta salvabile a mano.
+      });
+  }, [graphQuery.data, graphQuery.dataUpdatedAt, csrf, setNodes, setEdges]);
 
   const run = async (action: () => Promise<void>) => {
     setError(null);
@@ -111,19 +154,7 @@ export function DiagramPage() {
       const graph = graphQuery.data;
       if (!graph) return;
 
-      const payloadNodes: DiagramNode[] = nodes.map((node) => {
-        const data = node.data;
-        if (!data) throw new Error("Nodo senza dati");
-        return {
-          nodeType: data.nodeType,
-          entityId: data.entityId,
-          x: node.position.x,
-          y: node.position.y,
-          width: node.measured?.width ?? null,
-          height: node.measured?.height ?? null,
-          collapsed: false,
-        };
-      });
+      const payloadNodes = toPayload(nodes);
 
       const payloadEdges: DiagramEdge[] = edges.map((edge) => {
         const data = edge.data;
@@ -311,6 +342,43 @@ export function DiagramPage() {
         </div>
       </PageHeader>
 
+      {added && added.length > 0 && (
+        <div className="rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+          <div className="flex flex-wrap items-center gap-2">
+            <span>{addedSummary(added)}</span>
+            <button
+              type="button"
+              onClick={() => setShowAddedDetails((value) => !value)}
+              className="underline"
+            >
+              {showAddedDetails ? "Nascondi dettagli" : "Dettagli"}
+            </button>
+            <button
+              type="button"
+              aria-label="Chiudi l'avviso dei nodi aggiunti"
+              onClick={() => {
+                setAdded(null);
+                setShowAddedDetails(false);
+              }}
+              className="ml-auto rounded px-1 text-emerald-800 hover:bg-emerald-100"
+            >
+              ×
+            </button>
+          </div>
+          {showAddedDetails && (
+            <ul className="mt-2 space-y-1 border-t border-emerald-200 pt-2 text-xs">
+              {added.map((node) => (
+                <li key={`${node.nodeType}:${node.entityId}`}>
+                  <span className="font-medium">
+                    {addedTypeLabel(node.nodeType)}
+                  </span>
+                  : {node.label}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
       {message && (
         <p className="rounded-md bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
           {message}
@@ -343,6 +411,12 @@ export function DiagramPage() {
             elevateNodesOnSelect
           >
             <Background color="var(--rf-dot)" />
+            <MiniMap
+              pannable
+              zoomable
+              nodeColor="var(--rf-minimap-node)"
+              maskColor="var(--rf-minimap-mask)"
+            />
             <Controls />
           </ReactFlow>
         )}

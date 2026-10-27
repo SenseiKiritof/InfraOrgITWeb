@@ -2,31 +2,29 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { type AnsiSegment, parseAnsi } from "../../lib/ansi";
 import { appendOutput } from "../../lib/terminalBuffer";
 
-export type ConsoleLayout = "pane" | "modal";
-
 export function ConsoleModal({
   serverId,
   serverName,
   visible,
-  layout,
+  active,
   closing,
   resumeId,
   onSessionId,
   onData,
+  onActivate,
   onMinimize,
-  onSetLayout,
   onClose,
 }: {
   serverId: number;
   serverName: string;
   visible: boolean;
-  layout: ConsoleLayout;
+  active: boolean;
   closing?: boolean;
   resumeId?: string;
   onSessionId?: (id: string) => void;
   onData?: () => void;
+  onActivate?: () => void;
   onMinimize: () => void;
-  onSetLayout: (layout: ConsoleLayout) => void;
   onClose: () => void;
 }) {
   const [output, setOutput] = useState("");
@@ -45,8 +43,11 @@ export function ConsoleModal({
   const screen = useMemo(() => parseAnsi(output), [output]);
 
   useEffect(() => {
-    if (visible) terminal.current?.focus();
-  }, [visible]);
+    if (!active) return;
+    const element = terminal.current;
+    element?.focus();
+    if (element) element.scrollTop = element.scrollHeight;
+  }, [active]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: deve riallineare dopo ogni chunk di output
   useEffect(() => {
@@ -121,8 +122,8 @@ export function ConsoleModal({
 
   if (!visible) return null;
 
-  const body = (
-    <>
+  return (
+    <div className="pointer-events-auto flex h-full min-h-0 w-full flex-col rounded-lg border border-slate-700 bg-slate-950 p-3 shadow-xl">
       <div className="mb-2 flex items-center justify-between gap-2 text-sm text-slate-200">
         <p className="min-w-0 truncate">
           Console SSH · {serverName}{" "}
@@ -131,20 +132,8 @@ export function ConsoleModal({
         <div className="flex shrink-0 items-center gap-1.5 text-xs">
           <button
             type="button"
-            onClick={() => onSetLayout(layout === "pane" ? "modal" : "pane")}
-            title={
-              layout === "pane"
-                ? "Separa la console in una finestra"
-                : "Affianca la console alle altre"
-            }
-            className="rounded border border-slate-500 px-2 py-1"
-          >
-            {layout === "pane" ? "Separa" : "Affianca"}
-          </button>
-          <button
-            type="button"
             onClick={onMinimize}
-            title="Lascia la sessione aperta e torna al sito"
+            title="Chiudi il pannello e lascia la sessione nella barra"
             className="rounded border border-slate-500 px-2 py-1"
           >
             Riduci
@@ -169,7 +158,10 @@ export function ConsoleModal({
         tabIndex={0}
         ref={terminal}
         onKeyDown={onKeyDown}
-        onFocus={() => setFocused(true)}
+        onFocus={() => {
+          setFocused(true);
+          onActivate?.();
+        }}
         onBlur={() => setFocused(false)}
         className="min-h-0 flex-1 cursor-text overflow-auto whitespace-pre rounded bg-black p-3 font-mono text-xs text-slate-100 outline-none ring-emerald-400/70 focus:ring-2"
       >
@@ -198,22 +190,6 @@ export function ConsoleModal({
           />
         )}
       </div>
-    </>
-  );
-
-  if (layout === "modal") {
-    return (
-      <div className="pointer-events-auto fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4">
-        <div className="flex h-[80vh] w-full max-w-4xl flex-col rounded-lg bg-slate-950 p-4 shadow-xl">
-          {body}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="pointer-events-auto flex h-full min-h-0 w-full flex-col rounded-lg border border-slate-700 bg-slate-950 p-3 shadow-xl">
-      {body}
     </div>
   );
 }

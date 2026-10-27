@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import {
   Link,
   NavLink,
@@ -49,8 +49,6 @@ import { homeMenus } from "../lib/home";
 import {
   ArrowLeftIcon,
   ArrowRightOnRectangleIcon,
-  ArrowsPointingInIcon,
-  ArrowsPointingOutIcon,
   iconForPath,
   MoonIcon,
   SunIcon,
@@ -142,9 +140,6 @@ function Shell() {
   const [dark, setDark] = useState(() =>
     document.documentElement.classList.contains("dark"),
   );
-  const [fullscreen, setFullscreen] = useState(
-    () => document.fullscreenElement !== null,
-  );
   const location = useLocation();
   const navigate = useNavigate();
   const detailParent = DETAIL_ROUTE.exec(location.pathname)?.[1];
@@ -156,26 +151,11 @@ function Shell() {
     else navigate(action.to);
   };
 
-  useEffect(() => {
-    const sync = () => setFullscreen(document.fullscreenElement !== null);
-    document.addEventListener("fullscreenchange", sync);
-    return () => document.removeEventListener("fullscreenchange", sync);
-  }, []);
-
   const toggleTheme = () => {
     const next = !dark;
     setDark(next);
     document.documentElement.classList.toggle("dark", next);
     localStorage.setItem("infraorgit-theme", next ? "dark" : "light");
-  };
-
-  const toggleFullscreen = async () => {
-    try {
-      if (document.fullscreenElement) await document.exitFullscreen();
-      else await document.documentElement.requestFullscreen();
-    } catch {
-      // fullscreen non disponibile: nessuna azione
-    }
   };
 
   const handleLogout = async () => {
@@ -191,7 +171,10 @@ function Shell() {
   };
 
   return (
-    <div className="flex h-full overflow-hidden bg-slate-50 text-slate-900">
+    <div
+      className="flex h-full overflow-hidden bg-slate-50 text-slate-900"
+      style={{ paddingBottom: "var(--console-dock-height, 0px)" }}
+    >
       <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white">
         <div className="flex h-16 shrink-0 flex-col justify-center border-b border-slate-200 px-4">
           <p className="text-lg leading-tight font-semibold">InfraOrgIT</p>
@@ -231,17 +214,6 @@ function Shell() {
                 Indietro
               </Link>
             )}
-            <div className="min-w-0">
-              <p
-                data-testid="current-user"
-                className="truncate text-sm font-medium"
-              >
-                {session?.user.name} {session?.user.surname}
-              </p>
-              <p className="truncate text-xs text-slate-500">
-                {session?.user.username}
-              </p>
-            </div>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -257,31 +229,17 @@ function Shell() {
                 <MoonIcon className="h-5 w-5" aria-hidden="true" />
               )}
             </button>
-            <button
-              type="button"
-              onClick={() => void toggleFullscreen()}
-              aria-label={
-                fullscreen ? "Esci dallo schermo intero" : "Schermo intero"
-              }
-              title={
-                fullscreen ? "Esci dallo schermo intero" : "Schermo intero"
-              }
-              className="rounded-md border border-slate-300 p-2 text-slate-700 hover:bg-slate-100"
-            >
-              {fullscreen ? (
-                <ArrowsPointingInIcon className="h-5 w-5" aria-hidden="true" />
-              ) : (
-                <ArrowsPointingOutIcon className="h-5 w-5" aria-hidden="true" />
-              )}
-            </button>
             <details className="relative">
               <summary className="flex cursor-pointer list-none items-center gap-2 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 [&::-webkit-details-marker]:hidden">
                 <UserCircleIcon className="h-5 w-5" aria-hidden="true" />
-                <span className="max-w-[12rem] truncate">
-                  {session?.user.username}
+                <span className="max-w-[14rem] truncate">
+                  {session?.user.name} {session?.user.surname}
                 </span>
               </summary>
               <div className="absolute right-0 z-30 mt-2 w-48 rounded-md border border-slate-200 bg-white p-1 shadow-lg">
+                <p className="truncate px-3 py-2 text-xs text-slate-500">
+                  {session?.user.username}
+                </p>
                 <button
                   type="button"
                   onClick={() => void handleLogout()}
@@ -305,7 +263,7 @@ function Shell() {
             {logoutError}
           </p>
         )}
-        <main className="min-h-0 flex-1 overflow-auto p-6 pb-16">
+        <main className="min-h-0 flex-1 overflow-auto p-6">
           <Outlet />
         </main>
       </div>
