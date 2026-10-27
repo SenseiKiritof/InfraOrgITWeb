@@ -186,23 +186,12 @@ export function DiagramsPage() {
         title="Diagrammi"
         description="Vista globale e diagrammi salvati."
       >
-        <div className="flex gap-2">
-          <Link
-            to="/diagrams/default"
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
-          >
-            Vista globale
-          </Link>
-          {canCreate && (
-            <button
-              type="button"
-              onClick={startCreate}
-              className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white"
-            >
-              Nuovo diagramma
-            </button>
-          )}
-        </div>
+        <Link
+          to="/diagrams/default"
+          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+        >
+          Vista globale
+        </Link>
       </PageHeader>
       <SearchForm
         value={search}
@@ -219,56 +208,76 @@ export function DiagramsPage() {
         </p>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-        {diagrams.isLoading ? (
-          <p className="px-4 py-6 text-sm text-slate-500">Caricamento…</p>
-        ) : diagrams.data?.items.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-slate-500">Nessun diagramma.</p>
-        ) : (
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-4 py-2">Nome</th>
-                <th className="px-4 py-2">Scope</th>
-                <th className="px-4 py-2">Predefinito</th>
-                <th className="px-4 py-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {diagrams.data?.items.map((diagram) => (
-                <tr key={diagram.id} className="border-t border-slate-100">
-                  <td className="px-4 py-2">{diagram.name}</td>
-                  <td className="px-4 py-2 text-slate-600">
-                    {scopeLabel(diagram)}
-                  </td>
-                  <td className="px-4 py-2">{diagram.isDefault ? "sì" : ""}</td>
-                  <td className="space-x-3 px-4 py-2 text-right whitespace-nowrap">
-                    <Link
-                      to={`/diagrams/${diagram.id}`}
-                      className="text-sm font-medium underline"
-                    >
-                      Apri
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => startEdit(diagram)}
-                      className="text-sm underline"
-                    >
-                      Modifica
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void remove(diagram)}
-                      className="text-sm text-red-700 underline"
-                    >
-                      Elimina
-                    </button>
-                  </td>
+      <div className="rounded-lg border border-slate-200 bg-white">
+        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+            Diagrammi
+          </h2>
+          {canCreate && (
+            <button
+              type="button"
+              onClick={startCreate}
+              className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
+            >
+              Nuovo diagramma
+            </button>
+          )}
+        </div>
+        <div className="overflow-x-auto">
+          {diagrams.isLoading ? (
+            <p className="px-4 py-6 text-sm text-slate-500">Caricamento…</p>
+          ) : diagrams.data?.items.length === 0 ? (
+            <p className="px-4 py-6 text-sm text-slate-500">
+              Nessun diagramma.
+            </p>
+          ) : (
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-4 py-2">Nome</th>
+                  <th className="px-4 py-2">Scope</th>
+                  <th className="px-4 py-2">Predefinito</th>
+                  <th className="px-4 py-2" />
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+              </thead>
+              <tbody>
+                {diagrams.data?.items.map((diagram) => (
+                  <tr key={diagram.id} className="border-t border-slate-100">
+                    <td className="px-4 py-2">{diagram.name}</td>
+                    <td className="px-4 py-2 text-slate-600">
+                      {scopeLabel(diagram)}
+                    </td>
+                    <td className="px-4 py-2">
+                      {diagram.isDefault ? "sì" : ""}
+                    </td>
+                    <td className="space-x-3 px-4 py-2 text-right whitespace-nowrap">
+                      <Link
+                        to={`/diagrams/${diagram.id}`}
+                        className="text-sm font-medium underline"
+                      >
+                        Apri
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => startEdit(diagram)}
+                        className="text-sm underline"
+                      >
+                        Modifica
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void remove(diagram)}
+                        className="text-sm text-red-700 underline"
+                      >
+                        Elimina
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
 
       {editing !== null && (

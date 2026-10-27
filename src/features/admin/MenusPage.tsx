@@ -121,15 +121,7 @@ export function MenusPage() {
       <PageHeader
         title="Menu"
         description="Voci della sidebar e ruoli che possono vederle."
-      >
-        <button
-          type="button"
-          onClick={() => start("new")}
-          className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white"
-        >
-          Nuovo menu
-        </button>
-      </PageHeader>
+      />
       {error && (
         <p
           role="alert"
@@ -139,50 +131,64 @@ export function MenusPage() {
         </p>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-            <tr>
-              <th className="px-4 py-2">Nome</th>
-              <th className="px-4 py-2">Path</th>
-              <th className="px-4 py-2">Padre</th>
-              <th className="px-4 py-2">Ordine</th>
-              <th className="px-4 py-2">Attivo</th>
-              <th className="px-4 py-2">Visibile</th>
-              <th className="px-4 py-2">Ruoli</th>
-              <th className="px-4 py-2" />
-            </tr>
-          </thead>
-          <tbody>
-            {menus.data?.map((menu) => (
-              <tr key={menu.id} className="border-t border-slate-100">
-                <td className="px-4 py-2">{menu.name}</td>
-                <td className="px-4 py-2">{menu.path}</td>
-                <td className="px-4 py-2">{parentName(menu.parentId)}</td>
-                <td className="px-4 py-2">{menu.order ?? ""}</td>
-                <td className="px-4 py-2">{menu.isActive ? "sì" : "no"}</td>
-                <td className="px-4 py-2">{menu.isVisible ? "sì" : "no"}</td>
-                <td className="px-4 py-2">{menu.roleIds.length}</td>
-                <td className="space-x-3 px-4 py-2 text-right whitespace-nowrap">
-                  <button
-                    type="button"
-                    onClick={() => start(menu)}
-                    className="text-sm underline"
-                  >
-                    Modifica
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void remove(menu)}
-                    className="text-sm text-red-700 underline"
-                  >
-                    Elimina
-                  </button>
-                </td>
+      <div className="rounded-lg border border-slate-200 bg-white">
+        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+            Menu
+          </h2>
+          <button
+            type="button"
+            onClick={() => start("new")}
+            className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
+          >
+            Nuovo menu
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <tr>
+                <th className="px-4 py-2">Nome</th>
+                <th className="px-4 py-2">Path</th>
+                <th className="px-4 py-2">Padre</th>
+                <th className="px-4 py-2">Ordine</th>
+                <th className="px-4 py-2">Attivo</th>
+                <th className="px-4 py-2">Visibile</th>
+                <th className="px-4 py-2">Ruoli</th>
+                <th className="px-4 py-2" />
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {menus.data?.map((menu) => (
+                <tr key={menu.id} className="border-t border-slate-100">
+                  <td className="px-4 py-2">{menu.name}</td>
+                  <td className="px-4 py-2">{menu.path}</td>
+                  <td className="px-4 py-2">{parentName(menu.parentId)}</td>
+                  <td className="px-4 py-2">{menu.order ?? ""}</td>
+                  <td className="px-4 py-2">{menu.isActive ? "sì" : "no"}</td>
+                  <td className="px-4 py-2">{menu.isVisible ? "sì" : "no"}</td>
+                  <td className="px-4 py-2">{menu.roleIds.length}</td>
+                  <td className="space-x-3 px-4 py-2 text-right whitespace-nowrap">
+                    <button
+                      type="button"
+                      onClick={() => start(menu)}
+                      className="text-sm underline"
+                    >
+                      Modifica
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void remove(menu)}
+                      className="text-sm text-red-700 underline"
+                    >
+                      Elimina
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {editing !== null && (

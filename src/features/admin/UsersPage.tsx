@@ -92,15 +92,7 @@ export function UsersPage() {
       <PageHeader
         title="Utenti"
         description="Utenti provisionati da Keycloak e ruoli assegnati."
-      >
-        <button
-          type="button"
-          onClick={() => start("new")}
-          className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white"
-        >
-          Nuovo utente
-        </button>
-      </PageHeader>
+      />
       <SearchForm
         value={search}
         onChange={setSearch}
@@ -115,50 +107,64 @@ export function UsersPage() {
         </p>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-            <tr>
-              <th className="px-4 py-2">Username</th>
-              <th className="px-4 py-2">Nome</th>
-              <th className="px-4 py-2">Gruppi</th>
-              <th className="px-4 py-2">Ruoli</th>
-              <th className="px-4 py-2" />
-            </tr>
-          </thead>
-          <tbody>
-            {users.data?.items.map((user) => (
-              <tr key={user.id} className="border-t border-slate-100">
-                <td className="px-4 py-2">{user.username}</td>
-                <td className="px-4 py-2">
-                  {user.name} {user.surname}
-                </td>
-                <td className="px-4 py-2">
-                  {user.groups.map((x) => x.name).join(", ")}
-                </td>
-                <td className="px-4 py-2">
-                  {user.roles.map((x) => x.label).join(", ")}
-                </td>
-                <td className="space-x-3 px-4 py-2 text-right whitespace-nowrap">
-                  <button
-                    type="button"
-                    onClick={() => start(user)}
-                    className="text-sm underline"
-                  >
-                    Modifica
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void remove(user)}
-                    className="text-sm text-red-700 underline"
-                  >
-                    Elimina
-                  </button>
-                </td>
+      <div className="rounded-lg border border-slate-200 bg-white">
+        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+            Utenti
+          </h2>
+          <button
+            type="button"
+            onClick={() => start("new")}
+            className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
+          >
+            Nuovo utente
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <tr>
+                <th className="px-4 py-2">Username</th>
+                <th className="px-4 py-2">Nome</th>
+                <th className="px-4 py-2">Gruppi</th>
+                <th className="px-4 py-2">Ruoli</th>
+                <th className="px-4 py-2" />
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {users.data?.items.map((user) => (
+                <tr key={user.id} className="border-t border-slate-100">
+                  <td className="px-4 py-2">{user.username}</td>
+                  <td className="px-4 py-2">
+                    {user.name} {user.surname}
+                  </td>
+                  <td className="px-4 py-2">
+                    {user.groups.map((x) => x.name).join(", ")}
+                  </td>
+                  <td className="px-4 py-2">
+                    {user.roles.map((x) => x.label).join(", ")}
+                  </td>
+                  <td className="space-x-3 px-4 py-2 text-right whitespace-nowrap">
+                    <button
+                      type="button"
+                      onClick={() => start(user)}
+                      className="text-sm underline"
+                    >
+                      Modifica
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void remove(user)}
+                      className="text-sm text-red-700 underline"
+                    >
+                      Elimina
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {editing !== null && (
