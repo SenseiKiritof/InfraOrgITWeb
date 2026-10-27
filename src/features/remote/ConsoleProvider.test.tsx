@@ -5,7 +5,7 @@ import {
   render,
   screen,
 } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FakeSocket, stubWebSocket } from "../../test/fakeSocket";
 import {
   ConsoleProvider,
@@ -39,13 +39,14 @@ describe("ConsoleProvider", () => {
   afterEach(() => {
     cleanup();
     sessionStorage.clear();
+    vi.useRealTimers();
   });
   beforeEach(() => {
     sessionStorage.clear();
     stubWebSocket();
   });
 
-  it("riduce la console in una pillola senza chiudere la sessione", () => {
+  it("riduce la console nella barra senza chiudere la sessione", () => {
     renderWithProvider();
     fireEvent.click(screen.getByText("Apri console"));
 
@@ -56,30 +57,93 @@ describe("ConsoleProvider", () => {
 
     expect(screen.queryByLabelText("Terminale SSH")).toBeNull();
     expect(socket.readyState).toBe(FakeSocket.OPEN);
-    expect(screen.getByText("Console SSH · srv-alpha")).toBeTruthy();
+    expect(screen.getByText("srv-alpha")).toBeTruthy();
   });
 
-  it("riapre la sessione ridotta dalla pillola", () => {
+  it("riapre la sessione ridotta dalla barra", () => {
     renderWithProvider();
     fireEvent.click(screen.getByText("Apri console"));
     fireEvent.click(screen.getByText("Riduci"));
-    fireEvent.click(screen.getByText("Console SSH · srv-alpha"));
+    fireEvent.click(screen.getByText("srv-alpha"));
 
     expect(screen.getByLabelText("Terminale SSH")).toBeTruthy();
     expect(FakeSocket.instances).toHaveLength(1);
   });
 
-  it("chiude la pillola e la sessione", () => {
+  it("chiude la console dalla barra", () => {
     renderWithProvider();
     fireEvent.click(screen.getByText("Apri console"));
     fireEvent.click(screen.getByText("Riduci"));
     fireEvent.click(screen.getByLabelText("Chiudi la console di srv-alpha"));
 
-    expect(screen.queryByText("Console SSH · srv-alpha")).toBeNull();
+    expect(screen.queryByText("srv-alpha")).toBeNull();
     expect(FakeSocket.instances[0].readyState).toBe(FakeSocket.CLOSED);
     expect(FakeSocket.instances[0].sent).toContain(
       JSON.stringify({ type: "terminate" }),
     );
+  });
+
+  it("affianca e separa la console senza riconnettere", () => {
+    renderWithProvider();
+    fireEvent.click(screen.getByText("Apri console"));
+
+    fireEvent.click(screen.getByText("Separa"));
+    expect(screen.getByLabelText("Terminale SSH")).toBeTruthy();
+    expect(screen.getByText("Affianca")).toBeTruthy();
+
+    fireEvent.click(screen.getByText("Affianca"));
+    expect(screen.getByLabelText("Terminale SSH")).toBeTruthy();
+    expect(screen.getByText("Separa")).toBeTruthy();
+    expect(FakeSocket.instances).toHaveLength(1);
+  });
+
+  it("riduce la barra a una riga e la riapre", () => {
+    renderWithProvider();
+    fireEvent.click(screen.getByText("Apri console"));
+    fireEvent.click(screen.getByText("Riduci"));
+    fireEvent.click(screen.getByLabelText("Riduci la barra delle console"));
+
+    expect(screen.queryByText("srv-alpha")).toBeNull();
+    fireEvent.click(screen.getByText("Console (1)"));
+    expect(screen.getByText("srv-alpha")).toBeTruthy();
+  });
+
+  it("segnala l'output non visto e lo azzera quando apri la console", () => {
+    vi.useFakeTimers();
+    renderWithProvider();
+    fireEvent.click(screen.getByText("Apri console"));
+    fireEvent.click(screen.getByText("Riduci"));
+    const socket = FakeSocket.instances[0];
+
+    act(() => {
+      socket.emit("layer scaricato");
+      vi.advanceTimersByTime(700);
+    });
+
+    expect(screen.getByLabelText("Output non visto")).toBeTruthy();
+
+    fireEvent.click(screen.getByText("srv-alpha"));
+
+    expect(screen.queryByLabelText("Output non visto")).toBeNull();
+  });
+
+  it("segnala l'output non visto anche con la barra ridotta", () => {
+    vi.useFakeTimers();
+    renderWithProvider();
+    fireEvent.click(screen.getByText("Apri console"));
+    fireEvent.click(screen.getByLabelText("Riduci la barra delle console"));
+    const socket = FakeSocket.instances[0];
+
+    act(() => {
+      socket.emit("output");
+      vi.advanceTimersByTime(700);
+    });
+
+    expect(screen.getByLabelText("Output non visto")).toBeTruthy();
+
+    fireEvent.click(screen.getByText("Console (1)"));
+
+    expect(screen.queryByLabelText("Output non visto")).toBeNull();
   });
 
   it("clearConsoleSessions svuota lo storage delle console", () => {

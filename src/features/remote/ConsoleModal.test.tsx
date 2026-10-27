@@ -10,17 +10,24 @@ import { FakeSocket, stubWebSocket } from "../../test/fakeSocket";
 import { ConsoleModal } from "./ConsoleModal";
 
 const renderConsole = (
-  minimized = false,
-  extra: { resumeId?: string; onSessionId?: (id: string) => void } = {},
+  visible = true,
+  extra: {
+    layout?: "pane" | "modal";
+    resumeId?: string;
+    onSessionId?: (id: string) => void;
+    onSetLayout?: (layout: "pane" | "modal") => void;
+  } = {},
 ) =>
   render(
     <ConsoleModal
       serverId={44}
       serverName="srv-alpha"
-      minimized={minimized}
+      visible={visible}
+      layout={extra.layout ?? "pane"}
       resumeId={extra.resumeId}
       onSessionId={extra.onSessionId}
       onMinimize={vi.fn()}
+      onSetLayout={extra.onSetLayout ?? vi.fn()}
       onClose={vi.fn()}
     />,
   );
@@ -31,7 +38,7 @@ describe("ConsoleModal", () => {
   beforeEach(stubWebSocket);
 
   it("resta connesso quando viene ridotta", () => {
-    renderConsole(true);
+    renderConsole(false);
     const socket = FakeSocket.instances[0];
 
     expect(screen.queryByLabelText("Terminale SSH")).toBeNull();
@@ -81,6 +88,24 @@ describe("ConsoleModal", () => {
     expect(colored?.style.color).toBe("rgb(13, 188, 121)");
   });
 
+  it("chiede di separare una console affiancata", () => {
+    const onSetLayout = vi.fn();
+    renderConsole(true, { onSetLayout });
+
+    fireEvent.click(screen.getByText("Separa"));
+
+    expect(onSetLayout).toHaveBeenCalledWith("modal");
+  });
+
+  it("chiede di affiancare una console separata", () => {
+    const onSetLayout = vi.fn();
+    renderConsole(true, { layout: "modal", onSetLayout });
+
+    fireEvent.click(screen.getByText("Affianca"));
+
+    expect(onSetLayout).toHaveBeenCalledWith("pane");
+  });
+
   it("riaggancia la sessione con il token di resume", () => {
     renderConsole(false, { resumeId: "tok-123" });
     expect(FakeSocket.instances[0].url).toContain("resume=tok-123");
@@ -104,9 +129,11 @@ describe("ConsoleModal", () => {
       <ConsoleModal
         serverId={44}
         serverName="srv-alpha"
-        minimized={false}
+        visible
+        layout="pane"
         closing
         onMinimize={vi.fn()}
+        onSetLayout={vi.fn()}
         onClose={onClose}
       />,
     );
@@ -123,8 +150,10 @@ describe("ConsoleModal", () => {
       <ConsoleModal
         serverId={44}
         serverName="srv-alpha"
-        minimized={false}
+        visible
+        layout="pane"
         onMinimize={vi.fn()}
+        onSetLayout={vi.fn()}
         onClose={onClose}
       />,
     );

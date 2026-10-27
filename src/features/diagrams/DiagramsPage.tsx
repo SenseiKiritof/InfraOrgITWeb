@@ -254,74 +254,72 @@ export function DiagramsPage() {
               Nessun diagramma.
             </p>
           ) : (
-            <>
-              <table className="w-full text-left text-sm">
-                <colgroup>
-                  {widths.map((width, index) => (
-                    // biome-ignore lint/suspicious/noArrayIndexKey: columns are positional
-                    <col key={index} style={{ width }} />
+            <table className="w-full text-left text-sm">
+              <colgroup>
+                {widths.map((width, index) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: columns are positional
+                  <col key={index} style={{ width }} />
+                ))}
+              </colgroup>
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  {columns.map((column) => (
+                    <SortableTh
+                      key={column.key}
+                      label={column.label}
+                      sortKey={column.key}
+                      sort={ordered.sort}
+                      onSort={(key) =>
+                        ordered.setSort((current) => nextSort(current, key))
+                      }
+                    />
                   ))}
-                </colgroup>
-                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                  <tr>
+                  <th className="px-4 py-2">
+                    <span className="sr-only">Azioni</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {(paginated.items ?? []).map((diagram) => (
+                  <tr key={diagram.id} className="border-t border-slate-100">
                     {columns.map((column) => (
-                      <SortableTh
+                      <td
                         key={column.key}
-                        label={column.label}
-                        sortKey={column.key}
-                        sort={ordered.sort}
-                        onSort={(key) =>
-                          ordered.setSort((current) => nextSort(current, key))
+                        className={
+                          column.key === "scope"
+                            ? "px-4 py-2 text-slate-600"
+                            : "px-4 py-2"
                         }
-                      />
-                    ))}
-                    <th className="px-4 py-2">
-                      <span className="sr-only">Azioni</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(paginated.items ?? []).map((diagram) => (
-                    <tr key={diagram.id} className="border-t border-slate-100">
-                      {columns.map((column) => (
-                        <td
-                          key={column.key}
-                          className={
-                            column.key === "scope"
-                              ? "px-4 py-2 text-slate-600"
-                              : "px-4 py-2"
-                          }
-                        >
-                          {column.render(diagram)}
-                        </td>
-                      ))}
-                      <td className="space-x-3 px-4 py-2 text-right whitespace-nowrap">
-                        <Link
-                          to={`/diagrams/${diagram.id}`}
-                          className="text-sm font-medium underline"
-                        >
-                          Apri
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => startEdit(diagram)}
-                          className="text-sm underline"
-                        >
-                          Modifica
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void remove(diagram)}
-                          className="text-sm text-red-700 underline"
-                        >
-                          Elimina
-                        </button>
+                      >
+                        {column.render(diagram)}
                       </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </>
+                    ))}
+                    <td className="space-x-3 px-4 py-2 text-right whitespace-nowrap">
+                      <Link
+                        to={`/diagrams/${diagram.id}`}
+                        className="text-sm font-medium underline"
+                      >
+                        Apri
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => startEdit(diagram)}
+                        className="text-sm underline"
+                      >
+                        Modifica
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void remove(diagram)}
+                        className="text-sm text-red-700 underline"
+                      >
+                        Elimina
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
         <Pagination

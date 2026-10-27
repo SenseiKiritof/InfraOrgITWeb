@@ -2,23 +2,31 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { type AnsiSegment, parseAnsi } from "../../lib/ansi";
 import { appendOutput } from "../../lib/terminalBuffer";
 
+export type ConsoleLayout = "pane" | "modal";
+
 export function ConsoleModal({
   serverId,
   serverName,
-  minimized,
+  visible,
+  layout,
   closing,
   resumeId,
   onSessionId,
+  onData,
   onMinimize,
+  onSetLayout,
   onClose,
 }: {
   serverId: number;
   serverName: string;
-  minimized: boolean;
+  visible: boolean;
+  layout: ConsoleLayout;
   closing?: boolean;
   resumeId?: string;
   onSessionId?: (id: string) => void;
+  onData?: () => void;
   onMinimize: () => void;
+  onSetLayout: (layout: ConsoleLayout) => void;
   onClose: () => void;
 }) {
   const [output, setOutput] = useState("");
@@ -28,6 +36,8 @@ export function ConsoleModal({
   const terminal = useRef<HTMLDivElement | null>(null);
   const sessionCallback = useRef(onSessionId);
   sessionCallback.current = onSessionId;
+  const dataCallback = useRef(onData);
+  dataCallback.current = onData;
   const closeCallback = useRef(onClose);
   closeCallback.current = onClose;
   const closed = useRef(false);
@@ -35,8 +45,8 @@ export function ConsoleModal({
   const screen = useMemo(() => parseAnsi(output), [output]);
 
   useEffect(() => {
-    if (!minimized) terminal.current?.focus();
-  }, [minimized]);
+    if (visible) terminal.current?.focus();
+  }, [visible]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: deve riallineare dopo ogni chunk di output
   useEffect(() => {
@@ -70,6 +80,7 @@ export function ConsoleModal({
 
       const text = decoder.decode(event.data as ArrayBuffer, { stream: true });
       setOutput((current) => appendOutput(current, text));
+      dataCallback.current?.();
     };
     ws.onerror = () => setStatus("Errore di connessione");
     ws.onclose = () => setStatus((current) => `${current} · sessione chiusa`);
@@ -108,79 +119,101 @@ export function ConsoleModal({
     event.preventDefault();
   };
 
-  if (minimized) return null;
+  if (!visible) return null;
+
+  const body = (
+    <>
+      <div className="mb-2 flex items-center justify-between gap-2 text-sm text-slate-200">
+        <p className="min-w-0 truncate">
+          Console SSH · {serverName}{" "}
+          <span className="text-slate-400">({status})</span>
+        </p>
+        <div className="flex shrink-0 items-center gap-1.5 text-xs">
+          <button
+            type="button"
+            onClick={() => onSetLayout(layout === "pane" ? "modal" : "pane")}
+            title={
+              layout === "pane"
+                ? "Separa la console in una finestra"
+                : "Affianca la console alle altre"
+            }
+            className="rounded border border-slate-500 px-2 py-1"
+          >
+            {layout === "pane" ? "Separa" : "Affianca"}
+          </button>
+          <button
+            type="button"
+            onClick={onMinimize}
+            title="Lascia la sessione aperta e torna al sito"
+            className="rounded border border-slate-500 px-2 py-1"
+          >
+            Riduci
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              closed.current = true;
+              terminate(socket.current);
+              onClose();
+            }}
+            className="rounded border border-slate-500 px-2 py-1"
+          >
+            Chiudi
+          </button>
+        </div>
+      </div>
+      <div
+        aria-label="Terminale SSH"
+        role="log"
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: il terminale deve ricevere la tastiera; textarea non può colorare l'output
+        tabIndex={0}
+        ref={terminal}
+        onKeyDown={onKeyDown}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        className="min-h-0 flex-1 cursor-text overflow-auto whitespace-pre rounded bg-black p-3 font-mono text-xs text-slate-100 outline-none ring-emerald-400/70 focus:ring-2"
+      >
+        {output ? (
+          screen.rows.map((row, index) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: righe posizionali del terminale
+            <div key={index} className="min-h-[1.2em]">
+              <TerminalRow
+                segments={row}
+                caret={index === screen.cursor.row ? screen.cursor.col : null}
+                focused={focused}
+              />
+            </div>
+          ))
+        ) : (
+          <span className="text-slate-400">
+            Clicca qui e premi Invio per iniziare.
+          </span>
+        )}
+        {!output && (
+          <span
+            aria-hidden="true"
+            className={
+              focused ? "console-caret" : "console-caret console-caret-idle"
+            }
+          />
+        )}
+      </div>
+    </>
+  );
+
+  if (layout === "modal") {
+    return (
+      <div className="pointer-events-auto fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4">
+        <div className="flex h-[80vh] w-full max-w-4xl flex-col rounded-lg bg-slate-950 p-4 shadow-xl">
+          {body}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4">
-      <div className="flex h-[80vh] w-full max-w-4xl flex-col rounded-lg bg-slate-950 p-4 shadow-xl">
-        <div className="mb-2 flex items-center justify-between text-sm text-slate-200">
-          <p>
-            Console SSH · {serverName}{" "}
-            <span className="text-slate-400">({status})</span>
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onMinimize}
-              className="rounded border border-slate-500 px-2 py-1"
-              title="Lascia la sessione aperta e torna al sito"
-            >
-              Riduci
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                closed.current = true;
-                terminate(socket.current);
-                onClose();
-              }}
-              className="rounded border border-slate-500 px-2 py-1"
-            >
-              Chiudi
-            </button>
-          </div>
-        </div>
-        <div
-          aria-label="Terminale SSH"
-          role="log"
-          // biome-ignore lint/a11y/noNoninteractiveTabindex: il terminale deve ricevere la tastiera; textarea non può colorare l'output
-          tabIndex={0}
-          ref={terminal}
-          onKeyDown={onKeyDown}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          className="min-h-0 flex-1 cursor-text overflow-auto whitespace-pre rounded bg-black p-3 font-mono text-xs text-slate-100 outline-none ring-emerald-400/70 focus:ring-2"
-        >
-          {output ? (
-            screen.rows.map((row, index) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: righe posizionali del terminale
-              <div key={index} className="min-h-[1.2em]">
-                <TerminalRow
-                  segments={row}
-                  caret={index === screen.cursor.row ? screen.cursor.col : null}
-                  focused={focused}
-                />
-              </div>
-            ))
-          ) : (
-            <span className="text-slate-400">
-              Clicca qui e premi Invio per iniziare.
-            </span>
-          )}
-          {!output && (
-            <span
-              aria-hidden="true"
-              className={
-                focused ? "console-caret" : "console-caret console-caret-idle"
-              }
-            />
-          )}
-        </div>
-        <p className="mt-2 text-xs text-slate-400">
-          Il terminale ha il focus: digita direttamente. Cliccalo se perdi il
-          cursore. La sessione ha durata massima limitata e viene registrata.
-        </p>
-      </div>
+    <div className="pointer-events-auto flex h-full min-h-0 w-full flex-col rounded-lg border border-slate-700 bg-slate-950 p-3 shadow-xl">
+      {body}
     </div>
   );
 }
