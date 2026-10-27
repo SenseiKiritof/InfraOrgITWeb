@@ -50,24 +50,45 @@ async function problemFrom(response: Response): Promise<ApiError> {
   return new ApiError(response.status, code, message);
 }
 
+export const SESSION_REFRESHED_EVENT = "session:refreshed";
+
 export async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
   csrfToken?: string,
 ): Promise<T> {
-  const headers = new Headers(options.headers);
-  if (options.body && !headers.has("Content-Type"))
-    headers.set("Content-Type", "application/json");
-  if (csrfToken) headers.set("X-CSRF-Token", csrfToken);
+  const send = (token?: string) => {
+    const headers = new Headers(options.headers);
+    if (options.body && !headers.has("Content-Type"))
+      headers.set("Content-Type", "application/json");
+    if (token) headers.set("X-CSRF-Token", token);
+    return fetch(path, { ...options, headers, credentials: "include" });
+  };
 
-  const response = await fetch(path, {
-    ...options,
-    headers,
-    credentials: "include",
-  });
+  const parse = async (response: Response): Promise<T> => {
+    if (response.status === 204) return undefined as T;
+    return (await response.json()) as T;
+  };
+
+  let response = await send(csrfToken);
+  if (response.status === 403) {
+    const problem = await problemFrom(response);
+    if (problem.code === "csrf_failed") {
+      // Token stale dopo un altro login nello stesso browser: riallinea e riprova.
+      const fresh = await getSession();
+      if (fresh?.csrfToken && fresh.csrfToken !== csrfToken) {
+        window.dispatchEvent(
+          new CustomEvent<Session>(SESSION_REFRESHED_EVENT, { detail: fresh }),
+        );
+        response = await send(fresh.csrfToken);
+        if (!response.ok) throw await problemFrom(response);
+        return parse(response);
+      }
+    }
+    throw problem;
+  }
   if (!response.ok) throw await problemFrom(response);
-  if (response.status === 204) return undefined as T;
-  return (await response.json()) as T;
+  return parse(response);
 }
 
 export async function getSession(): Promise<Session | null> {

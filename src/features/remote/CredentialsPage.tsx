@@ -1,20 +1,37 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { useAuth } from "../../app/AuthProvider";
 import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
 import { PageHeader } from "../../components/page";
+import type { Server } from "../../lib/inventory";
 import { deleteEntity, saveEntity } from "../../lib/inventory";
 import type { ServerCredential } from "../../lib/remote";
-import { getCredentials } from "../../lib/remote";
+import {
+  assignServerSsh,
+  getCredentials,
+  getServersForCredential,
+  splitServersByCredential,
+} from "../../lib/remote";
 
 export function CredentialsPage() {
   const { session } = useAuth();
   const csrf = session?.csrfToken ?? "";
   const queryClient = useQueryClient();
+  const [managing, setManaging] = useState<ServerCredential | null>(null);
+  const [selectedServerId, setSelectedServerId] = useState("");
+  const [managerError, setManagerError] = useState<string | null>(null);
+  const [managerBusy, setManagerBusy] = useState(false);
 
   const credentials = useQuery({
     queryKey: ["server-credentials"],
     queryFn: getCredentials,
+    retry: false,
+  });
+
+  const servers = useQuery({
+    queryKey: ["servers", "credential-manager"],
+    queryFn: getServersForCredential,
     retry: false,
   });
 
@@ -37,6 +54,46 @@ export function CredentialsPage() {
   const remove = async (row: ServerCredential) => {
     await deleteEntity(`/api/server-credentials/${row.id}`, csrf);
     await queryClient.invalidateQueries({ queryKey: ["server-credentials"] });
+  };
+
+  const openManager = (row: ServerCredential) => {
+    setManaging(row);
+    setSelectedServerId("");
+    setManagerError(null);
+  };
+
+  const updateCredential = async (
+    server: Server,
+    credentialId: number | null,
+  ) => {
+    setManagerBusy(true);
+    setManagerError(null);
+    try {
+      await assignServerSsh(server.id, credentialId, server.sshPort, csrf);
+      await queryClient.invalidateQueries({ queryKey: ["server-credentials"] });
+      await queryClient.invalidateQueries({ queryKey: ["servers"] });
+    } catch (cause) {
+      setManagerError(
+        cause instanceof Error ? cause.message : "Operazione non riuscita",
+      );
+    } finally {
+      setManagerBusy(false);
+    }
+  };
+
+  const split =
+    managing && servers.data
+      ? splitServersByCredential(servers.data.items, managing.id)
+      : { assigned: [], available: [] };
+
+  const addServer = async () => {
+    if (!managing) return;
+    const server = split.available.find(
+      (candidate) => candidate.id === Number(selectedServerId),
+    );
+    if (!server) return;
+    await updateCredential(server, managing.id);
+    setSelectedServerId("");
   };
 
   return (
@@ -103,8 +160,125 @@ export function CredentialsPage() {
         canWrite
         onSave={save}
         onDelete={remove}
+        rowActions={(row) => (
+          <button
+            type="button"
+            onClick={() => openManager(row)}
+            className="text-sm font-medium text-slate-900 underline"
+          >
+            Server
+          </button>
+        )}
         createLabel="Nuova credenziale"
       />
+
+      {managing && (
+        <div className="fixed inset-0 z-10 flex items-center justify-center bg-slate-900/40 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Gestisci server della credenziale"
+            className="w-full max-w-2xl rounded-lg bg-white p-5 shadow-xl"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold">
+                  Server della credenziale
+                </h2>
+                <p className="text-sm text-slate-500">{managing.name}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setManaging(null)}
+                className="text-sm underline"
+              >
+                Chiudi
+              </button>
+            </div>
+
+            {managerError && (
+              <p role="alert" className="mt-3 text-sm text-red-700">
+                {managerError}
+              </p>
+            )}
+
+            <div className="mt-4 space-y-5">
+              <section>
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                  Associati ({split.assigned.length})
+                </h3>
+                {split.assigned.length === 0 ? (
+                  <p className="mt-2 text-sm text-slate-500">
+                    Nessun server usa questa credenziale.
+                  </p>
+                ) : (
+                  <ul className="mt-2 divide-y divide-slate-100 rounded-md border border-slate-200">
+                    {split.assigned.map((server) => (
+                      <li
+                        key={server.id}
+                        className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
+                      >
+                        <span>
+                          {server.name}
+                          <span className="ml-2 text-slate-500">
+                            {server.providerEnvironmentLabel} · :
+                            {server.sshPort}
+                          </span>
+                        </span>
+                        <button
+                          type="button"
+                          disabled={managerBusy}
+                          onClick={() => void updateCredential(server, null)}
+                          className="text-sm text-red-700 underline disabled:opacity-50"
+                        >
+                          Rimuovi
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+
+              <section>
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                  Aggiungi server senza credenziale
+                </h3>
+                <div className="mt-2 flex gap-2">
+                  <select
+                    aria-label="Server da associare"
+                    value={selectedServerId}
+                    onChange={(event) =>
+                      setSelectedServerId(event.target.value)
+                    }
+                    className="min-w-0 flex-1 rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                  >
+                    <option value="">—</option>
+                    {split.available.map((server) => (
+                      <option key={server.id} value={server.id}>
+                        {server.name} · {server.providerEnvironmentLabel} · :
+                        {server.sshPort}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    disabled={!selectedServerId || managerBusy}
+                    onClick={() => void addServer()}
+                    className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+                  >
+                    Aggiungi
+                  </button>
+                </div>
+                {split.available.length === 0 && (
+                  <p className="mt-2 text-sm text-slate-500">
+                    Nessun server senza credenziale disponibile.
+                  </p>
+                )}
+              </section>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

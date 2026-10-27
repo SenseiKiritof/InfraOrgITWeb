@@ -1,5 +1,5 @@
 import { apiFetch } from "./api";
-import type { Paged } from "./inventory";
+import type { Paged, Server } from "./inventory";
 
 export interface ServerCredential {
   id: number;
@@ -93,6 +93,22 @@ export function getCredentials(): Promise<Paged<ServerCredential>> {
   return apiFetch<Paged<ServerCredential>>(
     "/api/server-credentials?pageSize=200",
   );
+}
+
+export function getServersForCredential(): Promise<Paged<Server>> {
+  return apiFetch<Paged<Server>>("/api/servers?pageSize=200");
+}
+
+export function splitServersByCredential(
+  servers: Server[],
+  credentialId: number,
+): { assigned: Server[]; available: Server[] } {
+  return {
+    assigned: servers.filter((server) => server.credentialId === credentialId),
+    // Solo server senza credenziale: aggiungerne uno già associato la sposterebbe
+    // silenziosamente da un'altra credenziale.
+    available: servers.filter((server) => server.credentialId === null),
+  };
 }
 
 export function assignServerSsh(

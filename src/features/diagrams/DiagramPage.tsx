@@ -7,7 +7,7 @@ import {
   useEdgesState,
   useNodesState,
 } from "@xyflow/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../app/AuthProvider";
 import { PageHeader } from "../../components/page";
@@ -27,6 +27,8 @@ import {
   saveNodes,
 } from "../../lib/diagrams";
 import { useServerAccess } from "../../lib/useServerAccess";
+import { nodeTypes as graphNodeTypes } from "./GraphNodes";
+import { edgeTypes as graphEdgeTypes } from "./ProxyEdge";
 
 export function DiagramPage() {
   const { id } = useParams<{ id: string }>();
@@ -39,6 +41,20 @@ export function DiagramPage() {
   const access = useServerAccess();
   const isSystemAdmin = access.data?.isSystemAdmin ?? false;
   const adminEnvironmentIds = access.data?.adminEnvironmentIds ?? [];
+  const sectionRef = useRef<HTMLElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const onChange = () =>
+      setIsFullscreen(document.fullscreenElement === sectionRef.current);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void sectionRef.current?.requestFullscreen();
+  };
 
   const diagramQuery = useQuery({
     queryKey: ["diagram", isDefault ? "default" : numericId],
@@ -250,7 +266,7 @@ export function DiagramPage() {
   const diagram = graphQuery.data?.diagram;
 
   return (
-    <section className="space-y-3">
+    <section ref={sectionRef} className="flex h-full min-h-0 flex-col gap-3">
       <PageHeader
         title={diagram?.name ?? "Diagramma"}
         description={
@@ -280,6 +296,13 @@ export function DiagramPage() {
           </button>
           <button
             type="button"
+            onClick={toggleFullscreen}
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+          >
+            {isFullscreen ? "Esci" : "Schermo intero"}
+          </button>
+          <button
+            type="button"
             onClick={() => void removeDiagram()}
             className="rounded-md border border-red-300 px-3 py-1.5 text-sm text-red-700"
           >
@@ -302,21 +325,24 @@ export function DiagramPage() {
         </p>
       )}
 
-      <div className="h-[70vh] overflow-hidden rounded-lg border border-slate-200 bg-white">
+      <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-slate-200 bg-white">
         {graphQuery.isLoading ? (
           <p className="p-4 text-sm text-slate-500">Caricamento diagramma…</p>
         ) : (
           <ReactFlow
             nodes={nodes}
             edges={edges}
+            nodeTypes={graphNodeTypes}
+            edgeTypes={graphEdgeTypes}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onNodeClick={(_, node) => setSelected(node.data)}
             fitView
             nodesConnectable={false}
             minZoom={0.1}
+            elevateNodesOnSelect
           >
-            <Background />
+            <Background color="var(--rf-dot)" />
             <Controls />
           </ReactFlow>
         )}

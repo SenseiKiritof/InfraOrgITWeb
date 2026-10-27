@@ -104,6 +104,16 @@ function Shell() {
   const { session, logout } = useAuth();
   const menus = useQuery({ queryKey: ["menus"], queryFn: getMenus });
   const [logoutError, setLogoutError] = useState<string | null>(null);
+  const [dark, setDark] = useState(() =>
+    document.documentElement.classList.contains("dark"),
+  );
+
+  const toggleTheme = () => {
+    const next = !dark;
+    setDark(next);
+    document.documentElement.classList.toggle("dark", next);
+    localStorage.setItem("infraorgit-theme", next ? "dark" : "light");
+  };
 
   const handleLogout = async () => {
     setLogoutError(null);
@@ -119,8 +129,8 @@ function Shell() {
   return (
     <div className="flex h-full bg-slate-50 text-slate-900">
       <aside className="w-64 shrink-0 border-r border-slate-200 bg-white">
-        <div className="border-b border-slate-200 px-4 py-4">
-          <p className="text-lg font-semibold">InfraOrgIT</p>
+        <div className="flex h-16 flex-col justify-center border-b border-slate-200 px-4">
+          <p className="text-lg leading-tight font-semibold">InfraOrgIT</p>
           <p className="text-xs text-slate-500">Infrastructure organizer</p>
         </div>
         <nav aria-label="Menu principale" className="p-3">
@@ -135,20 +145,30 @@ function Shell() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3">
+        <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6">
           <div>
             <p data-testid="current-user" className="text-sm font-medium">
               {session?.user.name} {session?.user.surname}
             </p>
             <p className="text-xs text-slate-500">{session?.user.username}</p>
           </div>
-          <button
-            type="button"
-            onClick={() => void handleLogout()}
-            className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
-          >
-            Logout
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={dark ? "Passa al tema chiaro" : "Passa al tema scuro"}
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+            >
+              {dark ? "Tema chiaro" : "Tema scuro"}
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleLogout()}
+              className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
+            >
+              Logout
+            </button>
+          </div>
         </header>
         {logoutError && (
           <p

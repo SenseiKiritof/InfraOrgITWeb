@@ -1,5 +1,68 @@
 @import "tailwindcss";
 
+:root {
+  --node-provider-border: #7c3aed;
+  --node-provider-background: #f5f3ff;
+  --node-providerenvironment-border: #2563eb;
+  --node-providerenvironment-background: #eff6ff;
+  --node-server-border: #475569;
+  --node-server-background: #f8fafc;
+  --node-serverapplication-border: #059669;
+  --node-serverapplication-background: #ecfdf5;
+  --edge-outgoing: #0f172a;
+  --edge-incoming: #64748b;
+  --edge-label: #334155;
+  --edge-label-background: #ffffff;
+  --rf-dot: #cbd5e1;
+  --graph-provider-border: #6366f1;
+  --graph-provider-background: rgba(99, 102, 241, 0.06);
+  --graph-provider-header: #4f46e5;
+  --graph-environment-border: #10b981;
+  --graph-environment-background: rgba(16, 185, 129, 0.06);
+  --graph-environment-header: #059669;
+  --graph-server-border: #0ea5e9;
+  --graph-server-background: rgba(14, 165, 233, 0.06);
+  --graph-server-header: #0284c7;
+  --graph-application-border: #f59e0b;
+  --graph-application-background: #ffffff;
+  --graph-project-background: #e2e8f0;
+  --graph-project-text: #334155;
+}
+
+.dark {
+  color-scheme: dark;
+  --node-provider-border: #a78bfa;
+  --node-provider-background: #2e1065;
+  --node-providerenvironment-border: #60a5fa;
+  --node-providerenvironment-background: #172554;
+  --node-server-border: #94a3b8;
+  --node-server-background: #1e293b;
+  --node-serverapplication-border: #34d399;
+  --node-serverapplication-background: #022c22;
+  --edge-outgoing: #cbd5e1;
+  --edge-incoming: #94a3b8;
+  --edge-label: #e2e8f0;
+  --edge-label-background: #1e293b;
+  --rf-dot: #334155;
+  --graph-provider-border: #818cf8;
+  --graph-provider-background: rgba(99, 102, 241, 0.14);
+  --graph-provider-header: #4338ca;
+  --graph-environment-border: #34d399;
+  --graph-environment-background: rgba(16, 185, 129, 0.14);
+  --graph-environment-header: #047857;
+  --graph-server-border: #38bdf8;
+  --graph-server-background: rgba(14, 165, 233, 0.14);
+  --graph-server-header: #0369a1;
+  --graph-application-border: #fbbf24;
+  --graph-application-background: #1e293b;
+  --graph-project-background: #334155;
+  --graph-project-text: #e2e8f0;
+}
+
+html.dark {
+  background: #0f172a;
+}
+
 html,
 body,
 #root {
@@ -9,4 +72,176 @@ body,
 body {
   margin: 0;
   font-family: system-ui, sans-serif;
+}
+
+/* Il tema scuro riusa le utility esistenti: le classi chiare vengono rimappate. */
+.dark .bg-white {
+  background-color: #1e293b;
+}
+.dark .bg-slate-50 {
+  background-color: #0f172a;
+}
+.dark .bg-slate-100 {
+  background-color: #334155;
+}
+.dark .bg-slate-900 {
+  background-color: #334155;
+}
+.dark .hover\:bg-slate-700:hover {
+  background-color: #475569;
+}
+.dark .hover\:bg-slate-100:hover {
+  background-color: #334155;
+}
+.dark .bg-red-50 {
+  background-color: #450a0a;
+}
+.dark .bg-emerald-50 {
+  background-color: #052e16;
+}
+.dark .text-slate-900,
+.dark .text-slate-700 {
+  color: #e2e8f0;
+}
+.dark .text-slate-600 {
+  color: #cbd5e1;
+}
+.dark .text-slate-500,
+.dark .text-slate-400 {
+  color: #94a3b8;
+}
+.dark .text-red-700,
+.dark .text-red-600 {
+  color: #fca5a5;
+}
+.dark .text-emerald-800,
+.dark .text-emerald-700 {
+  color: #86efac;
+}
+.dark .border-slate-200,
+.dark .border-slate-100 {
+  border-color: #334155;
+}
+.dark .border-slate-300 {
+  border-color: #475569;
+}
+.dark .border-red-200,
+.dark .border-red-300 {
+  border-color: #7f1d1d;
+}
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: #0f172a;
+  color: #e2e8f0;
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #64748b;
+}
+.dark .react-flow__node {
+  color: #e2e8f0;
+}
+.dark .react-flow__controls-button {
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+  color: #e2e8f0;
+  fill: #e2e8f0;
+}
+.dark .react-flow__controls-button:hover {
+  background: #334155;
+}
+.dark .react-flow__attribution {
+  background: transparent;
+  color: #64748b;
+}
+
+.graph-node {
+  width: 100%;
+  height: 100%;
+  border: 2px solid;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.graph-node-provider {
+  border-color: var(--graph-provider-border);
+  background: var(--graph-provider-background);
+}
+.graph-node-environment {
+  border-color: var(--graph-environment-border);
+  background: var(--graph-environment-background);
+}
+.graph-node-server {
+  border-color: var(--graph-server-border);
+  background: var(--graph-server-background);
+}
+.graph-node-application {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 8px;
+  border-width: 1px;
+  border-color: var(--graph-application-border);
+  background: var(--graph-application-background);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.08);
+}
+.graph-header {
+  padding: 2px 8px;
+  overflow: hidden;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.graph-header-provider {
+  background: var(--graph-provider-header);
+}
+.graph-header-environment {
+  background: var(--graph-environment-header);
+}
+.graph-header-server {
+  background: var(--graph-server-header);
+}
+.graph-project {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--graph-project-background);
+  color: var(--graph-project-text);
+  font-size: 9px;
+  line-height: 1.3;
+}
+.graph-handle {
+  width: 8px;
+  height: 8px;
+  border: 0;
+  opacity: 0;
+}
+.edge-label {
+  max-width: 240px;
+  overflow: hidden;
+  border-color: #cbd5e1;
+  background: #fff;
+  color: #334155;
+  font-size: 9px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dark .edge-label {
+  border-color: #475569;
+  background: #1e293b;
+  color: #e2e8f0;
+}
+.react-flow__node.selected .graph-node {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+section:fullscreen {
+  box-sizing: border-box;
+  padding: 16px;
+  background: #f8fafc;
+}
+.dark section:fullscreen {
+  background: #0f172a;
 }

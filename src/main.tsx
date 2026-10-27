@@ -6,6 +6,13 @@ import { App } from "./app/App";
 import "@xyflow/react/dist/style.css";
 import "./index.css";
 
+const storedTheme = localStorage.getItem("infraorgit-theme");
+const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+document.documentElement.classList.toggle(
+  "dark",
+  storedTheme ? storedTheme === "dark" : prefersDark,
+);
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

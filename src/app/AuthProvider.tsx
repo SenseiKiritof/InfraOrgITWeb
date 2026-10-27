@@ -8,7 +8,12 @@ import {
   useState,
 } from "react";
 import type { Session } from "../lib/api";
-import { getSession, postLogout, redirectToLogin } from "../lib/api";
+import {
+  getSession,
+  postLogout,
+  redirectToLogin,
+  SESSION_REFRESHED_EVENT,
+} from "../lib/api";
 
 interface AuthContextValue {
   session: Session | null;
@@ -45,6 +50,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void loadSession();
   }, [loadSession]);
+
+  useEffect(() => {
+    const sync = (event: Event) =>
+      setSession((event as CustomEvent<Session>).detail);
+    window.addEventListener(SESSION_REFRESHED_EVENT, sync);
+    return () => window.removeEventListener(SESSION_REFRESHED_EVENT, sync);
+  }, []);
 
   useEffect(() => {
     if (!session) return;

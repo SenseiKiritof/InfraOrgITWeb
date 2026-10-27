@@ -27,6 +27,17 @@ test("remoto: credenziali, comandi e test di rete", async ({ page }) => {
 
   await page
     .getByRole("row", { name: credential })
+    .getByRole("button", { name: "Server" })
+    .click();
+  const manager = page.getByRole("dialog", {
+    name: "Gestisci server della credenziale",
+  });
+  await expect(manager).toBeVisible();
+  await expect(manager.getByText("Associati (0)")).toBeVisible();
+  await manager.getByRole("button", { name: "Chiudi" }).click();
+
+  await page
+    .getByRole("row", { name: credential })
     .getByRole("button", { name: "Elimina" })
     .click();
   await expect(page.getByRole("row", { name: credential })).toHaveCount(0);

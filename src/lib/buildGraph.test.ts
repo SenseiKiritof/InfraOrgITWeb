@@ -93,23 +93,94 @@ describe("buildGraph", () => {
     expect(graph.edges[1].label).toBe("/health");
   });
 
-  it("rispetta le posizioni salvate", () => {
+  it("rispetta il layout salvato annidato", () => {
     const graph = buildGraph(topology, [
+      {
+        nodeType: "Provider",
+        entityId: 1,
+        x: 0,
+        y: 0,
+        width: 420,
+        height: 340,
+        collapsed: false,
+      },
+      {
+        nodeType: "ProviderEnvironment",
+        entityId: 10,
+        x: 16,
+        y: 44,
+        width: 360,
+        height: 260,
+        collapsed: false,
+      },
       {
         nodeType: "Server",
         entityId: 20,
-        x: 999,
-        y: 888,
+        x: 16,
+        y: 44,
         width: 220,
         height: 90,
         collapsed: false,
       },
+      {
+        nodeType: "Server",
+        entityId: 21,
+        x: 16,
+        y: 148,
+        width: 220,
+        height: 60,
+        collapsed: false,
+      },
+      {
+        nodeType: "ServerApplication",
+        entityId: 30,
+        x: 16,
+        y: 44,
+        width: 170,
+        height: 70,
+        collapsed: false,
+      },
     ]);
 
+    const provider = graph.nodes.find(
+      (node) => node.id === nodeKey("Provider", 1),
+    );
+    const environment = graph.nodes.find(
+      (node) => node.id === nodeKey("ProviderEnvironment", 10),
+    );
     const server = graph.nodes.find(
       (node) => node.id === nodeKey("Server", 20),
     );
-    expect(server?.position).toEqual({ x: 999, y: 888 });
+    const application = graph.nodes.find(
+      (node) => node.id === nodeKey("ServerApplication", 30),
+    );
+
+    expect(provider?.position).toEqual({ x: 0, y: 0 });
+    expect(environment?.position).toEqual({ x: 16, y: 44 });
+    expect(environment?.parentId).toBe(nodeKey("Provider", 1));
+    expect(server?.position).toEqual({ x: 16, y: 44 });
+    expect(server?.parentId).toBe(nodeKey("ProviderEnvironment", 10));
+    expect(application?.parentId).toBe(nodeKey("Server", 20));
+  });
+
+  it("crea contenitori annidati quando non c'è layout salvato", () => {
+    const graph = buildGraph(topology);
+
+    const environment = graph.nodes.find(
+      (node) => node.id === nodeKey("ProviderEnvironment", 10),
+    );
+    const server = graph.nodes.find(
+      (node) => node.id === nodeKey("Server", 20),
+    );
+    const application = graph.nodes.find(
+      (node) => node.id === nodeKey("ServerApplication", 30),
+    );
+
+    expect(environment?.parentId).toBe(nodeKey("Provider", 1));
+    expect(server?.parentId).toBe(nodeKey("ProviderEnvironment", 10));
+    expect(application?.parentId).toBe(nodeKey("Server", 20));
+    expect(environment?.style?.width).toBeGreaterThan(0);
+    expect(server?.style?.width).toBeGreaterThan(0);
   });
 
   it("regge 500 nodi", () => {

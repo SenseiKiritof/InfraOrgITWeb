@@ -32,6 +32,7 @@ interface EntitySectionProps<T extends { id: number }> {
   onSave: (row: T | null, values: FormValues) => Promise<void>;
   onDelete?: (row: T) => Promise<void>;
   rowHref?: (row: T) => string;
+  rowActions?: (row: T) => ReactNode;
   createLabel?: string;
 }
 
@@ -49,6 +50,7 @@ export function EntitySection<T extends { id: number }>({
   onSave,
   onDelete,
   rowHref,
+  rowActions,
   createLabel = "Nuovo",
 }: EntitySectionProps<T>) {
   const [editing, setEditing] = useState<T | "new" | null>(null);
@@ -171,6 +173,7 @@ export function EntitySection<T extends { id: number }>({
                           Apri
                         </Link>
                       )}
+                      {rowActions?.(row)}
                       {editable && (
                         <button
                           type="button"
