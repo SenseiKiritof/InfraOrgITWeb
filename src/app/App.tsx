@@ -43,6 +43,7 @@ import { ExecutionsPage } from "../features/remote/ExecutionsPage";
 import { ReachabilityPage } from "../features/remote/ReachabilityPage";
 import type { Menu } from "../lib/api";
 import { getMenus } from "../lib/api";
+import { homeMenus } from "../lib/home";
 import {
   ArrowLeftIcon,
   ArrowRightOnRectangleIcon,
@@ -332,16 +333,42 @@ function MenuList({ menus }: { menus: Menu[] }) {
 
 function HomePage() {
   const { session } = useAuth();
+  const menus = useQuery({ queryKey: ["menus"], queryFn: getMenus });
+  const tiles = homeMenus(menus.data ?? []);
+
   return (
-    <section className="max-w-3xl">
+    <section className="max-w-5xl">
       <h1 className="text-2xl font-semibold">InfraOrgIT</h1>
       <p className="mt-2 text-slate-600">
         Benvenuto, {session?.user.name} {session?.user.surname}.
       </p>
-      <div className="mt-6 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
-        Inventario, topologia e diagrammi disponibili. La gestione remota arriva
-        nella prossima fase.
-      </div>
+      {menus.isLoading && (
+        <p className="mt-6 text-sm text-slate-500">Caricamento sezioni…</p>
+      )}
+      {menus.error && (
+        <p className="mt-6 text-sm text-red-600">{menus.error.message}</p>
+      )}
+      {!menus.isLoading && !menus.error && (
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {tiles.map((menu) => {
+            const Icon = iconForPath(menu.path);
+            return (
+              <Link
+                key={menu.id}
+                to={menu.path}
+                className="group flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-4 hover:border-slate-300 hover:bg-slate-50"
+              >
+                <span className="rounded-md bg-slate-100 p-2 text-slate-700 group-hover:bg-slate-200">
+                  <Icon className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <span className="truncate text-sm font-medium text-slate-900">
+                  {menu.name}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }
