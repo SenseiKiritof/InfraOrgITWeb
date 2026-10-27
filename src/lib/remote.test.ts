@@ -14,6 +14,7 @@ const server = (id: number, credentialId: number | null): Server => ({
   hasHostKey: false,
   jumpServerId: null,
   jumpServerName: null,
+  jumpServerIpAddress: null,
 });
 
 describe("splitServersByCredential", () => {

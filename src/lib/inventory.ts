@@ -42,6 +42,7 @@ export interface Server {
   hasHostKey: boolean;
   jumpServerId: number | null;
   jumpServerName: string | null;
+  jumpServerIpAddress: string | null;
 }
 
 export interface ServerApplication {

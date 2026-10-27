@@ -102,7 +102,10 @@ export function ServersPage() {
           {
             key: "jumpServerName",
             label: "Proxy",
-            render: (row) => row.jumpServerName ?? "—",
+            render: (row) =>
+              row.jumpServerName
+                ? `${row.jumpServerName} (${row.jumpServerIpAddress ?? "—"})`
+                : "—",
           },
         ]}
         fields={[
@@ -189,6 +192,11 @@ export function ServerDetailPage() {
     enabled: Number.isInteger(serverId),
   });
 
+  const serverOptions = useQuery({
+    queryKey: ["servers", "options"],
+    queryFn: () => apiFetch<Paged<Server>>("/api/servers?pageSize=200"),
+  });
+
   const versions = useQuery({
     queryKey: ["application-versions", "options"],
     queryFn: () =>
@@ -210,6 +218,14 @@ export function ServerDetailPage() {
     );
 
   const console = useConsole();
+  const [edit, setEdit] = useState({
+    name: "",
+    ipAddress: "",
+    hostname: "",
+    sshPort: "22",
+    jumpServerId: "",
+  });
+  const [editMessage, setEditMessage] = useState<string | null>(null);
   const [credentialId, setCredentialId] = useState("");
   const [sshPort, setSshPort] = useState("22");
   const [sshMessage, setSshMessage] = useState<string | null>(null);
@@ -219,6 +235,15 @@ export function ServerDetailPage() {
 
   useEffect(() => {
     if (!server.data) return;
+    setEdit({
+      name: server.data.name,
+      ipAddress: server.data.ipAddress,
+      hostname: server.data.hostname,
+      sshPort: String(server.data.sshPort),
+      jumpServerId: server.data.jumpServerId
+        ? String(server.data.jumpServerId)
+        : "",
+    });
     setCredentialId(
       server.data.credentialId ? String(server.data.credentialId) : "",
     );
@@ -238,6 +263,33 @@ export function ServerDetailPage() {
     enabled: Number.isInteger(serverId),
     retry: false,
   });
+
+  const saveServer = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!server.data) return;
+    setEditMessage(null);
+    try {
+      await saveEntity(
+        "/api/servers",
+        serverId,
+        {
+          providerEnvironmentId: server.data.providerEnvironmentId,
+          name: edit.name,
+          ipAddress: edit.ipAddress,
+          hostname: edit.hostname,
+          sshPort: Number(edit.sshPort || 22),
+          jumpServerId: edit.jumpServerId ? Number(edit.jumpServerId) : null,
+        },
+        csrf,
+      );
+      await queryClient.invalidateQueries({ queryKey: ["servers"] });
+      setEditMessage("Server aggiornato.");
+    } catch (cause) {
+      setEditMessage(
+        cause instanceof Error ? cause.message : "Salvataggio non riuscito",
+      );
+    }
+  };
 
   const saveSsh = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -367,7 +419,11 @@ export function ServerDetailPage() {
             <dt className="text-slate-500">Porta SSH</dt>
             <dd>{server.data.sshPort}</dd>
             <dt className="text-slate-500">Server proxy</dt>
-            <dd>{server.data.jumpServerName ?? "—"}</dd>
+            <dd>
+              {server.data.jumpServerName
+                ? `${server.data.jumpServerName} (${server.data.jumpServerIpAddress ?? "—"})`
+                : "—"}
+            </dd>
             <dt className="text-slate-500">Host key</dt>
             <dd>{server.data.hasHostKey ? "registrata" : "non registrata"}</dd>
           </dl>
@@ -375,6 +431,97 @@ export function ServerDetailPage() {
           <p className="text-slate-500">Caricamento…</p>
         )}
       </div>
+
+      {isAdmin && server.data && (
+        <form
+          onSubmit={(event) => void saveServer(event)}
+          className="space-y-3 rounded-lg border border-slate-200 bg-white p-4 text-sm"
+        >
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+            Dati server
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-slate-500">Nome</span>
+              <input
+                value={edit.name}
+                onChange={(event) =>
+                  setEdit({ ...edit, name: event.target.value })
+                }
+                required
+                className="rounded-md border border-slate-300 px-3 py-1.5"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-slate-500">Indirizzo IP</span>
+              <input
+                value={edit.ipAddress}
+                onChange={(event) =>
+                  setEdit({ ...edit, ipAddress: event.target.value })
+                }
+                required
+                className="rounded-md border border-slate-300 px-3 py-1.5"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-slate-500">Hostname</span>
+              <input
+                value={edit.hostname}
+                onChange={(event) =>
+                  setEdit({ ...edit, hostname: event.target.value })
+                }
+                required
+                className="rounded-md border border-slate-300 px-3 py-1.5"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-slate-500">Porta SSH</span>
+              <input
+                type="number"
+                value={edit.sshPort}
+                onChange={(event) =>
+                  setEdit({ ...edit, sshPort: event.target.value })
+                }
+                className="rounded-md border border-slate-300 px-3 py-1.5"
+              />
+            </label>
+            <label className="flex flex-col gap-1 sm:col-span-2">
+              <span className="text-xs text-slate-500">
+                Server proxy (jump)
+              </span>
+              <select
+                value={edit.jumpServerId}
+                onChange={(event) =>
+                  setEdit({ ...edit, jumpServerId: event.target.value })
+                }
+                className="rounded-md border border-slate-300 px-3 py-1.5"
+              >
+                <option value="">—</option>
+                {serverOptions.data?.items
+                  .filter((item) => item.id !== serverId)
+                  .map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} ({item.ipAddress})
+                    </option>
+                  ))}
+              </select>
+            </label>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="submit"
+              className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
+            >
+              Salva
+            </button>
+            {editMessage && (
+              <p role="status" className="text-sm text-slate-600">
+                {editMessage}
+              </p>
+            )}
+          </div>
+        </form>
+      )}
 
       {isSystemAdmin && (
         <form
