@@ -90,15 +90,14 @@ export function ServersPage() {
       <EntitySection
         rows={servers.data?.items}
         columns={[
-          { key: "id", label: "ID", render: (row) => row.id },
           { key: "name", label: "Nome", render: (row) => row.name },
           {
-            key: "environment",
+            key: "providerEnvironmentLabel",
             label: "Ambiente",
             render: (row) => row.providerEnvironmentLabel,
           },
-          { key: "ip", label: "IP", render: (row) => row.ipAddress },
-          { key: "ssh", label: "Porta SSH", render: (row) => row.sshPort },
+          { key: "ipAddress", label: "IP", render: (row) => row.ipAddress },
+          { key: "sshPort", label: "Porta SSH", render: (row) => row.sshPort },
         ]}
         fields={[
           {
@@ -415,7 +414,7 @@ export function ServerDetailPage() {
           title="Test di raggiungibilità"
           rows={reachability.data}
           columns={[
-            { key: "host", label: "Host", render: (row) => row.hostname },
+            { key: "hostname", label: "Host", render: (row) => row.hostname },
             { key: "port", label: "Porta", render: (row) => row.port },
             {
               key: "description",
@@ -475,16 +474,20 @@ export function ServerDetailPage() {
         rows={deployed.data}
         columns={[
           {
-            key: "application",
+            key: "applicationName",
             label: "Applicazione",
             render: (row) => row.applicationName,
           },
           {
-            key: "version",
+            key: "versionNumber",
             label: "Versione",
             render: (row) => row.versionNumber,
           },
-          { key: "port", label: "Porta", render: (row) => row.exposedPort },
+          {
+            key: "exposedPort",
+            label: "Porta",
+            render: (row) => row.exposedPort,
+          },
         ]}
         fields={[
           {

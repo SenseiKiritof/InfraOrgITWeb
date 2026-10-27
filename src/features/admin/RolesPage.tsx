@@ -43,11 +43,15 @@ export function RolesPage() {
         columns={[
           { key: "name", label: "Nome", render: (row) => row.name },
           { key: "label", label: "Etichetta", render: (row) => row.label },
-          { key: "scope", label: "Scope", render: (row) => row.scopeEnum },
-          { key: "users", label: "Utenti", render: (row) => row.usersCount },
-          { key: "menus", label: "Menu", render: (row) => row.menusCount },
+          { key: "scopeEnum", label: "Scope", render: (row) => row.scopeEnum },
           {
-            key: "assignments",
+            key: "usersCount",
+            label: "Utenti",
+            render: (row) => row.usersCount,
+          },
+          { key: "menusCount", label: "Menu", render: (row) => row.menusCount },
+          {
+            key: "assignmentsCount",
             label: "Ambienti",
             render: (row) => row.assignmentsCount,
           },

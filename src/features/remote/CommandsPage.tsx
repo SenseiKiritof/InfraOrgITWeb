@@ -53,7 +53,7 @@ export function CommandsPage() {
             render: (row) => row.description,
           },
           {
-            key: "placeholders",
+            key: "placeholderCount",
             label: "Placeholder",
             render: (row) => row.placeholderCount,
           },

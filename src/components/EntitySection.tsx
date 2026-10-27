@@ -1,6 +1,8 @@
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { nextSort, type SortState, sortedRows } from "../lib/sort";
+import { SortableTh } from "./SortableTh";
 
 export type FormValues = Record<string, string>;
 
@@ -16,6 +18,7 @@ export interface Column<T> {
   key: string;
   label: string;
   render: (row: T) => ReactNode;
+  sortable?: boolean;
 }
 
 interface EntitySectionProps<T extends { id: number }> {
@@ -57,11 +60,14 @@ export function EntitySection<T extends { id: number }>({
   const [values, setValues] = useState<FormValues>(empty);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [sort, setSort] = useState<SortState>(null);
   const firstField = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (editing !== null) firstField.current?.focus();
   }, [editing]);
+
+  const ordered = sortedRows(rows, sort);
 
   const startCreate = () => {
     setValues(empty);
@@ -144,9 +150,16 @@ export function EntitySection<T extends { id: number }>({
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 {columns.map((column) => (
-                  <th key={column.key} scope="col" className="px-4 py-2">
-                    {column.label}
-                  </th>
+                  <SortableTh
+                    key={column.key}
+                    label={column.label}
+                    sortKey={column.key}
+                    sort={sort}
+                    sortable={column.sortable !== false}
+                    onSort={(key) =>
+                      setSort((current) => nextSort(current, key))
+                    }
+                  />
                 ))}
                 <th scope="col" className="px-4 py-2">
                   <span className="sr-only">Azioni</span>
@@ -154,7 +167,7 @@ export function EntitySection<T extends { id: number }>({
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => {
+              {(ordered ?? []).map((row) => {
                 const editable = canWrite && (canEditRow?.(row) ?? true);
                 const deletable = canWrite && (canDeleteRow?.(row) ?? true);
                 return (

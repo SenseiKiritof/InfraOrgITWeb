@@ -45,7 +45,7 @@ export function ReachabilityPage() {
       <EntitySection
         rows={tests.data}
         columns={[
-          { key: "host", label: "Host", render: (row) => row.hostname },
+          { key: "hostname", label: "Host", render: (row) => row.hostname },
           { key: "port", label: "Porta", render: (row) => row.port },
           {
             key: "description",

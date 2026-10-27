@@ -1,7 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { PageHeader, SearchForm } from "../../components/page";
+import { SortableTh } from "../../components/SortableTh";
 import { getExecutions } from "../../lib/remote";
+import { nextSort, useSortedRows } from "../../lib/sort";
 
 export function ExecutionsPage() {
   const [search, setSearch] = useState("");
@@ -11,6 +13,13 @@ export function ExecutionsPage() {
     queryFn: () => getExecutions(q),
     retry: false,
   });
+  const ordered = useSortedRows(executions.data?.items, (row, key) =>
+    key === "startedAt"
+      ? row.startedAt
+      : key === "exitCode"
+        ? (row.exitCode ?? -1)
+        : (row as unknown as Record<string, unknown>)[key],
+  );
 
   return (
     <section className="space-y-4">
@@ -34,17 +43,29 @@ export function ExecutionsPage() {
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-4 py-2">Data</th>
-                <th className="px-4 py-2">Utente</th>
-                <th className="px-4 py-2">Server</th>
-                <th className="px-4 py-2">Tipo</th>
-                <th className="px-4 py-2">Etichetta</th>
-                <th className="px-4 py-2">Exit</th>
+                {[
+                  ["Data", "startedAt"],
+                  ["Utente", "username"],
+                  ["Server", "serverName"],
+                  ["Tipo", "kind"],
+                  ["Etichetta", "label"],
+                  ["Exit", "exitCode"],
+                ].map(([label, key]) => (
+                  <SortableTh
+                    key={key}
+                    label={label}
+                    sortKey={key}
+                    sort={ordered.sort}
+                    onSort={(next) =>
+                      ordered.setSort((current) => nextSort(current, next))
+                    }
+                  />
+                ))}
                 <th className="px-4 py-2">Output</th>
               </tr>
             </thead>
             <tbody>
-              {executions.data?.items.map((execution) => (
+              {(ordered.rows ?? []).map((execution) => (
                 <tr
                   key={execution.id}
                   className="border-t border-slate-100 align-top"

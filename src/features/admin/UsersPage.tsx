@@ -3,9 +3,14 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 import { useAuth } from "../../app/AuthProvider";
 import { PageHeader, SearchForm } from "../../components/page";
+import { SortableTh } from "../../components/SortableTh";
 import type { AdminUser } from "../../lib/admin";
 import { getGroups, getRoles, getUsers } from "../../lib/admin";
 import { deleteEntity, saveEntity } from "../../lib/inventory";
+import { nextSort, useSortedRows } from "../../lib/sort";
+
+const userSortValue = (user: AdminUser, key: string) =>
+  key === "name" ? `${user.name} ${user.surname}` : user.username;
 
 export function UsersPage() {
   const { session } = useAuth();
@@ -29,6 +34,7 @@ export function UsersPage() {
     queryFn: getGroups,
   });
   const roles = useQuery({ queryKey: ["roles", "options"], queryFn: getRoles });
+  const ordered = useSortedRows(users.data?.items, userSortValue);
 
   const start = (user: AdminUser | "new") => {
     setEditing(user);
@@ -124,15 +130,29 @@ export function UsersPage() {
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-4 py-2">Username</th>
-                <th className="px-4 py-2">Nome</th>
+                <SortableTh
+                  label="Username"
+                  sortKey="username"
+                  sort={ordered.sort}
+                  onSort={(key) =>
+                    ordered.setSort((current) => nextSort(current, key))
+                  }
+                />
+                <SortableTh
+                  label="Nome"
+                  sortKey="name"
+                  sort={ordered.sort}
+                  onSort={(key) =>
+                    ordered.setSort((current) => nextSort(current, key))
+                  }
+                />
                 <th className="px-4 py-2">Gruppi</th>
                 <th className="px-4 py-2">Ruoli</th>
                 <th className="px-4 py-2" />
               </tr>
             </thead>
             <tbody>
-              {users.data?.items.map((user) => (
+              {(ordered.rows ?? []).map((user) => (
                 <tr key={user.id} className="border-t border-slate-100">
                   <td className="px-4 py-2">{user.username}</td>
                   <td className="px-4 py-2">

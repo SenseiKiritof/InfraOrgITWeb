@@ -84,12 +84,19 @@ export function ApplicationsPage() {
       <EntitySection
         rows={applications.data?.items}
         columns={[
-          { key: "id", label: "ID", render: (row) => row.id },
           { key: "name", label: "Nome", render: (row) => row.name },
-          { key: "path", label: "Base path", render: (row) => row.basePath },
-          { key: "port", label: "Porta", render: (row) => row.listeningOnPort },
           {
-            key: "versions",
+            key: "basePath",
+            label: "Base path",
+            render: (row) => row.basePath,
+          },
+          {
+            key: "listeningOnPort",
+            label: "Porta",
+            render: (row) => row.listeningOnPort,
+          },
+          {
+            key: "versionCount",
             label: "Versioni",
             render: (row) => row.versionCount,
           },
@@ -267,13 +274,12 @@ export function ApplicationDetailPage() {
         title="Versioni"
         rows={versions.data?.items}
         columns={[
-          { key: "id", label: "ID", render: (row) => row.id },
           {
-            key: "version",
+            key: "versionNumber",
             label: "Versione",
             render: (row) => row.versionNumber,
           },
-          { key: "apis", label: "API", render: (row) => row.apiCount },
+          { key: "apiCount", label: "API", render: (row) => row.apiCount },
         ]}
         fields={[
           { name: "versionNumber", label: "Numero versione", required: true },
@@ -301,12 +307,12 @@ export function ApplicationDetailPage() {
             { key: "label", label: "Etichetta", render: (row) => row.label },
             { key: "order", label: "Ordine", render: (row) => row.order },
             {
-              key: "template",
+              key: "commandTemplateName",
               label: "Comando",
               render: (row) => row.commandTemplateName ?? "script custom",
             },
             {
-              key: "confirm",
+              key: "requiresConfirmation",
               label: "Conferma",
               render: (row) => (row.requiresConfirmation ? "sì" : ""),
             },
@@ -448,7 +454,11 @@ function ApiSection({
       <EntitySection
         rows={apis.data?.items}
         columns={[
-          { key: "method", label: "Metodo", render: (row) => row.requestType },
+          {
+            key: "requestType",
+            label: "Metodo",
+            render: (row) => row.requestType,
+          },
           { key: "url", label: "URL", render: (row) => row.url },
           {
             key: "description",
@@ -456,7 +466,7 @@ function ApiSection({
             render: (row) => row.description,
           },
           {
-            key: "params",
+            key: "queryParamCount",
             label: "Query param",
             render: (row) => row.queryParamCount,
           },
@@ -566,7 +576,7 @@ function QueryParamSection({
       rows={params.data?.items}
       columns={[
         { key: "name", label: "Nome", render: (row) => row.name },
-        { key: "type", label: "Tipo", render: (row) => row.paramType },
+        { key: "paramType", label: "Tipo", render: (row) => row.paramType },
       ]}
       fields={[
         { name: "name", label: "Nome", required: true },

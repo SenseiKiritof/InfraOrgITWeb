@@ -52,7 +52,6 @@ export function ProjectsPage() {
       <EntitySection
         rows={projects.data?.items}
         columns={[
-          { key: "id", label: "ID", render: (row) => row.id },
           { key: "name", label: "Nome", render: (row) => row.name },
           {
             key: "description",
@@ -60,7 +59,7 @@ export function ProjectsPage() {
             render: (row) => row.description ?? "",
           },
           {
-            key: "applications",
+            key: "applicationCount",
             label: "Applicazioni",
             render: (row) => row.applicationCount,
           },
@@ -149,7 +148,6 @@ export function ProjectDetailPage() {
         title="Anagrafica"
         rows={project.data ? [project.data] : undefined}
         columns={[
-          { key: "id", label: "ID", render: (row) => row.id },
           { key: "name", label: "Nome", render: (row) => row.name },
           {
             key: "description",
@@ -175,7 +173,11 @@ export function ProjectDetailPage() {
         rows={applications.data}
         columns={[
           { key: "name", label: "Applicazione", render: (row) => row.name },
-          { key: "path", label: "Base path", render: (row) => row.basePath },
+          {
+            key: "basePath",
+            label: "Base path",
+            render: (row) => row.basePath,
+          },
         ]}
         fields={[
           {

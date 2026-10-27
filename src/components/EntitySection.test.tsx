@@ -7,6 +7,40 @@ const rows = [{ id: 1, name: "Primo" }];
 afterEach(cleanup);
 
 describe("EntitySection", () => {
+  it("ordina le righe cliccando l'intestazione", () => {
+    render(
+      <EntitySection
+        rows={[
+          { id: 1, name: "Beta" },
+          { id: 2, name: "Alpha" },
+        ]}
+        columns={[{ key: "name", label: "Nome", render: (row) => row.name }]}
+        fields={[]}
+        empty={{}}
+        toForm={() => ({})}
+        canWrite={false}
+        onSave={async () => {}}
+      />,
+    );
+
+    const header = screen.getByRole("button", { name: "Nome" });
+    fireEvent.click(header);
+    expect(
+      screen
+        .getAllByRole("row")
+        .slice(1)
+        .map((row) => row.textContent),
+    ).toEqual(["Alpha", "Beta"]);
+
+    fireEvent.click(header);
+    expect(
+      screen
+        .getAllByRole("row")
+        .slice(1)
+        .map((row) => row.textContent),
+    ).toEqual(["Beta", "Alpha"]);
+  });
+
   it("mostra le righe e crea un elemento", async () => {
     const onSave = vi.fn(async () => {});
     render(

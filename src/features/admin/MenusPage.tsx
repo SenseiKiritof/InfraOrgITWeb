@@ -3,9 +3,11 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 import { useAuth } from "../../app/AuthProvider";
 import { PageHeader } from "../../components/page";
+import { SortableTh } from "../../components/SortableTh";
 import type { AdminMenu } from "../../lib/admin";
 import { getAdminMenus, getRoles } from "../../lib/admin";
 import { deleteEntity, saveEntity } from "../../lib/inventory";
+import { nextSort, useSortedRows } from "../../lib/sort";
 
 interface MenuForm {
   name: string;
@@ -108,6 +110,14 @@ export function MenusPage() {
   const parentName = (id: number | null) =>
     id === null ? "" : (menus.data?.find((x) => x.id === id)?.name ?? `#${id}`);
 
+  const ordered = useSortedRows(menus.data, (menu, key) =>
+    key === "parent"
+      ? parentName(menu.parentId)
+      : key === "roles"
+        ? menu.roleIds.length
+        : (menu as unknown as Record<string, unknown>)[key],
+  );
+
   const toggleRole = (id: number) =>
     setForm({
       ...form,
@@ -148,13 +158,25 @@ export function MenusPage() {
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-4 py-2">Nome</th>
-                <th className="px-4 py-2">Path</th>
-                <th className="px-4 py-2">Padre</th>
-                <th className="px-4 py-2">Ordine</th>
-                <th className="px-4 py-2">Attivo</th>
-                <th className="px-4 py-2">Visibile</th>
-                <th className="px-4 py-2">Ruoli</th>
+                {[
+                  ["Nome", "name"],
+                  ["Path", "path"],
+                  ["Padre", "parent"],
+                  ["Ordine", "order"],
+                  ["Attivo", "isActive"],
+                  ["Visibile", "isVisible"],
+                  ["Ruoli", "roles"],
+                ].map(([label, key]) => (
+                  <SortableTh
+                    key={key}
+                    label={label}
+                    sortKey={key}
+                    sort={ordered.sort}
+                    onSort={(next) =>
+                      ordered.setSort((current) => nextSort(current, next))
+                    }
+                  />
+                ))}
                 <th className="px-4 py-2" />
               </tr>
             </thead>

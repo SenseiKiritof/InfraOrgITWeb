@@ -58,7 +58,6 @@ export function EnvironmentsPage() {
       <EntitySection
         rows={environments.data?.items}
         columns={[
-          { key: "id", label: "ID", render: (row) => row.id },
           { key: "name", label: "Nome", render: (row) => row.name },
           {
             key: "description",
@@ -66,7 +65,7 @@ export function EnvironmentsPage() {
             render: (row) => row.description,
           },
           {
-            key: "providers",
+            key: "providerCount",
             label: "Provider",
             render: (row) => row.providerCount,
           },
@@ -198,7 +197,6 @@ export function EnvironmentDetailPage() {
         title="Anagrafica"
         rows={environment.data ? [environment.data] : undefined}
         columns={[
-          { key: "id", label: "ID", render: (row) => row.id },
           { key: "name", label: "Nome", render: (row) => row.name },
           {
             key: "description",
@@ -221,11 +219,15 @@ export function EnvironmentDetailPage() {
         rows={links.data?.items}
         columns={[
           {
-            key: "provider",
+            key: "providerName",
             label: "Provider",
             render: (row) => row.providerName,
           },
-          { key: "servers", label: "Server", render: (row) => row.serverCount },
+          {
+            key: "serverCount",
+            label: "Server",
+            render: (row) => row.serverCount,
+          },
         ]}
         fields={[
           {
@@ -251,8 +253,8 @@ export function EnvironmentDetailPage() {
         title="Ruoli per ambiente"
         rows={groupRoles.data?.items}
         columns={[
-          { key: "group", label: "Gruppo", render: (row) => row.groupName },
-          { key: "role", label: "Ruolo", render: (row) => row.roleName },
+          { key: "groupName", label: "Gruppo", render: (row) => row.groupName },
+          { key: "roleName", label: "Ruolo", render: (row) => row.roleName },
         ]}
         fields={[
           {

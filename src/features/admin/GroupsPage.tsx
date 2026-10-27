@@ -42,7 +42,11 @@ export function GroupsPage() {
         rows={groups.data?.items}
         columns={[
           { key: "name", label: "Nome", render: (row) => row.name },
-          { key: "users", label: "Utenti", render: (row) => row.usersCount },
+          {
+            key: "usersCount",
+            label: "Utenti",
+            render: (row) => row.usersCount,
+          },
         ]}
         fields={[{ name: "name", label: "Nome", required: true }]}
         empty={{ name: "" }}

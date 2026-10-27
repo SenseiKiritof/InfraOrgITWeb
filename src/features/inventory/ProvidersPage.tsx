@@ -52,10 +52,9 @@ export function ProvidersPage() {
       <EntitySection
         rows={providers.data?.items}
         columns={[
-          { key: "id", label: "ID", render: (row) => row.id },
           { key: "name", label: "Nome", render: (row) => row.name },
           {
-            key: "environments",
+            key: "environmentCount",
             label: "Ambienti",
             render: (row) => row.environmentCount,
           },
@@ -108,10 +107,7 @@ export function ProviderDetailPage() {
       <EntitySection
         title="Anagrafica"
         rows={provider.data ? [provider.data] : undefined}
-        columns={[
-          { key: "id", label: "ID", render: (row) => row.id },
-          { key: "name", label: "Nome", render: (row) => row.name },
-        ]}
+        columns={[{ key: "name", label: "Nome", render: (row) => row.name }]}
         fields={[{ name: "name", label: "Nome", required: true }]}
         empty={{ name: "" }}
         toForm={(row) => ({ name: row.name })}
@@ -124,11 +120,15 @@ export function ProviderDetailPage() {
         rows={environments.data?.items}
         columns={[
           {
-            key: "environment",
+            key: "environmentName",
             label: "Ambiente",
             render: (row) => row.environmentName,
           },
-          { key: "servers", label: "Server", render: (row) => row.serverCount },
+          {
+            key: "serverCount",
+            label: "Server",
+            render: (row) => row.serverCount,
+          },
         ]}
         fields={[]}
         empty={{}}

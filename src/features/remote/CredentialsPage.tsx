@@ -163,14 +163,14 @@ export function CredentialsPage() {
         columns={[
           { key: "name", label: "Nome", render: (row) => row.name },
           { key: "username", label: "Utente", render: (row) => row.username },
-          { key: "type", label: "Tipo", render: (row) => row.authType },
+          { key: "authType", label: "Tipo", render: (row) => row.authType },
           {
-            key: "secret",
+            key: "hasSecret",
             label: "Segreto",
             render: (row) => (row.hasSecret ? "impostato" : "assente"),
           },
           {
-            key: "servers",
+            key: "serversCount",
             label: "Server",
             render: (row) => row.serversCount,
           },

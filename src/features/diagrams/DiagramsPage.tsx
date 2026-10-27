@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../app/AuthProvider";
 import { PageHeader, SearchForm } from "../../components/page";
+import { SortableTh } from "../../components/SortableTh";
 import type {
   Diagram,
   DiagramInput,
@@ -17,6 +18,7 @@ import {
 } from "../../lib/diagrams";
 import type { Environment, Project, Provider } from "../../lib/inventory";
 import { paged } from "../../lib/inventory";
+import { nextSort, useSortedRows } from "../../lib/sort";
 import { useServerAccess } from "../../lib/useServerAccess";
 
 interface FormState {
@@ -157,6 +159,12 @@ export function DiagramsPage() {
     }
   };
 
+  const ordered = useSortedRows(diagrams.data?.items, (diagram, key) =>
+    key === "scope"
+      ? scopeLabel(diagram)
+      : (diagram as unknown as Record<string, unknown>)[key],
+  );
+
   const scopeLabel = (diagram: Diagram) =>
     diagram.scopeItems
       .map((item) => {
@@ -234,14 +242,26 @@ export function DiagramsPage() {
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th className="px-4 py-2">Nome</th>
-                  <th className="px-4 py-2">Scope</th>
-                  <th className="px-4 py-2">Predefinito</th>
+                  {[
+                    ["Nome", "name"],
+                    ["Scope", "scope"],
+                    ["Predefinito", "isDefault"],
+                  ].map(([label, key]) => (
+                    <SortableTh
+                      key={key}
+                      label={label}
+                      sortKey={key}
+                      sort={ordered.sort}
+                      onSort={(next) =>
+                        ordered.setSort((current) => nextSort(current, next))
+                      }
+                    />
+                  ))}
                   <th className="px-4 py-2" />
                 </tr>
               </thead>
               <tbody>
-                {diagrams.data?.items.map((diagram) => (
+                {(ordered.rows ?? []).map((diagram) => (
                   <tr key={diagram.id} className="border-t border-slate-100">
                     <td className="px-4 py-2">{diagram.name}</td>
                     <td className="px-4 py-2 text-slate-600">
