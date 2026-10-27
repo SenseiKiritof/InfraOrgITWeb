@@ -1,19 +1,19 @@
-# InfraOrgITWeb — guida per agenti
+# InfraOrgITWeb — agent guide
 
-`AGENTS.md` è un symlink a questo file, letto da opencode e dagli altri agenti: modifica solo `CLAUDE.md`.
+`AGENTS.md` is a symlink to this file, read by opencode and the other agents: edit only `CLAUDE.md`.
 
-Leggi `../AllInfraOrgIT/README.md` e `../AllInfraOrgIT/docs/backlog.md`.
+Read `../AllInfraOrgIT/README.md` and `../AllInfraOrgIT/docs/backlog.md`.
 
-## Regole repo
+## Repo rules
 
-- TypeScript strict; niente JavaScript.
-- Gate: Biome + `tsc --noEmit`. `next lint` non esiste più e non si usa.
-- Chiamate solo a `/api` e `/auth` same-origin; nessun token leggibile da JavaScript.
-- React Flow confinato in `features/diagrams`; `buildGraph`, layout e routing sono funzioni pure testabili.
-- `api/schema.d.ts` generato dall'OpenAPI; la CI fallisce se è driftato.
-- Nessuna libreria di stato globale finché non serve davvero.
-- RBAC D7 = B: menu e azioni filtrati; non fidarsi della UI, l'API è la fonte di verità.
+- Strict TypeScript; no JavaScript.
+- Gate: Biome + `tsc --noEmit`. `next lint` no longer exists and is not used.
+- Calls only to same-origin `/api` and `/auth`; no token readable from JavaScript.
+- React Flow confined to `features/diagrams`; `buildGraph`, layout and routing are pure, testable functions.
+- `api/schema.d.ts` generated from OpenAPI; CI fails if it drifts.
+- No global state library until it is really needed.
+- RBAC D7 = B: menus and actions filtered; do not trust the UI, the API is the source of truth.
 
-## Stato
+## Status
 
-Fase 6: shell, menu, inventario, diagrammi, gestione remota e admin/RBAC (utenti, gruppi, ruoli, menu). La Fase 7 è la migrazione legacy. Comandi reali nel README.
+Phase 6: shell, menu, inventory, diagrams, remote management and admin/RBAC (users, groups, roles, menu). Phase 7 is the legacy migration. Real commands in the README.

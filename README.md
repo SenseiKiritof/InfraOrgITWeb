@@ -1,10 +1,10 @@
 # InfraOrgITWeb
 
-Frontend di InfraOrgIT: SPA Vite + React 19 + TypeScript.
+InfraOrgIT frontend: Vite + React 19 + TypeScript SPA.
 
-## Stato
+## Status
 
-Fase 6 — admin e RBAC — 2026-10-26. Implementati login BFF, sessione, menu filtrato, inventario, diagrammi, gestione remota e pagine admin: utenti con gruppi/ruoli, gruppi, ruoli, menu e ruoli per ambiente. React Flow e la console sono in chunk separati; 5 E2E Playwright.
+Phase 6 — admin and RBAC — 2026-10-26. Implemented: BFF login, session, filtered menu, inventory, diagrams, remote management and admin pages: users with groups/roles, groups, roles, menu and per-environment roles. React Flow and the console are in separate chunks; 5 Playwright E2E tests.
 
 ## Stack
 
@@ -14,7 +14,7 @@ Fase 6 — admin e RBAC — 2026-10-26. Implementati login BFF, sessione, menu f
 - Biome 2 + `tsc --noEmit`
 - Vitest + Testing Library, Playwright
 
-## Struttura
+## Structure
 
 ```
 src/
@@ -26,18 +26,18 @@ src/
 e2e/{login,inventory,diagrams,remote,admin}.spec.ts
 ```
 
-## Comandi
+## Commands
 
 ```bash
-yarn dev              # Vite :3000, proxy /api e /auth → API :5298
+yarn dev              # Vite :3000, /api and /auth proxy → API :5298
 yarn build            # tsc --noEmit + vite build
 yarn biome ci .
 yarn tsc --noEmit
 yarn vitest run
-yarn playwright test  # richiede lo stack avviato con make dev
+yarn playwright test  # requires the stack started with make dev
 ```
 
-Con il meta repo:
+With the meta repo:
 
 ```bash
 cd ../AllInfraOrgIT
@@ -47,21 +47,21 @@ make e2e
 
 ## Auth
 
-- La SPA chiama `/api/session`; se 401 va a `/auth/login`.
-- Il backend gestisce callback e cookie HttpOnly; nessun token in JavaScript.
-- Logout: `POST /auth/logout` con `X-CSRF-Token` dalla sessione.
-- Menu: `/api/menus` filtrato per ruolo; voci admin solo `SystemAdmin`.
+- The SPA calls `/api/session`; on 401 it goes to `/auth/login`.
+- The backend handles the callback and the HttpOnly cookie; no token in JavaScript.
+- Logout: `POST /auth/logout` with the `X-CSRF-Token` from the session.
+- Menu: `/api/menus` filtered by role; admin entries only for `SystemAdmin`.
 
-## Riferimenti
+## References
 
 - `../AllInfraOrgIT/docs/ux/pages.md`
 - ADR 002, 003, 005, 007
 
-## Immagine Docker
+## Docker image
 
-`Dockerfile` multi-stage (Node 24 → Caddy 2) e `Caddyfile` con fallback SPA.
+Multi-stage `Dockerfile` (Node 24 → Caddy 2) and `Caddyfile` with SPA fallback.
 
-- workflow `.github/workflows/docker.yml` sui tag `v*`
-- immagine `ghcr.io/senseikiritof/infraorgit-web`, tag `X.Y.Z`, `X.Y`, `sha-<commit>`, `latest`
-- build locale: `docker build --build-arg APP_VERSION=v0.8.0 -t infraorgit-web:0.8.0 .`
-- la SPA è servita su porta 80; la versione è baked in `VITE_APP_VERSION` e mostrata nella sidebar
+- workflow `.github/workflows/docker.yml` on `v*` tags
+- image `ghcr.io/senseikiritof/infraorgit-web`, tags `X.Y.Z`, `X.Y`, `sha-<commit>`, `latest`
+- local build: `docker build --build-arg APP_VERSION=v0.8.0 -t infraorgit-web:0.8.0 .`
+- the SPA is served on port 80; the version is baked into `VITE_APP_VERSION` and shown in the sidebar
