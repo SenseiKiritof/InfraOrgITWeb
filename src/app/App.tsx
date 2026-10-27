@@ -44,6 +44,7 @@ import { ExecutionsPage } from "../features/remote/ExecutionsPage";
 import { ReachabilityPage } from "../features/remote/ReachabilityPage";
 import type { Menu } from "../lib/api";
 import { getMenus } from "../lib/api";
+import { backAction } from "../lib/back";
 import { homeMenus } from "../lib/home";
 import {
   ArrowLeftIcon,
@@ -149,8 +150,10 @@ function Shell() {
   const detailParent = DETAIL_ROUTE.exec(location.pathname)?.[1];
 
   const goBack = () => {
-    if ((window.history.state?.idx ?? 0) > 0) navigate(-1);
-    else if (detailParent) navigate(`/${detailParent}`);
+    if (!detailParent) return;
+    const action = backAction(window.history.state?.idx ?? 0, detailParent);
+    if (action.kind === "history") navigate(-1);
+    else navigate(action.to);
   };
 
   useEffect(() => {

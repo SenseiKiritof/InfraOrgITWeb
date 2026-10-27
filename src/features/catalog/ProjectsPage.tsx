@@ -105,7 +105,7 @@ export function ProjectDetailPage() {
 
   const applicationOptions = useQuery({
     queryKey: ["applications", "options"],
-    queryFn: () => paged<Application>("/api/applications?pageSize=200"),
+    queryFn: () => paged<Application>("/api/applications"),
   });
 
   const saveProject = async (row: Project | null, values: FormValues) => {

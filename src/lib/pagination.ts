@@ -10,10 +10,6 @@ export function usePagination<T>(rows: T[] | undefined, pageSize = 20) {
     setPage(1);
   }, [total]);
 
-  useEffect(() => {
-    if (page > pageCount) setPage(pageCount);
-  }, [page, pageCount]);
-
   const offset = (page - 1) * pageSize;
 
   return {

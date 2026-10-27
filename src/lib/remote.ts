@@ -1,5 +1,6 @@
 import { apiFetch } from "./api";
 import type { Paged, Server } from "./inventory";
+import { paged } from "./inventory";
 
 export interface ServerCredential {
   id: number;
@@ -82,7 +83,6 @@ export interface CommandExecution {
   serverName: string;
   kind: "Action" | "Reachability" | "Console";
   label: string;
-  script: string;
   exitCode: number | null;
   output: string;
   startedAt: string;
@@ -90,13 +90,11 @@ export interface CommandExecution {
 }
 
 export function getCredentials(): Promise<Paged<ServerCredential>> {
-  return apiFetch<Paged<ServerCredential>>(
-    "/api/server-credentials?pageSize=200",
-  );
+  return paged<ServerCredential>("/api/server-credentials");
 }
 
 export function getServersForCredential(): Promise<Paged<Server>> {
-  return apiFetch<Paged<Server>>("/api/servers?pageSize=200");
+  return paged<Server>("/api/servers");
 }
 
 export function splitServersByCredential(
@@ -136,18 +134,25 @@ export function resetHostKey(
 }
 
 export function getCommandTemplates(): Promise<Paged<CommandTemplate>> {
-  return apiFetch<Paged<CommandTemplate>>(
-    "/api/command-templates?pageSize=200",
-  );
+  return paged<CommandTemplate>("/api/command-templates");
 }
 
 export function getExecutions(
-  q?: string,
-  kind?: string,
+  query: {
+    q?: string;
+    kind?: string;
+    page?: number;
+    pageSize?: number;
+    sort?: string;
+  } = {},
 ): Promise<Paged<CommandExecution>> {
-  const params = new URLSearchParams({ pageSize: "200" });
-  if (q) params.set("q", q);
-  if (kind) params.set("kind", kind);
+  const params = new URLSearchParams({
+    page: String(query.page ?? 1),
+    pageSize: String(query.pageSize ?? 20),
+  });
+  if (query.q) params.set("q", query.q);
+  if (query.kind) params.set("kind", query.kind);
+  if (query.sort) params.set("sort", query.sort);
   return apiFetch<Paged<CommandExecution>>(`/api/command-executions?${params}`);
 }
 

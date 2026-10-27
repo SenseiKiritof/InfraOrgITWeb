@@ -114,15 +114,36 @@ export interface ServerAccess {
   operatorEnvironmentIds: number[];
 }
 
-export function listUrl(path: string, q?: string): string {
-  if (!q) return path;
-  return `${path}?q=${encodeURIComponent(q)}`;
+const PAGE_SIZE = 200;
+
+function pageUrl(path: string, page: number, q?: string): string {
+  const params = new URLSearchParams({
+    page: String(page),
+    pageSize: String(PAGE_SIZE),
+  });
+  if (q) params.set("q", q);
+  return `${path}${path.includes("?") ? "&" : "?"}${params}`;
 }
 
-export function paged<T>(path: string, q?: string): Promise<Paged<T>> {
-  const params = new URLSearchParams({ pageSize: "200" });
-  if (q) params.set("q", q);
-  return apiFetch<Paged<T>>(`${path}?${params}`);
+/**
+ * Loads every page of a list so client-side sort, filter and paging see all
+ * rows and the footer shows the real total.
+ *
+ * shortcut: one request per 200 rows. Ceiling: a list with tens of thousands
+ * of rows gets slow; move that list to server-side paging when it gets there.
+ */
+export async function paged<T>(path: string, q?: string): Promise<Paged<T>> {
+  const first = await apiFetch<Paged<T>>(pageUrl(path, 1, q));
+  const items = [...first.items];
+  if (items.length < first.total) {
+    const pages = Math.ceil(first.total / first.pageSize);
+    for (let page = 2; page <= pages; page += 1) {
+      const chunk = await apiFetch<Paged<T>>(pageUrl(path, page, q));
+      if (chunk.items.length === 0) break;
+      items.push(...chunk.items);
+    }
+  }
+  return { items, total: items.length, page: 1, pageSize: first.pageSize };
 }
 
 export function listOf<T>(path: string): Promise<T[]> {

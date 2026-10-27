@@ -16,6 +16,31 @@ import { useQueryFilter } from "../../lib/useQueryFilter";
 const userSortValue = (user: AdminUser, key: string) =>
   key === "name" ? `${user.name} ${user.surname}` : user.username;
 
+const columns = [
+  {
+    key: "username",
+    label: "Username",
+    render: (user: AdminUser) => user.username,
+  },
+  {
+    key: "name",
+    label: "Nome",
+    render: (user: AdminUser) => `${user.name} ${user.surname}`,
+  },
+  {
+    key: "groups",
+    label: "Gruppi",
+    sortable: false,
+    render: (user: AdminUser) => user.groups.map((x) => x.name).join(", "),
+  },
+  {
+    key: "roles",
+    label: "Ruoli",
+    sortable: false,
+    render: (user: AdminUser) => user.roles.map((x) => x.label).join(", "),
+  },
+];
+
 export function UsersPage() {
   const { session } = useAuth();
   const csrf = session?.csrfToken ?? "";
@@ -97,25 +122,7 @@ export function UsersPage() {
   };
 
   const paginated = usePagination(ordered.rows);
-  const widths = columnWidths(
-    [
-      { label: "Username", render: (user: AdminUser) => user.username },
-      {
-        label: "Nome",
-        render: (user: AdminUser) => `${user.name} ${user.surname}`,
-      },
-      {
-        label: "Gruppi",
-        render: (user: AdminUser) => user.groups.map((x) => x.name).join(", "),
-      },
-      {
-        label: "Ruoli",
-        render: (user: AdminUser) => user.roles.map((x) => x.label).join(", "),
-      },
-    ],
-    ordered.rows,
-    20,
-  );
+  const widths = columnWidths(columns, ordered.rows, 20);
 
   return (
     <section className="space-y-4">
@@ -160,40 +167,31 @@ export function UsersPage() {
             </colgroup>
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
-                <SortableTh
-                  label="Username"
-                  sortKey="username"
-                  sort={ordered.sort}
-                  onSort={(key) =>
-                    ordered.setSort((current) => nextSort(current, key))
-                  }
-                />
-                <SortableTh
-                  label="Nome"
-                  sortKey="name"
-                  sort={ordered.sort}
-                  onSort={(key) =>
-                    ordered.setSort((current) => nextSort(current, key))
-                  }
-                />
-                <th className="px-4 py-2">Gruppi</th>
-                <th className="px-4 py-2">Ruoli</th>
-                <th className="px-4 py-2" />
+                {columns.map((column) => (
+                  <SortableTh
+                    key={column.key}
+                    label={column.label}
+                    sortKey={column.key}
+                    sort={ordered.sort}
+                    sortable={column.sortable !== false}
+                    onSort={(key) =>
+                      ordered.setSort((current) => nextSort(current, key))
+                    }
+                  />
+                ))}
+                <th className="px-4 py-2">
+                  <span className="sr-only">Azioni</span>
+                </th>
               </tr>
             </thead>
             <tbody>
               {(paginated.items ?? []).map((user) => (
                 <tr key={user.id} className="border-t border-slate-100">
-                  <td className="px-4 py-2">{user.username}</td>
-                  <td className="px-4 py-2">
-                    {user.name} {user.surname}
-                  </td>
-                  <td className="px-4 py-2">
-                    {user.groups.map((x) => x.name).join(", ")}
-                  </td>
-                  <td className="px-4 py-2">
-                    {user.roles.map((x) => x.label).join(", ")}
-                  </td>
+                  {columns.map((column) => (
+                    <td key={column.key} className="px-4 py-2">
+                      {column.render(user)}
+                    </td>
+                  ))}
                   <td className="space-x-3 px-4 py-2 text-right whitespace-nowrap">
                     <button
                       type="button"
@@ -214,13 +212,13 @@ export function UsersPage() {
               ))}
             </tbody>
           </table>
-          <Pagination
-            page={paginated.page}
-            pageCount={paginated.pageCount}
-            total={paginated.total}
-            onPage={paginated.setPage}
-          />
         </div>
+        <Pagination
+          page={paginated.page}
+          pageCount={paginated.pageCount}
+          total={paginated.total}
+          onPage={paginated.setPage}
+        />
       </div>
 
       {editing !== null && (

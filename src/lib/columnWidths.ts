@@ -15,11 +15,17 @@ function textLength(node: ReactNode): number {
  * layout does not shift while paging. Values are percentages for `<col>`.
  */
 export function columnWidths<T>(
-  columns: { label: string; render: (row: T) => ReactNode }[],
+  columns: {
+    label: string;
+    render: (row: T) => ReactNode;
+    /** Fixed weight for tables whose rows are paged server-side. */
+    weight?: number;
+  }[],
   rows: T[] | undefined,
   trailingWeight = 0,
 ): string[] {
   const weights = columns.map((column) => {
+    if (column.weight !== undefined) return column.weight;
     let longest = column.label.length;
     for (const row of rows ?? []) {
       longest = Math.max(longest, textLength(column.render(row)));

@@ -161,7 +161,7 @@ export function ApplicationDetailPage() {
 
   const projectOptions = useQuery({
     queryKey: ["projects", "options"],
-    queryFn: () => paged<Project>("/api/projects?pageSize=200"),
+    queryFn: () => paged<Project>("/api/projects"),
   });
 
   const commandTemplates = useQuery({

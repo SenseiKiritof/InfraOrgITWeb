@@ -63,15 +63,15 @@ export function DiagramsPage() {
 
   const providers = useQuery({
     queryKey: ["providers", "options"],
-    queryFn: () => paged<Provider>("/api/providers?pageSize=200"),
+    queryFn: () => paged<Provider>("/api/providers"),
   });
   const environments = useQuery({
     queryKey: ["environments", "options"],
-    queryFn: () => paged<Environment>("/api/environments?pageSize=200"),
+    queryFn: () => paged<Environment>("/api/environments"),
   });
   const projects = useQuery({
     queryKey: ["projects", "options"],
-    queryFn: () => paged<Project>("/api/projects?pageSize=200"),
+    queryFn: () => paged<Project>("/api/projects"),
   });
 
   const startCreate = () => {
@@ -191,19 +191,17 @@ export function DiagramsPage() {
   const canCreate =
     isSystemAdmin || (access.data?.adminEnvironmentIds.length ?? 0) > 0;
 
+  const columns = [
+    { key: "name", label: "Nome", render: (row: Diagram) => row.name },
+    { key: "scope", label: "Scope", render: (row: Diagram) => scopeLabel(row) },
+    {
+      key: "isDefault",
+      label: "Predefinito",
+      render: (row: Diagram) => (row.isDefault ? "sì" : ""),
+    },
+  ];
   const paginated = usePagination(ordered.rows);
-  const widths = columnWidths(
-    [
-      { label: "Nome", render: (row: Diagram) => row.name },
-      { label: "Scope", render: (row: Diagram) => scopeLabel(row) },
-      {
-        label: "Predefinito",
-        render: (row: Diagram) => (row.isDefault ? "sì" : ""),
-      },
-    ],
-    ordered.rows,
-    20,
-  );
+  const widths = columnWidths(columns, ordered.rows, 20);
 
   return (
     <section className="space-y-4">
@@ -266,34 +264,37 @@ export function DiagramsPage() {
                 </colgroup>
                 <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                   <tr>
-                    {[
-                      ["Nome", "name"],
-                      ["Scope", "scope"],
-                      ["Predefinito", "isDefault"],
-                    ].map(([label, key]) => (
+                    {columns.map((column) => (
                       <SortableTh
-                        key={key}
-                        label={label}
-                        sortKey={key}
+                        key={column.key}
+                        label={column.label}
+                        sortKey={column.key}
                         sort={ordered.sort}
-                        onSort={(next) =>
-                          ordered.setSort((current) => nextSort(current, next))
+                        onSort={(key) =>
+                          ordered.setSort((current) => nextSort(current, key))
                         }
                       />
                     ))}
-                    <th className="px-4 py-2" />
+                    <th className="px-4 py-2">
+                      <span className="sr-only">Azioni</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {(paginated.items ?? []).map((diagram) => (
                     <tr key={diagram.id} className="border-t border-slate-100">
-                      <td className="px-4 py-2">{diagram.name}</td>
-                      <td className="px-4 py-2 text-slate-600">
-                        {scopeLabel(diagram)}
-                      </td>
-                      <td className="px-4 py-2">
-                        {diagram.isDefault ? "sì" : ""}
-                      </td>
+                      {columns.map((column) => (
+                        <td
+                          key={column.key}
+                          className={
+                            column.key === "scope"
+                              ? "px-4 py-2 text-slate-600"
+                              : "px-4 py-2"
+                          }
+                        >
+                          {column.render(diagram)}
+                        </td>
+                      ))}
                       <td className="space-x-3 px-4 py-2 text-right whitespace-nowrap">
                         <Link
                           to={`/diagrams/${diagram.id}`}
@@ -320,15 +321,15 @@ export function DiagramsPage() {
                   ))}
                 </tbody>
               </table>
-              <Pagination
-                page={paginated.page}
-                pageCount={paginated.pageCount}
-                total={paginated.total}
-                onPage={paginated.setPage}
-              />
             </>
           )}
         </div>
+        <Pagination
+          page={paginated.page}
+          pageCount={paginated.pageCount}
+          total={paginated.total}
+          onPage={paginated.setPage}
+        />
       </div>
 
       {editing !== null && (

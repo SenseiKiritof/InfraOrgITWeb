@@ -1,5 +1,6 @@
 import { apiFetch } from "./api";
 import type { Paged } from "./inventory";
+import { paged } from "./inventory";
 
 export interface UserRef {
   id: number;
@@ -60,16 +61,15 @@ export interface EnvironmentGroupRole {
 }
 
 export function getUsers(q?: string): Promise<Paged<AdminUser>> {
-  const suffix = q ? `&q=${encodeURIComponent(q)}` : "";
-  return apiFetch<Paged<AdminUser>>(`/api/users?pageSize=200${suffix}`);
+  return paged<AdminUser>("/api/users", q);
 }
 
 export function getGroups(): Promise<Paged<AdminGroup>> {
-  return apiFetch<Paged<AdminGroup>>("/api/groups?pageSize=200");
+  return paged<AdminGroup>("/api/groups");
 }
 
 export function getRoles(): Promise<Paged<AdminRole>> {
-  return apiFetch<Paged<AdminRole>>("/api/roles?pageSize=200");
+  return paged<AdminRole>("/api/roles");
 }
 
 export function getAdminMenus(): Promise<AdminMenu[]> {

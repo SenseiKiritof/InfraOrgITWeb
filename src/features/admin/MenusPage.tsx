@@ -129,29 +129,37 @@ export function MenusPage() {
         : [...form.roleIds, id],
     });
 
+  const columns = [
+    { key: "name", label: "Nome", render: (menu: AdminMenu) => menu.name },
+    { key: "path", label: "Path", render: (menu: AdminMenu) => menu.path },
+    {
+      key: "parent",
+      label: "Padre",
+      render: (menu: AdminMenu) => parentName(menu.parentId),
+    },
+    {
+      key: "order",
+      label: "Ordine",
+      render: (menu: AdminMenu) => menu.order ?? "",
+    },
+    {
+      key: "isActive",
+      label: "Attivo",
+      render: (menu: AdminMenu) => (menu.isActive ? "sì" : "no"),
+    },
+    {
+      key: "isVisible",
+      label: "Visibile",
+      render: (menu: AdminMenu) => (menu.isVisible ? "sì" : "no"),
+    },
+    {
+      key: "roles",
+      label: "Ruoli",
+      render: (menu: AdminMenu) => menu.roleIds.length,
+    },
+  ];
   const paginated = usePagination(ordered.rows);
-  const widths = columnWidths(
-    [
-      { label: "Nome", render: (menu: AdminMenu) => menu.name },
-      { label: "Path", render: (menu: AdminMenu) => menu.path },
-      {
-        label: "Padre",
-        render: (menu: AdminMenu) => parentName(menu.parentId),
-      },
-      { label: "Ordine", render: (menu: AdminMenu) => menu.order ?? "" },
-      {
-        label: "Attivo",
-        render: (menu: AdminMenu) => (menu.isActive ? "sì" : "no"),
-      },
-      {
-        label: "Visibile",
-        render: (menu: AdminMenu) => (menu.isVisible ? "sì" : "no"),
-      },
-      { label: "Ruoli", render: (menu: AdminMenu) => menu.roleIds.length },
-    ],
-    ordered.rows,
-    20,
-  );
+  const widths = columnWidths(columns, ordered.rows, 20);
 
   return (
     <section className="space-y-4">
@@ -191,38 +199,30 @@ export function MenusPage() {
             </colgroup>
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
-                {[
-                  ["Nome", "name"],
-                  ["Path", "path"],
-                  ["Padre", "parent"],
-                  ["Ordine", "order"],
-                  ["Attivo", "isActive"],
-                  ["Visibile", "isVisible"],
-                  ["Ruoli", "roles"],
-                ].map(([label, key]) => (
+                {columns.map((column) => (
                   <SortableTh
-                    key={key}
-                    label={label}
-                    sortKey={key}
+                    key={column.key}
+                    label={column.label}
+                    sortKey={column.key}
                     sort={ordered.sort}
-                    onSort={(next) =>
-                      ordered.setSort((current) => nextSort(current, next))
+                    onSort={(key) =>
+                      ordered.setSort((current) => nextSort(current, key))
                     }
                   />
                 ))}
-                <th className="px-4 py-2" />
+                <th className="px-4 py-2">
+                  <span className="sr-only">Azioni</span>
+                </th>
               </tr>
             </thead>
             <tbody>
               {(paginated.items ?? []).map((menu) => (
                 <tr key={menu.id} className="border-t border-slate-100">
-                  <td className="px-4 py-2">{menu.name}</td>
-                  <td className="px-4 py-2">{menu.path}</td>
-                  <td className="px-4 py-2">{parentName(menu.parentId)}</td>
-                  <td className="px-4 py-2">{menu.order ?? ""}</td>
-                  <td className="px-4 py-2">{menu.isActive ? "sì" : "no"}</td>
-                  <td className="px-4 py-2">{menu.isVisible ? "sì" : "no"}</td>
-                  <td className="px-4 py-2">{menu.roleIds.length}</td>
+                  {columns.map((column) => (
+                    <td key={column.key} className="px-4 py-2">
+                      {column.render(menu)}
+                    </td>
+                  ))}
                   <td className="space-x-3 px-4 py-2 text-right whitespace-nowrap">
                     <button
                       type="button"
@@ -243,13 +243,13 @@ export function MenusPage() {
               ))}
             </tbody>
           </table>
-          <Pagination
-            page={paginated.page}
-            pageCount={paginated.pageCount}
-            total={paginated.total}
-            onPage={paginated.setPage}
-          />
         </div>
+        <Pagination
+          page={paginated.page}
+          pageCount={paginated.pageCount}
+          total={paginated.total}
+          onPage={paginated.setPage}
+        />
       </div>
 
       {editing !== null && (

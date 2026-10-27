@@ -1,5 +1,6 @@
 import { apiFetch } from "./api";
 import type { Paged } from "./inventory";
+import { paged } from "./inventory";
 
 export interface TopologyProject {
   id: number;
@@ -129,8 +130,7 @@ export interface DeletePreview {
 }
 
 export function getDiagrams(q?: string): Promise<Paged<Diagram>> {
-  const query = q ? `?q=${encodeURIComponent(q)}` : "";
-  return apiFetch<Paged<Diagram>>(`/api/diagrams${query}`);
+  return paged<Diagram>("/api/diagrams", q);
 }
 
 export function getDiagram(id: number): Promise<Diagram> {
