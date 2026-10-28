@@ -5,6 +5,11 @@ import { ApiSpecImport } from "./ApiSpecImport";
 const spec = JSON.stringify({
   openapi: "3.0.3",
   servers: [{ url: "https://api.example.com" }],
+  components: {
+    securitySchemes: {
+      key: { type: "apiKey", in: "header", name: "X-Api-Key" },
+    },
+  },
   paths: {
     "/health": { get: { summary: "Stato" } },
     "/items": {
@@ -20,9 +25,14 @@ const spec = JSON.stringify({
 afterEach(cleanup);
 
 describe("ApiSpecImport", () => {
-  it("analizza una specifica e mostra le API da importare", () => {
+  it("analizza una specifica e mostra le API e le API key da importare", () => {
     render(
-      <ApiSpecImport versionId={1} csrfToken="csrf" onImported={vi.fn()} />,
+      <ApiSpecImport
+        versionId={1}
+        applicationId={7}
+        csrfToken="csrf"
+        onImported={vi.fn()}
+      />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Apri" }));
@@ -32,8 +42,9 @@ describe("ApiSpecImport", () => {
     fireEvent.click(screen.getByRole("button", { name: "Analizza" }));
 
     expect(
-      screen.getByRole("button", { name: "Importa 2 API" }),
+      screen.getByRole("button", { name: "Importa 2 API e 1 API key" }),
     ).toBeInTheDocument();
+    expect(screen.getByText("X-Api-Key")).toBeInTheDocument();
     expect(
       screen.getByText("https://api.example.com/health"),
     ).toBeInTheDocument();
@@ -44,7 +55,12 @@ describe("ApiSpecImport", () => {
 
   it("mostra l'errore per un documento non valido", () => {
     render(
-      <ApiSpecImport versionId={1} csrfToken="csrf" onImported={vi.fn()} />,
+      <ApiSpecImport
+        versionId={1}
+        applicationId={7}
+        csrfToken="csrf"
+        onImported={vi.fn()}
+      />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Apri" }));

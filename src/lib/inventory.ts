@@ -63,7 +63,26 @@ export interface Application {
   description: string;
   basePath: string;
   listeningOnPort: number;
+  hostname: string | null;
   versionCount: number;
+}
+
+export interface ApplicationApiKey {
+  id: number;
+  applicationId: number;
+  name: string;
+  location: "Header" | "Query";
+  hasValue: boolean;
+  keyVersion: number;
+}
+
+export interface ApplicationApiCallResult {
+  status: number;
+  contentType: string;
+  reason: string;
+  durationMs: number;
+  body: string;
+  truncated: boolean;
 }
 
 export interface ApplicationVersion {

@@ -1,21 +1,26 @@
 import { useState } from "react";
 import { apiFetch } from "../../lib/api";
-import type { ApplicationVersionApi } from "../../lib/inventory";
-import { type ParsedApi, parseApiSpec } from "../../lib/openapi";
+import type {
+  ApplicationApiKey,
+  ApplicationVersionApi,
+} from "../../lib/inventory";
+import { type ParsedSpec, parseApiSpec } from "../../lib/openapi";
 
 export function ApiSpecImport({
   versionId,
+  applicationId,
   csrfToken,
   onImported,
 }: {
   versionId: number;
+  applicationId: number;
   csrfToken: string;
   onImported: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [spec, setSpec] = useState("");
   const [fileName, setFileName] = useState<string | null>(null);
-  const [parsed, setParsed] = useState<ParsedApi[] | null>(null);
+  const [parsed, setParsed] = useState<ParsedSpec | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -48,8 +53,9 @@ export function ApiSpecImport({
     setError(null);
     setMessage(null);
     let done = 0;
+    let keys = 0;
     try {
-      for (const api of parsed) {
+      for (const api of parsed.apis) {
         const created = await apiFetch<ApplicationVersionApi>(
           `/api/application-versions/${versionId}/apis`,
           {
@@ -80,9 +86,36 @@ export function ApiSpecImport({
         }
         done += 1;
       }
+
+      // API key definitions from the security schemes; the secret is filled later.
+      const existing = await apiFetch<ApplicationApiKey[]>(
+        `/api/applications/${applicationId}/api-keys`,
+      );
+      const missing = parsed.apiKeys.filter(
+        (key) =>
+          !existing.some(
+            (item) => item.name === key.name && item.location === key.location,
+          ),
+      );
+      for (const key of missing) {
+        await apiFetch(
+          `/api/applications/${applicationId}/api-keys`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              name: key.name,
+              location: key.location,
+              value: null,
+            }),
+          },
+          csrfToken,
+        );
+        keys += 1;
+      }
+
       setParsed(null);
       setSpec("");
-      setMessage(`Importate ${done} API.`);
+      setMessage(`Importate ${done} API e ${keys} API key.`);
       onImported();
     } catch (cause) {
       if (done > 0) onImported();
@@ -176,7 +209,9 @@ export function ApiSpecImport({
                 disabled={busy}
                 className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
               >
-                {busy ? "Importazione…" : `Importa ${parsed.length} API`}
+                {busy
+                  ? "Importazione…"
+                  : `Importa ${parsed.apis.length} API e ${parsed.apiKeys.length} API key`}
               </button>
             )}
           </div>
@@ -194,7 +229,21 @@ export function ApiSpecImport({
 
           {parsed && (
             <ul className="max-h-48 space-y-1 overflow-y-auto rounded border border-slate-200 bg-slate-50 p-2 text-xs">
-              {parsed.map((api) => (
+              {parsed.apiKeys.map((key) => (
+                <li
+                  key={`${key.location}:${key.name}`}
+                  className="flex flex-wrap items-baseline gap-2"
+                >
+                  <span className="rounded bg-amber-600 px-1.5 py-0.5 font-mono text-[10px] text-white">
+                    API KEY
+                  </span>
+                  <span className="font-mono">{key.name}</span>
+                  <span className="text-slate-500">
+                    {key.location === "Header" ? "header" : "query"}
+                  </span>
+                </li>
+              ))}
+              {parsed.apis.map((api) => (
                 <li
                   key={`${api.method}:${api.url}`}
                   className="flex flex-wrap items-baseline gap-2"

@@ -4,6 +4,12 @@ import { parseApiSpec } from "./openapi";
 const openApi3 = JSON.stringify({
   openapi: "3.0.3",
   servers: [{ url: "https://api.example.com/v1" }],
+  components: {
+    securitySchemes: {
+      ApiKeyAuth: { type: "apiKey", in: "header", name: "X-Api-Key" },
+      Basic: { type: "http", scheme: "basic" },
+    },
+  },
   paths: {
     "/servers": {
       get: {
@@ -33,6 +39,11 @@ const swagger2 = `swagger: "2.0"
 host: api.example.com
 basePath: /v2
 schemes: [https]
+securityDefinitions:
+  key:
+    type: apiKey
+    in: query
+    name: api_key
 paths:
   /items:
     get:
@@ -54,9 +65,10 @@ paths:
 
 describe("parseApiSpec", () => {
   it("legge OpenAPI 3 con server, query param e body", () => {
-    const api = parseApiSpec(openApi3);
+    const { apis: api, apiKeys } = parseApiSpec(openApi3);
 
     expect(api).toHaveLength(3);
+    expect(apiKeys).toEqual([{ name: "X-Api-Key", location: "Header" }]);
     const list = api.find((item) => item.method === "GET");
     expect(list?.url).toBe("https://api.example.com/v1/servers");
     expect(list?.description).toBe("Elenca server");
@@ -75,9 +87,10 @@ describe("parseApiSpec", () => {
   });
 
   it("legge Swagger 2 da YAML con host, basePath e tipi", () => {
-    const api = parseApiSpec(swagger2);
+    const { apis: api, apiKeys } = parseApiSpec(swagger2);
 
     expect(api).toHaveLength(1);
+    expect(apiKeys).toEqual([{ name: "api_key", location: "Query" }]);
     expect(api[0].method).toBe("GET");
     expect(api[0].url).toBe("https://api.example.com/v2/items");
     expect(api[0].queryParams).toEqual([

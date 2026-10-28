@@ -9,11 +9,14 @@ import { PageHeader, SearchForm } from "../../components/page";
 import { apiFetch } from "../../lib/api";
 import type {
   Application,
+  ApplicationApiKey,
   ApplicationApiQueryParam,
   ApplicationVersion,
   ApplicationVersionApi,
   Paged,
   Project,
+  Server,
+  ServerApplication,
 } from "../../lib/inventory";
 import { deleteEntity, listOf, paged, saveEntity } from "../../lib/inventory";
 import type {
@@ -26,7 +29,8 @@ import {
   saveApplicationAction,
 } from "../../lib/remote";
 import { useQueryFilter } from "../../lib/useQueryFilter";
-import { useIsSystemAdmin } from "../../lib/useServerAccess";
+import { useIsSystemAdmin, useServerAccess } from "../../lib/useServerAccess";
+import { ApiCallModal } from "./ApiCallModal";
 import { ApiSpecImport } from "./ApiSpecImport";
 
 const requestTypes = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
@@ -60,6 +64,7 @@ export function ApplicationsPage() {
         description: values.description,
         basePath: values.basePath,
         listeningOnPort: Number(values.listeningOnPort),
+        hostname: values.hostname || null,
       },
       csrf,
     );
@@ -112,13 +117,24 @@ export function ApplicationsPage() {
             type: "number",
             required: true,
           },
+          {
+            name: "hostname",
+            label: "Hostname (URL per le chiamate)",
+          },
         ]}
-        empty={{ name: "", description: "", basePath: "", listeningOnPort: "" }}
+        empty={{
+          name: "",
+          description: "",
+          basePath: "",
+          listeningOnPort: "",
+          hostname: "",
+        }}
         toForm={(row) => ({
           name: row.name,
           description: row.description,
           basePath: row.basePath,
           listeningOnPort: String(row.listeningOnPort),
+          hostname: row.hostname ?? "",
         })}
         canWrite={isAdmin}
         onSave={save}
@@ -136,11 +152,21 @@ export function ApplicationDetailPage() {
   const { session } = useAuth();
   const csrf = session?.csrfToken ?? "";
   const isAdmin = useIsSystemAdmin();
+  const access = useServerAccess();
+  const adminEnvironmentIds = access.data?.adminEnvironmentIds ?? [];
+  const canManageDeployments = adminEnvironmentIds.length > 0;
   const queryClient = useQueryClient();
 
   const application = useQuery({
     queryKey: ["applications", "detail", applicationId],
     queryFn: () => apiFetch<Application>(`/api/applications/${applicationId}`),
+    enabled: Number.isInteger(applicationId),
+  });
+
+  const apiKeys = useQuery({
+    queryKey: ["application-api-keys", applicationId],
+    queryFn: () =>
+      listOf<ApplicationApiKey>(`/api/applications/${applicationId}/api-keys`),
     enabled: Number.isInteger(applicationId),
   });
 
@@ -164,6 +190,25 @@ export function ApplicationDetailPage() {
     queryKey: ["projects", "options"],
     queryFn: () => paged<Project>("/api/projects"),
   });
+
+  const deployments = useQuery({
+    queryKey: ["server-applications", "application", applicationId],
+    queryFn: () =>
+      paged<ServerApplication>(
+        `/api/server-applications?applicationId=${applicationId}`,
+      ),
+    enabled: Number.isInteger(applicationId),
+  });
+
+  const serverOptions = useQuery({
+    queryKey: ["servers", "options"],
+    queryFn: () => paged<Server>("/api/servers"),
+    enabled: canManageDeployments,
+  });
+  const adminServers =
+    serverOptions.data?.items.filter((server) =>
+      adminEnvironmentIds.includes(server.providerEnvironmentId),
+    ) ?? [];
 
   const commandTemplates = useQuery({
     queryKey: ["command-templates", "options"],
@@ -254,23 +299,180 @@ export function ApplicationDetailPage() {
     await queryClient.invalidateQueries({ queryKey: ["application-projects"] });
   };
 
+  const saveDeployment = async (
+    row: ServerApplication | null,
+    values: FormValues,
+  ) => {
+    await saveEntity(
+      "/api/server-applications",
+      row?.id ?? null,
+      {
+        serverId: Number(values.serverId),
+        applicationVersionId: Number(values.applicationVersionId),
+        exposedPort: Number(values.exposedPort),
+        proxyRouteId: row?.proxyRouteId ?? null,
+      },
+      csrf,
+    );
+    await queryClient.invalidateQueries({ queryKey: ["server-applications"] });
+  };
+
+  const removeDeployment = async (row: ServerApplication) => {
+    await deleteEntity(`/api/server-applications/${row.id}`, csrf);
+    await queryClient.invalidateQueries({ queryKey: ["server-applications"] });
+  };
+
+  const saveApplication = async (
+    row: Application | null,
+    values: FormValues,
+  ) => {
+    if (!row) return;
+    await saveEntity(
+      "/api/applications",
+      row.id,
+      {
+        name: values.name,
+        description: values.description,
+        basePath: values.basePath,
+        listeningOnPort: Number(values.listeningOnPort),
+        hostname: values.hostname || null,
+      },
+      csrf,
+    );
+    await queryClient.invalidateQueries({ queryKey: ["applications"] });
+  };
+
+  const saveApiKey = async (
+    row: ApplicationApiKey | null,
+    values: FormValues,
+  ) => {
+    await saveEntity(
+      `/api/applications/${applicationId}/api-keys`,
+      row?.id ?? null,
+      {
+        name: values.name,
+        location: values.location,
+        value: values.value || null,
+      },
+      csrf,
+    );
+    await queryClient.invalidateQueries({ queryKey: ["application-api-keys"] });
+  };
+
+  const removeApiKey = async (row: ApplicationApiKey) => {
+    await deleteEntity(
+      `/api/applications/${applicationId}/api-keys/${row.id}`,
+      csrf,
+    );
+    await queryClient.invalidateQueries({ queryKey: ["application-api-keys"] });
+  };
+
   return (
     <section className="space-y-4">
       <PageHeader title={application.data?.name ?? "Applicazione"} />
-      <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
-        {application.data ? (
-          <dl className="grid grid-cols-2 gap-2">
-            <dt className="text-slate-500">Descrizione</dt>
-            <dd>{application.data.description}</dd>
-            <dt className="text-slate-500">Base path</dt>
-            <dd>{application.data.basePath}</dd>
-            <dt className="text-slate-500">Porta in ascolto</dt>
-            <dd>{application.data.listeningOnPort}</dd>
-          </dl>
-        ) : (
-          <p className="text-slate-500">Caricamento…</p>
-        )}
-      </div>
+      <EntitySection
+        title="Anagrafica"
+        rows={application.data ? [application.data] : undefined}
+        columns={[
+          { key: "name", label: "Nome", render: (row) => row.name },
+          {
+            key: "description",
+            label: "Descrizione",
+            render: (row) => row.description,
+          },
+          {
+            key: "basePath",
+            label: "Base path",
+            render: (row) => row.basePath,
+          },
+          {
+            key: "listeningOnPort",
+            label: "Porta",
+            render: (row) => row.listeningOnPort,
+          },
+          {
+            key: "hostname",
+            label: "Hostname",
+            render: (row) => row.hostname ?? "",
+          },
+        ]}
+        fields={[
+          { name: "name", label: "Nome", required: true },
+          { name: "description", label: "Descrizione", type: "textarea" },
+          { name: "basePath", label: "Base path", required: true },
+          {
+            name: "listeningOnPort",
+            label: "Porta in ascolto",
+            type: "number",
+            required: true,
+          },
+          {
+            name: "hostname",
+            label: "Hostname (URL per le chiamate)",
+          },
+        ]}
+        empty={{
+          name: "",
+          description: "",
+          basePath: "",
+          listeningOnPort: "",
+          hostname: "",
+        }}
+        toForm={(row) => ({
+          name: row.name,
+          description: row.description,
+          basePath: row.basePath,
+          listeningOnPort: String(row.listeningOnPort),
+          hostname: row.hostname ?? "",
+        })}
+        canWrite={isAdmin}
+        canCreate={false}
+        onSave={saveApplication}
+      />
+      <EntitySection
+        title="API key"
+        rows={apiKeys.data}
+        columns={[
+          { key: "name", label: "Nome", render: (row) => row.name },
+          {
+            key: "location",
+            label: "Posizione",
+            render: (row) => row.location,
+          },
+          {
+            key: "hasValue",
+            label: "Valore",
+            render: (row) => (row.hasValue ? "configurato" : "mancante"),
+          },
+        ]}
+        fields={[
+          { name: "name", label: "Nome (header o query)", required: true },
+          {
+            name: "location",
+            label: "Posizione",
+            type: "select",
+            required: true,
+            options: [
+              { value: "Header", label: "Header" },
+              { value: "Query", label: "Query" },
+            ],
+          },
+          {
+            name: "value",
+            label: "Valore (vuoto = mantieni)",
+          },
+        ]}
+        empty={{ name: "", location: "Header", value: "" }}
+        toForm={(row) => ({
+          name: row.name,
+          location: row.location,
+          value: "",
+        })}
+        canWrite={isAdmin}
+        onSave={saveApiKey}
+        onDelete={removeApiKey}
+        createLabel="Nuova API key"
+      />
       <EntitySection
         title="Versioni"
         rows={versions.data?.items}
@@ -297,7 +499,12 @@ export function ApplicationDetailPage() {
           key={version.id}
           title={`API della versione ${version.versionNumber}`}
         >
-          <ApiSection version={version} canWrite={isAdmin} csrfToken={csrf} />
+          <ApiSection
+            version={version}
+            applicationId={applicationId}
+            canWrite={isAdmin}
+            csrfToken={csrf}
+          />
         </NestedSection>
       ))}
       {isAdmin && (
@@ -370,6 +577,77 @@ export function ApplicationDetailPage() {
         />
       )}
       <EntitySection
+        title="Server"
+        rows={deployments.data?.items}
+        columns={[
+          {
+            key: "serverName",
+            label: "Server",
+            render: (row) => row.serverName,
+          },
+          {
+            key: "versionNumber",
+            label: "Versione",
+            render: (row) => row.versionNumber,
+          },
+          {
+            key: "exposedPort",
+            label: "Porta",
+            render: (row) => row.exposedPort,
+          },
+        ]}
+        fields={[
+          {
+            name: "serverId",
+            label: "Server",
+            type: "select",
+            required: true,
+            options: adminServers.map((server) => ({
+              value: String(server.id),
+              label: server.name,
+            })),
+          },
+          {
+            name: "applicationVersionId",
+            label: "Versione",
+            type: "select",
+            required: true,
+            options:
+              versions.data?.items.map((version) => ({
+                value: String(version.id),
+                label: version.versionNumber,
+              })) ?? [],
+          },
+          {
+            name: "exposedPort",
+            label: "Porta esposta",
+            type: "number",
+            required: true,
+          },
+        ]}
+        empty={{
+          serverId: "",
+          applicationVersionId: "",
+          exposedPort: String(application.data?.listeningOnPort ?? ""),
+        }}
+        toForm={(row) => ({
+          serverId: String(row.serverId),
+          applicationVersionId: String(row.applicationVersionId),
+          exposedPort: String(row.exposedPort),
+        })}
+        canWrite={canManageDeployments}
+        canEditRow={(row) =>
+          adminServers.some((server) => server.id === row.serverId)
+        }
+        canDeleteRow={(row) =>
+          adminServers.some((server) => server.id === row.serverId)
+        }
+        onSave={saveDeployment}
+        onDelete={removeDeployment}
+        rowHref={(row) => `/servers/${row.serverId}`}
+        createLabel="Aggiungi server"
+      />
+      <EntitySection
         title="Progetti collegati"
         rows={projects.data}
         columns={[
@@ -402,14 +680,17 @@ export function ApplicationDetailPage() {
 
 function ApiSection({
   version,
+  applicationId,
   canWrite,
   csrfToken,
 }: {
   version: ApplicationVersion;
+  applicationId: number;
   canWrite: boolean;
   csrfToken: string;
 }) {
   const queryClient = useQueryClient();
+  const [calling, setCalling] = useState<ApplicationVersionApi | null>(null);
   const apis = useQuery({
     queryKey: ["application-version-apis", version.id],
     queryFn: () =>
@@ -417,6 +698,18 @@ function ApiSection({
         `/api/application-versions/${version.id}/apis?pageSize=200`,
       ),
   });
+
+  const [search, setSearch] = useState("");
+  const needle = search.trim().toLowerCase();
+  const visibleApis =
+    needle && apis.data
+      ? apis.data.items.filter(
+          (api) =>
+            api.url.toLowerCase().includes(needle) ||
+            api.requestType.toLowerCase().includes(needle) ||
+            api.description.toLowerCase().includes(needle),
+        )
+      : apis.data?.items;
 
   const save = async (
     row: ApplicationVersionApi | null,
@@ -455,6 +748,7 @@ function ApiSection({
       {canWrite && (
         <ApiSpecImport
           versionId={version.id}
+          applicationId={applicationId}
           csrfToken={csrfToken}
           onImported={() => {
             void queryClient.invalidateQueries({
@@ -463,11 +757,22 @@ function ApiSection({
             void queryClient.invalidateQueries({
               queryKey: ["application-versions"],
             });
+            void queryClient.invalidateQueries({
+              queryKey: ["application-api-keys"],
+            });
           }}
         />
       )}
+      <input
+        type="search"
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+        aria-label={`Cerca API della versione ${version.versionNumber}`}
+        placeholder="Cerca API: metodo, URL o descrizione…"
+        className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+      />
       <EntitySection
-        rows={apis.data?.items}
+        rows={visibleApis}
         columns={[
           {
             key: "requestType",
@@ -513,9 +818,20 @@ function ApiSection({
         canWrite={canWrite}
         onSave={save}
         onDelete={remove}
+        rowActions={(row) =>
+          canWrite ? (
+            <button
+              type="button"
+              onClick={() => setCalling(row)}
+              className="text-sm text-slate-700 underline"
+            >
+              Chiama
+            </button>
+          ) : null
+        }
         createLabel="Nuova API"
       />
-      {apis.data?.items.map((api) => (
+      {visibleApis?.map((api) => (
         <NestedSection
           key={api.id}
           title={`Query param di ${api.requestType} ${api.url}`}
@@ -527,6 +843,13 @@ function ApiSection({
           />
         </NestedSection>
       ))}
+      {calling && (
+        <ApiCallModal
+          api={calling}
+          csrfToken={csrfToken}
+          onClose={() => setCalling(null)}
+        />
+      )}
     </>
   );
 }

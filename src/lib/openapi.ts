@@ -22,6 +22,16 @@ export interface ParsedApi {
   queryParams: ParsedQueryParam[];
 }
 
+export interface ParsedApiKey {
+  name: string;
+  location: "Header" | "Query";
+}
+
+export interface ParsedSpec {
+  apis: ParsedApi[];
+  apiKeys: ParsedApiKey[];
+}
+
 const METHODS: { key: string; method: ApiMethod }[] = [
   { key: "get", method: "GET" },
   { key: "post", method: "POST" },
@@ -55,7 +65,7 @@ function trim(value: string, max: number): string {
  * Legge un documento OpenAPI 3.x o Swagger 2.0 (JSON o YAML) e restituisce
  * le operazioni, con parametri query e body di esempio.
  */
-export function parseApiSpec(input: string): ParsedApi[] {
+export function parseApiSpec(input: string): ParsedSpec {
   const source = input.trim();
   if (!source) throw new Error("Incolla un documento OpenAPI o Swagger.");
 
@@ -70,11 +80,50 @@ export function parseApiSpec(input: string): ParsedApi[] {
 
   const root = record(document);
   if (!root) throw new Error("Il documento non contiene un oggetto radice.");
-  if (typeof root.openapi === "string") return parseOpenApi3(root);
-  if (typeof root.swagger === "string") return parseSwagger2(root);
+  if (typeof root.openapi === "string") {
+    return {
+      apis: parseOpenApi3(root),
+      apiKeys: securityKeys(record(record(root.components)?.securitySchemes)),
+    };
+  }
+  if (typeof root.swagger === "string") {
+    return {
+      apis: parseSwagger2(root),
+      apiKeys: securityKeys(record(root.securityDefinitions)),
+    };
+  }
   throw new Error(
     "Formato non riconosciuto: serve un documento OpenAPI 3.x o Swagger 2.0.",
   );
+}
+
+/**
+ * Legge i security scheme di tipo apiKey (header o query) dal documento.
+ */
+function securityKeys(
+  schemes: Record<string, unknown> | undefined,
+): ParsedApiKey[] {
+  if (!schemes) return [];
+  const keys: ParsedApiKey[] = [];
+  const seen = new Set<string>();
+
+  for (const raw of Object.values(schemes)) {
+    const scheme = record(raw);
+    if (!scheme || text(scheme.type) !== "apiKey") continue;
+
+    const name = trim(text(scheme.name).trim(), MAX_TEXT);
+    const where = text(scheme.in);
+    const location: ParsedApiKey["location"] | null =
+      where === "header" ? "Header" : where === "query" ? "Query" : null;
+    if (!name || !location) continue;
+
+    const id = `${location}:${name}`;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    keys.push({ name, location });
+  }
+
+  return keys;
 }
 
 function parseOpenApi3(document: Record<string, unknown>): ParsedApi[] {
