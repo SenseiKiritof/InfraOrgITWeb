@@ -27,6 +27,7 @@ import {
 } from "../../lib/remote";
 import { useQueryFilter } from "../../lib/useQueryFilter";
 import { useIsSystemAdmin } from "../../lib/useServerAccess";
+import { ApiSpecImport } from "./ApiSpecImport";
 
 const requestTypes = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
 const paramTypes = [
@@ -451,6 +452,20 @@ function ApiSection({
 
   return (
     <>
+      {canWrite && (
+        <ApiSpecImport
+          versionId={version.id}
+          csrfToken={csrfToken}
+          onImported={() => {
+            void queryClient.invalidateQueries({
+              queryKey: ["application-version-apis", version.id],
+            });
+            void queryClient.invalidateQueries({
+              queryKey: ["application-versions"],
+            });
+          }}
+        />
+      )}
       <EntitySection
         rows={apis.data?.items}
         columns={[

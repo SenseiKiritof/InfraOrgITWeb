@@ -1,0 +1,189 @@
+import { useState } from "react";
+import { apiFetch } from "../../lib/api";
+import type { ApplicationVersionApi } from "../../lib/inventory";
+import { type ParsedApi, parseApiSpec } from "../../lib/openapi";
+
+export function ApiSpecImport({
+  versionId,
+  csrfToken,
+  onImported,
+}: {
+  versionId: number;
+  csrfToken: string;
+  onImported: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [spec, setSpec] = useState("");
+  const [parsed, setParsed] = useState<ParsedApi[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const analyze = () => {
+    setError(null);
+    setMessage(null);
+    try {
+      setParsed(parseApiSpec(spec));
+    } catch (cause) {
+      setParsed(null);
+      setError(
+        cause instanceof Error ? cause.message : "Documento non valido.",
+      );
+    }
+  };
+
+  const importAll = async () => {
+    if (!parsed) return;
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    let done = 0;
+    try {
+      for (const api of parsed) {
+        const created = await apiFetch<ApplicationVersionApi>(
+          `/api/application-versions/${versionId}/apis`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              applicationVersionId: versionId,
+              url: api.url,
+              requestType: api.method,
+              description: api.description,
+              body: api.body,
+            }),
+          },
+          csrfToken,
+        );
+        for (const param of api.queryParams) {
+          await apiFetch(
+            `/api/application-version-apis/${created.id}/query-params`,
+            {
+              method: "POST",
+              body: JSON.stringify({
+                applicationApiId: created.id,
+                name: param.name,
+                paramType: param.paramType,
+              }),
+            },
+            csrfToken,
+          );
+        }
+        done += 1;
+      }
+      setParsed(null);
+      setSpec("");
+      setMessage(`Importate ${done} API.`);
+      onImported();
+    } catch (cause) {
+      if (done > 0) onImported();
+      setError(
+        `${done} API importate, poi errore: ${
+          cause instanceof Error ? cause.message : "importazione interrotta"
+        }`,
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="rounded-lg border border-slate-200 bg-white p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+            Importa specifica
+          </h3>
+          <p className="text-xs text-slate-500">
+            OpenAPI 3.x o Swagger 2.0 in JSON o YAML.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen((value) => !value);
+            setError(null);
+            setMessage(null);
+          }}
+          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+        >
+          {open ? "Chiudi" : "Apri"}
+        </button>
+      </div>
+
+      {open && (
+        <div className="mt-3 space-y-2">
+          <textarea
+            aria-label="Documento OpenAPI o Swagger"
+            value={spec}
+            onChange={(event) => setSpec(event.target.value)}
+            rows={8}
+            placeholder='{"openapi":"3.0.3", ...} oppure yaml'
+            className="w-full rounded-md border border-slate-300 px-3 py-2 font-mono text-xs"
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="file"
+              accept=".json,.yaml,.yml,application/json"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void file.text().then(setSpec);
+              }}
+              className="text-xs"
+            />
+            <button
+              type="button"
+              onClick={analyze}
+              disabled={busy || !spec.trim()}
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-50"
+            >
+              Analizza
+            </button>
+            {parsed && (
+              <button
+                type="button"
+                onClick={() => void importAll()}
+                disabled={busy}
+                className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+              >
+                {busy ? "Importazione…" : `Importa ${parsed.length} API`}
+              </button>
+            )}
+          </div>
+
+          {error && (
+            <p role="alert" className="text-sm text-red-700">
+              {error}
+            </p>
+          )}
+          {message && (
+            <p role="status" className="text-sm text-emerald-800">
+              {message}
+            </p>
+          )}
+
+          {parsed && (
+            <ul className="max-h-48 space-y-1 overflow-y-auto rounded border border-slate-200 bg-slate-50 p-2 text-xs">
+              {parsed.map((api) => (
+                <li
+                  key={`${api.method}:${api.url}`}
+                  className="flex flex-wrap items-baseline gap-2"
+                >
+                  <span className="rounded bg-slate-900 px-1.5 py-0.5 font-mono text-[10px] text-white">
+                    {api.method}
+                  </span>
+                  <span className="font-mono">{api.url}</span>
+                  <span className="text-slate-500">
+                    {api.queryParams.length} query param
+                  </span>
+                  {api.description && (
+                    <span className="text-slate-500">{api.description}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}

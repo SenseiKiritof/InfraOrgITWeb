@@ -18,7 +18,8 @@
     "@xyflow/react": "^12",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "react-router-dom": "^7.18.4"
+    "react-router-dom": "^7.18.4",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.3",
