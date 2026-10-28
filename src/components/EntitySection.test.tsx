@@ -94,6 +94,32 @@ describe("EntitySection", () => {
     expect(screen.getByText(/Pagina 2 di 2/)).toBeInTheDocument();
   });
 
+  it("cambia il numero di elementi per pagina", () => {
+    const many = Array.from({ length: 25 }, (_, index) => ({
+      id: index + 1,
+      name: `Voce ${index + 1}`,
+    }));
+
+    render(
+      <EntitySection
+        rows={many}
+        columns={[{ key: "name", label: "Nome", render: (row) => row.name }]}
+        fields={[]}
+        empty={{}}
+        toForm={() => ({})}
+        canWrite={false}
+        onSave={async () => {}}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Elementi per pagina"), {
+      target: { value: "10" },
+    });
+
+    expect(screen.getAllByRole("row")).toHaveLength(11);
+    expect(screen.getByText(/Pagina 1 di 3/)).toBeInTheDocument();
+  });
+
   it("nasconde la creazione quando canCreate è false", () => {
     render(
       <EntitySection

@@ -326,7 +326,9 @@ export function DiagramsPage() {
           page={paginated.page}
           pageCount={paginated.pageCount}
           total={paginated.total}
+          pageSize={paginated.pageSize}
           onPage={paginated.setPage}
+          onPageSizeChange={paginated.setPageSize}
         />
       </div>
 

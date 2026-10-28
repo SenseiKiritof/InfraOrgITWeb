@@ -234,7 +234,9 @@ export function EntitySection<T extends { id: number }>({
           page={paginated.page}
           pageCount={paginated.pageCount}
           total={paginated.total}
+          pageSize={paginated.pageSize}
           onPage={paginated.setPage}
+          onPageSizeChange={paginated.setPageSize}
         />
       )}
 

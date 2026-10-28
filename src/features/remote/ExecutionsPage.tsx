@@ -10,8 +10,6 @@ import { getExecutions } from "../../lib/remote";
 import { nextSort, type SortState } from "../../lib/sort";
 import { useQueryFilter } from "../../lib/useQueryFilter";
 
-const PAGE_SIZE = 20;
-
 interface ExecutionColumn {
   key: string;
   label: string;
@@ -56,21 +54,21 @@ const columns: ExecutionColumn[] = [
 export function ExecutionsPage() {
   const { search, setSearch, q, setQ } = useQueryFilter();
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [sort, setSort] = useState<SortState>(null);
   const sortParam = sort
     ? `${sort.direction === "desc" ? "-" : ""}${sort.key}`
     : undefined;
 
   const executions = useQuery({
-    queryKey: ["command-executions", q, page, sortParam],
-    queryFn: () =>
-      getExecutions({ q, page, pageSize: PAGE_SIZE, sort: sortParam }),
+    queryKey: ["command-executions", q, page, pageSize, sortParam],
+    queryFn: () => getExecutions({ q, page, pageSize, sort: sortParam }),
     retry: false,
     placeholderData: (previous) => previous,
   });
 
   const total = executions.data?.total ?? 0;
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
   const widths = columnWidths(columns, undefined, 10);
 
   useEffect(() => {
@@ -157,7 +155,12 @@ export function ExecutionsPage() {
               page={page}
               pageCount={pageCount}
               total={total}
+              pageSize={pageSize}
               onPage={setPage}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setPage(1);
+              }}
             />
           </>
         )}
