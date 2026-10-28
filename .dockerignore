@@ -4,3 +4,11 @@ e2e
 .git
 .github
 *.log
+.env
+.env.*
+*.local
+coverage
+playwright-report
+test-results
+blob-report
+.opencode

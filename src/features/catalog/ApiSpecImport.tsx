@@ -123,30 +123,28 @@ export function ApiSpecImport({
       {open && (
         <div className="mt-3 space-y-2">
           <p className="text-xs text-slate-500">
-            Incolla il testo nel riquadro oppure trascina qui un file JSON/YAML.
+            Incolla il testo nel riquadro oppure trascina un file JSON/YAML sul
+            riquadro.
           </p>
-          <div
+          <textarea
+            aria-label="Documento OpenAPI o Swagger"
+            value={spec}
+            onChange={(event) => {
+              setSpec(event.target.value);
+              setFileName(null);
+              setParsed(null);
+              setError(null);
+              setMessage(null);
+            }}
             onDragOver={(event) => event.preventDefault()}
             onDrop={(event) => {
               event.preventDefault();
               void loadFile(event.dataTransfer.files[0]);
             }}
-          >
-            <textarea
-              aria-label="Documento OpenAPI o Swagger"
-              value={spec}
-              onChange={(event) => {
-                setSpec(event.target.value);
-                setFileName(null);
-                setParsed(null);
-                setError(null);
-                setMessage(null);
-              }}
-              rows={8}
-              placeholder='{"openapi":"3.0.3", ...} oppure yaml'
-              className="w-full rounded-md border border-slate-300 px-3 py-2 font-mono text-xs"
-            />
-          </div>
+            rows={8}
+            placeholder='{"openapi":"3.0.3", ...} oppure yaml'
+            className="w-full rounded-md border border-slate-300 px-3 py-2 font-mono text-xs"
+          />
           <div className="flex flex-wrap items-center gap-2">
             <label className="cursor-pointer rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100">
               Carica file

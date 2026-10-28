@@ -7,3 +7,17 @@ test-results/
 .env.*
 !.env.example
 *.local
+.DS_Store
+*.log
+.idea/
+.vscode/
+blob-report/
+.opencode/
+*.dump
+*.bak
+*.sql.gz
+*.pem
+*.key
+*.p12
+*.crt
+*.cer
