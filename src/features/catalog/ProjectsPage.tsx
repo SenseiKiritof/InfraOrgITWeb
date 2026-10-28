@@ -197,6 +197,7 @@ export function ProjectDetailPage() {
         canEditRow={() => false}
         onSave={linkApplication}
         onDelete={unlinkApplication}
+        rowHref={(row) => `/applications/${row.id}`}
         createLabel="Collega applicazione"
       />
     </section>
