@@ -120,9 +120,14 @@ body {
 .dark .text-red-600 {
   color: #fca5a5;
 }
+.dark .text-emerald-900,
 .dark .text-emerald-800,
 .dark .text-emerald-700 {
   color: #86efac;
+}
+.dark .border-emerald-200,
+.dark .border-emerald-300 {
+  border-color: #065f46;
 }
 .dark .border-slate-200,
 .dark .border-slate-100 {
