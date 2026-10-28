@@ -1,5 +1,5 @@
 import type { FormEvent, ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { columnWidths } from "../lib/columnWidths";
 import { usePagination } from "../lib/pagination";
@@ -64,6 +64,7 @@ export function EntitySection<T extends { id: number }>({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [sort, setSort] = useState<SortState>(null);
+  const uid = useId();
   const firstField = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -154,7 +155,7 @@ export function EntitySection<T extends { id: number }>({
       ) : rows.length === 0 ? (
         <p className="px-4 py-6 text-sm text-slate-500">Nessun elemento.</p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="max-h-[60vh] overflow-auto">
           <table className="w-full text-left text-sm">
             <colgroup>
               {widths.map((width, index) => (
@@ -174,9 +175,13 @@ export function EntitySection<T extends { id: number }>({
                     onSort={(key) =>
                       setSort((current) => nextSort(current, key))
                     }
+                    className="sticky top-0 z-10 bg-slate-50 px-4 py-2"
                   />
                 ))}
-                <th scope="col" className="px-4 py-2">
+                <th
+                  scope="col"
+                  className="sticky top-0 z-10 bg-slate-50 px-4 py-2"
+                >
                   <span className="sr-only">Azioni</span>
                 </th>
               </tr>
@@ -259,14 +264,14 @@ export function EntitySection<T extends { id: number }>({
               {fields.map((field, index) => (
                 <div key={field.name}>
                   <label
-                    htmlFor={`field-${field.name}`}
+                    htmlFor={`${uid}-field-${field.name}`}
                     className="block text-sm font-medium text-slate-700"
                   >
                     {field.label}
                   </label>
                   {field.type === "checkbox" ? (
                     <input
-                      id={`field-${field.name}`}
+                      id={`${uid}-field-${field.name}`}
                       type="checkbox"
                       checked={values[field.name] === "true"}
                       onChange={(event) =>
@@ -279,7 +284,7 @@ export function EntitySection<T extends { id: number }>({
                     />
                   ) : field.type === "select" ? (
                     <select
-                      id={`field-${field.name}`}
+                      id={`${uid}-field-${field.name}`}
                       value={values[field.name] ?? ""}
                       onChange={(event) =>
                         setValues({
@@ -306,7 +311,7 @@ export function EntitySection<T extends { id: number }>({
                     </select>
                   ) : field.type === "textarea" ? (
                     <textarea
-                      id={`field-${field.name}`}
+                      id={`${uid}-field-${field.name}`}
                       value={values[field.name] ?? ""}
                       onChange={(event) =>
                         setValues({
@@ -327,7 +332,7 @@ export function EntitySection<T extends { id: number }>({
                     />
                   ) : (
                     <input
-                      id={`field-${field.name}`}
+                      id={`${uid}-field-${field.name}`}
                       type={field.type ?? "text"}
                       value={values[field.name] ?? ""}
                       onChange={(event) =>
