@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useAuth } from "../../app/AuthProvider";
+import { AutocompleteSelect } from "../../components/AutocompleteSelect";
 import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
 import { PageHeader, SearchForm } from "../../components/page";
@@ -485,26 +486,28 @@ export function ServerDetailPage() {
                 className="rounded-md border border-slate-300 px-3 py-1.5"
               />
             </label>
-            <label className="flex flex-col gap-1 sm:col-span-2">
+            <label
+              htmlFor="server-jump"
+              className="flex flex-col gap-1 sm:col-span-2"
+            >
               <span className="text-xs text-slate-500">
                 Server proxy (jump)
               </span>
-              <select
+              <AutocompleteSelect
+                id="server-jump"
                 value={edit.jumpServerId}
-                onChange={(event) =>
-                  setEdit({ ...edit, jumpServerId: event.target.value })
-                }
-                className="rounded-md border border-slate-300 px-3 py-1.5"
-              >
-                <option value="">—</option>
-                {serverOptions.data?.items
-                  .filter((item) => item.id !== serverId)
-                  .map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name} ({item.ipAddress})
-                    </option>
-                  ))}
-              </select>
+                options={[
+                  { value: "", label: "—" },
+                  ...(serverOptions.data?.items
+                    .filter((item) => item.id !== serverId)
+                    .map((item) => ({
+                      value: String(item.id),
+                      label: `${item.name} (${item.ipAddress})`,
+                    })) ?? []),
+                ]}
+                onChange={(value) => setEdit({ ...edit, jumpServerId: value })}
+                className="w-full rounded-md border border-slate-300 px-3 py-1.5"
+              />
             </label>
           </div>
           <div className="flex items-center gap-3">
@@ -532,20 +535,23 @@ export function ServerDetailPage() {
             Credenziale SSH
           </h2>
           <div className="flex flex-wrap items-end gap-3">
-            <label className="flex flex-col gap-1">
+            <label htmlFor="server-credential" className="flex flex-col gap-1">
               <span className="text-xs text-slate-500">Credenziale</span>
-              <select
+              <AutocompleteSelect
+                id="server-credential"
                 value={credentialId}
-                onChange={(event) => setCredentialId(event.target.value)}
+                options={[
+                  { value: "", label: "— nessuna —" },
+                  ...(credentials.data?.items.map(
+                    (credential: ServerCredential) => ({
+                      value: String(credential.id),
+                      label: `${credential.name} (${credential.username})`,
+                    }),
+                  ) ?? []),
+                ]}
+                onChange={setCredentialId}
                 className="w-72 rounded-md border border-slate-300 px-3 py-1.5"
-              >
-                <option value="">— nessuna —</option>
-                {credentials.data?.items.map((credential: ServerCredential) => (
-                  <option key={credential.id} value={credential.id}>
-                    {credential.name} ({credential.username})
-                  </option>
-                ))}
-              </select>
+              />
             </label>
             <label className="flex flex-col gap-1">
               <span className="text-xs text-slate-500">Porta SSH</span>
@@ -684,6 +690,7 @@ export function ServerDetailPage() {
         canEditRow={() => false}
         onSave={deploy}
         onDelete={removeDeploy}
+        rowHref={(row) => `/applications/${row.applicationId}`}
         createLabel="Deploy applicazione"
       />
       {isOperator &&

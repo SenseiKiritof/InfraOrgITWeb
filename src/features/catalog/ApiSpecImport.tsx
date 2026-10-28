@@ -106,6 +106,7 @@ export function ApiSpecImport({
               name: key.name,
               location: key.location,
               value: null,
+              environmentId: null,
             }),
           },
           csrfToken,

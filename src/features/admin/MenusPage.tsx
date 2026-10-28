@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { FormEvent } from "react";
 import { useState } from "react";
 import { useAuth } from "../../app/AuthProvider";
+import { AutocompleteSelect } from "../../components/AutocompleteSelect";
 import { Pagination } from "../../components/Pagination";
 import { PageHeader } from "../../components/page";
 import { SortableTh } from "../../components/SortableTh";
@@ -300,26 +301,27 @@ export function MenusPage() {
                   className="rounded-md border border-slate-300 px-3 py-1.5"
                 />
               </label>
-              <label className="flex flex-col gap-1 text-sm">
+              <label
+                htmlFor="menu-parent"
+                className="flex flex-col gap-1 text-sm"
+              >
                 <span className="font-medium">Padre</span>
-                <select
+                <AutocompleteSelect
+                  id="menu-parent"
                   value={form.parentId}
-                  onChange={(event) =>
-                    setForm({ ...form, parentId: event.target.value })
-                  }
-                  className="rounded-md border border-slate-300 px-3 py-1.5"
-                >
-                  <option value="">— nessuno —</option>
-                  {menus.data
-                    ?.filter(
-                      (menu) => editing === "new" || menu.id !== editing.id,
-                    )
-                    .map((menu) => (
-                      <option key={menu.id} value={menu.id}>
-                        {menu.name}
-                      </option>
-                    ))}
-                </select>
+                  options={[
+                    { value: "", label: "— nessuno —" },
+                    ...(menus.data
+                      ?.filter(
+                        (menu) => editing === "new" || menu.id !== editing.id,
+                      )
+                      .map((menu) => ({
+                        value: String(menu.id),
+                        label: menu.name,
+                      })) ?? []),
+                  ]}
+                  onChange={(value) => setForm({ ...form, parentId: value })}
+                />
               </label>
             </div>
 

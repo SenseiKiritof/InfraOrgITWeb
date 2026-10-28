@@ -15,6 +15,7 @@ export function AutocompleteSelect({
   options,
   onChange,
   required,
+  disabled,
   className = "mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm",
 }: {
   id: string;
@@ -22,6 +23,7 @@ export function AutocompleteSelect({
   options: AutocompleteOption[];
   onChange: (value: string) => void;
   required?: boolean;
+  disabled?: boolean;
   className?: string;
 }) {
   const selected = options.find((option) => option.value === value);
@@ -71,6 +73,7 @@ export function AutocompleteSelect({
         autoComplete="off"
         value={query}
         required={required}
+        disabled={disabled}
         placeholder="Cerca…"
         onChange={(event) => {
           setQuery(event.target.value);
@@ -78,7 +81,9 @@ export function AutocompleteSelect({
           setOpen(true);
           if (event.target.value.trim() === "") onChange("");
         }}
-        onFocus={() => setOpen(true)}
+        onFocus={() => {
+          if (!disabled) setOpen(true);
+        }}
         onKeyDown={(event) => {
           if (event.key === "ArrowDown") {
             event.preventDefault();

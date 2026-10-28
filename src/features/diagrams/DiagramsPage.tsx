@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../app/AuthProvider";
+import { AutocompleteSelect } from "../../components/AutocompleteSelect";
 import { Pagination } from "../../components/Pagination";
 import { PageHeader, SearchForm } from "../../components/page";
 import { SortableTh } from "../../components/SortableTh";
@@ -400,22 +401,19 @@ export function DiagramsPage() {
                 >
                   Provider (opzionale)
                 </label>
-                <select
+                <AutocompleteSelect
                   id="diagram-provider"
                   value={form.providerId}
                   disabled={!isSystemAdmin}
-                  onChange={(event) =>
-                    setForm({ ...form, providerId: event.target.value })
-                  }
-                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
-                >
-                  <option value="">—</option>
-                  {providers.data?.items.map((provider) => (
-                    <option key={provider.id} value={provider.id}>
-                      {provider.name}
-                    </option>
-                  ))}
-                </select>
+                  options={[
+                    { value: "", label: "—" },
+                    ...(providers.data?.items.map((provider) => ({
+                      value: String(provider.id),
+                      label: provider.name,
+                    })) ?? []),
+                  ]}
+                  onChange={(value) => setForm({ ...form, providerId: value })}
+                />
               </div>
               <div>
                 <label
@@ -424,21 +422,20 @@ export function DiagramsPage() {
                 >
                   Ambiente (opzionale)
                 </label>
-                <select
+                <AutocompleteSelect
                   id="diagram-environment"
                   value={form.environmentId}
-                  onChange={(event) =>
-                    setForm({ ...form, environmentId: event.target.value })
+                  options={[
+                    { value: "", label: "—" },
+                    ...(environments.data?.items.map((environment) => ({
+                      value: String(environment.id),
+                      label: environment.name,
+                    })) ?? []),
+                  ]}
+                  onChange={(value) =>
+                    setForm({ ...form, environmentId: value })
                   }
-                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
-                >
-                  <option value="">—</option>
-                  {environments.data?.items.map((environment) => (
-                    <option key={environment.id} value={environment.id}>
-                      {environment.name}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
               <div>
                 <label
@@ -447,22 +444,19 @@ export function DiagramsPage() {
                 >
                   Progetto (opzionale)
                 </label>
-                <select
+                <AutocompleteSelect
                   id="diagram-project"
                   value={form.projectId}
                   disabled={!isSystemAdmin}
-                  onChange={(event) =>
-                    setForm({ ...form, projectId: event.target.value })
-                  }
-                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
-                >
-                  <option value="">—</option>
-                  {projects.data?.items.map((project) => (
-                    <option key={project.id} value={project.id}>
-                      {project.name}
-                    </option>
-                  ))}
-                </select>
+                  options={[
+                    { value: "", label: "—" },
+                    ...(projects.data?.items.map((project) => ({
+                      value: String(project.id),
+                      label: project.name,
+                    })) ?? []),
+                  ]}
+                  onChange={(value) => setForm({ ...form, projectId: value })}
+                />
               </div>
             </div>
             {error && (

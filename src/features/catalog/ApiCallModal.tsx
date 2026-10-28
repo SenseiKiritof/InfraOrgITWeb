@@ -1,22 +1,28 @@
-import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { AutocompleteSelect } from "../../components/AutocompleteSelect";
 import { apiFetch } from "../../lib/api";
+import { formatBytes } from "../../lib/format";
 import type {
   ApplicationApiCallResult,
   ApplicationApiQueryParam,
+  ApplicationEnvironment,
   ApplicationVersionApi,
   Paged,
 } from "../../lib/inventory";
 
 export function ApiCallModal({
   api,
+  applicationId,
   csrfToken,
   onClose,
 }: {
   api: ApplicationVersionApi;
+  applicationId: number;
   csrfToken: string;
   onClose: () => void;
 }) {
+  const queryClient = useQueryClient();
   const params = useQuery({
     queryKey: ["application-api-query-params", api.id],
     queryFn: () =>
@@ -24,18 +30,41 @@ export function ApiCallModal({
         `/api/application-version-apis/${api.id}/query-params?pageSize=200`,
       ),
   });
+  const environments = useQuery({
+    queryKey: ["application-environments", applicationId],
+    queryFn: () =>
+      apiFetch<ApplicationEnvironment[]>(
+        `/api/applications/${applicationId}/environments`,
+      ),
+  });
 
   const [values, setValues] = useState<Record<string, string>>({});
   const [body, setBody] = useState(api.body ?? "");
+  const [environment, setEnvironment] = useState("");
+  const [save, setSave] = useState(true);
   const [result, setResult] = useState<ApplicationApiCallResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const sendsBody = ["POST", "PUT", "PATCH"].includes(api.requestType);
+  const environmentId = environment;
+  const defaulted = useRef(false);
+  useEffect(() => {
+    if (defaulted.current || !environments.data) return;
+    defaulted.current = true;
+    const first = environments.data.find((item) => item.hostname);
+    if (first) setEnvironment(String(first.environmentId));
+  }, [environments.data]);
 
   const send = async () => {
+    if (!environmentId) {
+      setError("Seleziona un ambiente.");
+      return;
+    }
     setBusy(true);
     setError(null);
+    setCopied(false);
     setResult(null);
     try {
       setResult(
@@ -44,13 +73,16 @@ export function ApiCallModal({
           {
             method: "POST",
             body: JSON.stringify({
+              environmentId: Number(environmentId),
               query: values,
               body: sendsBody ? body : null,
+              save,
             }),
           },
           csrfToken,
         ),
       );
+      await queryClient.invalidateQueries({ queryKey: ["api-calls"] });
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "Chiamata non riuscita",
@@ -87,6 +119,24 @@ export function ApiCallModal({
         </div>
 
         <div className="mt-4 space-y-3">
+          <label
+            htmlFor="api-call-environment"
+            className="block space-y-1 text-sm"
+          >
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Ambiente
+            </span>
+            <AutocompleteSelect
+              id="api-call-environment"
+              value={environmentId}
+              options={(environments.data ?? []).map((item) => ({
+                value: String(item.environmentId),
+                label: item.name,
+              }))}
+              onChange={setEnvironment}
+            />
+          </label>
+
           {params.data?.items.length ? (
             <fieldset className="space-y-2">
               <legend className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -130,6 +180,15 @@ export function ApiCallModal({
             </label>
           )}
 
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={save}
+              onChange={(event) => setSave(event.target.checked)}
+            />
+            Salva la chiamata
+          </label>
+
           <button
             type="button"
             onClick={() => void send()}
@@ -149,7 +208,8 @@ export function ApiCallModal({
             <div className="space-y-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm">
               <p>
                 <span className="font-semibold">{result.status}</span>{" "}
-                {result.reason} · {result.durationMs} ms
+                {result.reason} · {result.durationMs} ms ·{" "}
+                {formatBytes(result.sizeBytes)}
                 {result.contentType ? ` · ${result.contentType}` : ""}
               </p>
               <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words rounded bg-white p-2 font-mono text-xs">
@@ -157,13 +217,89 @@ export function ApiCallModal({
               </pre>
               {result.truncated && (
                 <p className="text-xs text-slate-500">
-                  Risposta troncata a 20 000 caratteri.
+                  Risposta troncata: il body supera 10 MiB.
                 </p>
               )}
+              {result.binary && (
+                <p className="text-xs text-slate-500">
+                  Risposta binaria: usa Scarica per il file originale.
+                </p>
+              )}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void copyResult(result, setCopied, setError)}
+                  disabled={result.binary}
+                  className="rounded-md border border-slate-300 px-3 py-1 text-sm disabled:opacity-50"
+                >
+                  Copia
+                </button>
+                <button
+                  type="button"
+                  onClick={() => download(result)}
+                  className="rounded-md border border-slate-300 px-3 py-1 text-sm"
+                >
+                  Scarica
+                </button>
+                {copied && (
+                  <span className="text-xs text-slate-500">Copiato</span>
+                )}
+              </div>
             </div>
           )}
         </div>
       </section>
     </div>
   );
+}
+
+async function copyResult(
+  result: ApplicationApiCallResult,
+  onCopied: (value: boolean) => void,
+  onError: (message: string) => void,
+): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(result.body);
+    onCopied(true);
+  } catch {
+    onError("Copia non riuscita: clipboard non disponibile.");
+  }
+}
+
+function download(result: ApplicationApiCallResult): void {
+  const extension = result.binary
+    ? extensionFor(result.contentType)
+    : result.contentType.includes("json")
+      ? "json"
+      : "txt";
+  const content = result.binary ? base64Bytes(result.body) : result.body;
+  const blob = new Blob([content], {
+    type: result.contentType || "text/plain",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `api-call-${result.callId ?? "nuova"}.${extension}`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function base64Bytes(value: string): ArrayBuffer {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1)
+    bytes[index] = binary.charCodeAt(index);
+  return bytes.buffer as ArrayBuffer;
+}
+
+function extensionFor(contentType: string): string {
+  const map: Record<string, string> = {
+    "application/pdf": "pdf",
+    "image/png": "png",
+    "image/jpeg": "jpg",
+    "application/zip": "zip",
+  };
+  return map[contentType.split(";")[0]?.trim() ?? ""] ?? "bin";
 }

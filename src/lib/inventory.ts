@@ -63,14 +63,20 @@ export interface Application {
   description: string;
   basePath: string;
   listeningOnPort: number;
+  versionCount: number;
+}
+
+export interface ApplicationEnvironment {
+  environmentId: number;
+  name: string;
   hostname: string | null;
   ignoreSslErrors: boolean;
-  versionCount: number;
 }
 
 export interface ApplicationApiKey {
   id: number;
   applicationId: number;
+  environmentId: number | null;
   name: string;
   location: "Header" | "Query";
   hasValue: boolean;
@@ -78,12 +84,38 @@ export interface ApplicationApiKey {
 }
 
 export interface ApplicationApiCallResult {
+  callId: number | null;
   status: number;
   contentType: string;
   reason: string;
   durationMs: number;
   body: string;
   truncated: boolean;
+  sizeBytes: number;
+  binary: boolean;
+}
+
+export interface ApplicationApiCall {
+  id: number;
+  applicationId: number | null;
+  applicationName: string | null;
+  applicationVersionApiId: number | null;
+  method: string;
+  url: string;
+  environmentId: number;
+  environmentName: string;
+  status: number | null;
+  durationMs: number;
+  sizeBytes: number;
+  truncated: boolean;
+  createdAt: string;
+}
+
+export interface ApplicationApiCallDetail extends ApplicationApiCall {
+  queryJson: string | null;
+  requestBody: string | null;
+  responseBody: string | null;
+  binary: boolean;
 }
 
 export interface ApplicationVersion {

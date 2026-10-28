@@ -40,6 +40,7 @@ interface EntitySectionProps<T extends { id: number }> {
   onDelete?: (row: T) => Promise<void>;
   rowHref?: (row: T) => string;
   rowActions?: (row: T) => ReactNode;
+  rowLabel?: (row: T) => string;
   createLabel?: string;
 }
 
@@ -58,6 +59,7 @@ export function EntitySection<T extends { id: number }>({
   onDelete,
   rowHref,
   rowActions,
+  rowLabel,
   createLabel = "Nuovo",
 }: EntitySectionProps<T>) {
   const [editing, setEditing] = useState<T | "new" | null>(null);
@@ -117,7 +119,7 @@ export function EntitySection<T extends { id: number }>({
 
   const remove = async (row: T) => {
     if (!onDelete) return;
-    if (!window.confirm(`Eliminare "${labelOf(row)}"?`)) return;
+    if (!window.confirm(`Eliminare "${(rowLabel ?? labelOf)(row)}"?`)) return;
     setError(null);
     try {
       await onDelete(row);

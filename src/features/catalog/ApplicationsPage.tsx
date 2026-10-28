@@ -7,10 +7,13 @@ import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
 import { PageHeader, SearchForm } from "../../components/page";
 import { apiFetch } from "../../lib/api";
+import { formatBytes, formatDateTime } from "../../lib/format";
 import type {
   Application,
+  ApplicationApiCall,
   ApplicationApiKey,
   ApplicationApiQueryParam,
+  ApplicationEnvironment,
   ApplicationVersion,
   ApplicationVersionApi,
   Paged,
@@ -32,6 +35,7 @@ import { useQueryFilter } from "../../lib/useQueryFilter";
 import { useIsSystemAdmin, useServerAccess } from "../../lib/useServerAccess";
 import { ApiCallModal } from "./ApiCallModal";
 import { ApiSpecImport } from "./ApiSpecImport";
+import { SavedCallModal } from "./SavedCallModal";
 
 const requestTypes = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
 const paramTypes = [
@@ -64,8 +68,6 @@ export function ApplicationsPage() {
         description: values.description,
         basePath: values.basePath,
         listeningOnPort: Number(values.listeningOnPort),
-        hostname: values.hostname || null,
-        ignoreSslErrors: values.ignoreSslErrors === "true",
       },
       csrf,
     );
@@ -118,31 +120,18 @@ export function ApplicationsPage() {
             type: "number",
             required: true,
           },
-          {
-            name: "hostname",
-            label: "Hostname (URL per le chiamate)",
-          },
-          {
-            name: "ignoreSslErrors",
-            label: "Ignora errori certificato SSL",
-            type: "checkbox",
-          },
         ]}
         empty={{
           name: "",
           description: "",
           basePath: "",
           listeningOnPort: "",
-          hostname: "",
-          ignoreSslErrors: "false",
         }}
         toForm={(row) => ({
           name: row.name,
           description: row.description,
           basePath: row.basePath,
           listeningOnPort: String(row.listeningOnPort),
-          hostname: row.hostname ?? "",
-          ignoreSslErrors: String(row.ignoreSslErrors),
         })}
         canWrite={isAdmin}
         onSave={save}
@@ -177,6 +166,29 @@ export function ApplicationDetailPage() {
       listOf<ApplicationApiKey>(`/api/applications/${applicationId}/api-keys`),
     enabled: Number.isInteger(applicationId),
   });
+
+  const environments = useQuery({
+    queryKey: ["application-environments", applicationId],
+    queryFn: () =>
+      apiFetch<ApplicationEnvironment[]>(
+        `/api/applications/${applicationId}/environments`,
+      ),
+    enabled: Number.isInteger(applicationId),
+  });
+  const environmentRows = environments.data?.map((environment) => ({
+    ...environment,
+    id: environment.environmentId,
+  }));
+
+  const calls = useQuery({
+    queryKey: ["api-calls", applicationId],
+    queryFn: () =>
+      apiFetch<Paged<ApplicationApiCall>>(
+        `/api/api-calls?applicationId=${applicationId}&pageSize=200`,
+      ),
+    enabled: Number.isInteger(applicationId),
+  });
+  const [openCall, setOpenCall] = useState<ApplicationApiCall | null>(null);
 
   const versions = useQuery({
     queryKey: ["application-versions", "application", applicationId],
@@ -345,8 +357,6 @@ export function ApplicationDetailPage() {
         description: values.description,
         basePath: values.basePath,
         listeningOnPort: Number(values.listeningOnPort),
-        hostname: values.hostname || null,
-        ignoreSslErrors: values.ignoreSslErrors === "true",
       },
       csrf,
     );
@@ -364,6 +374,9 @@ export function ApplicationDetailPage() {
         name: values.name,
         location: values.location,
         value: values.value || null,
+        environmentId: values.environmentId
+          ? Number(values.environmentId)
+          : null,
       },
       csrf,
     );
@@ -376,6 +389,30 @@ export function ApplicationDetailPage() {
       csrf,
     );
     await queryClient.invalidateQueries({ queryKey: ["application-api-keys"] });
+  };
+
+  const saveEnvironment = async (
+    row: (ApplicationEnvironment & { id: number }) | null,
+    values: FormValues,
+  ) => {
+    if (!row) return;
+    await saveEntity(
+      `/api/applications/${applicationId}/environments`,
+      row.environmentId,
+      {
+        hostname: values.hostname || null,
+        ignoreSslErrors: values.ignoreSslErrors === "true",
+      },
+      csrf,
+    );
+    await queryClient.invalidateQueries({
+      queryKey: ["application-environments", applicationId],
+    });
+  };
+
+  const removeCall = async (row: ApplicationApiCall) => {
+    await deleteEntity(`/api/api-calls/${row.id}`, csrf);
+    await queryClient.invalidateQueries({ queryKey: ["api-calls"] });
   };
 
   return (
@@ -401,6 +438,39 @@ export function ApplicationDetailPage() {
             label: "Porta",
             render: (row) => row.listeningOnPort,
           },
+        ]}
+        fields={[
+          { name: "name", label: "Nome", required: true },
+          { name: "description", label: "Descrizione", type: "textarea" },
+          { name: "basePath", label: "Base path", required: true },
+          {
+            name: "listeningOnPort",
+            label: "Porta in ascolto",
+            type: "number",
+            required: true,
+          },
+        ]}
+        empty={{
+          name: "",
+          description: "",
+          basePath: "",
+          listeningOnPort: "",
+        }}
+        toForm={(row) => ({
+          name: row.name,
+          description: row.description,
+          basePath: row.basePath,
+          listeningOnPort: String(row.listeningOnPort),
+        })}
+        canWrite={isAdmin}
+        canCreate={false}
+        onSave={saveApplication}
+      />
+      <EntitySection
+        title="Ambienti"
+        rows={environmentRows}
+        columns={[
+          { key: "name", label: "Ambiente", render: (row) => row.name },
           {
             key: "hostname",
             label: "Hostname",
@@ -413,15 +483,6 @@ export function ApplicationDetailPage() {
           },
         ]}
         fields={[
-          { name: "name", label: "Nome", required: true },
-          { name: "description", label: "Descrizione", type: "textarea" },
-          { name: "basePath", label: "Base path", required: true },
-          {
-            name: "listeningOnPort",
-            label: "Porta in ascolto",
-            type: "number",
-            required: true,
-          },
           {
             name: "hostname",
             label: "Hostname (URL per le chiamate)",
@@ -432,31 +493,31 @@ export function ApplicationDetailPage() {
             type: "checkbox",
           },
         ]}
-        empty={{
-          name: "",
-          description: "",
-          basePath: "",
-          listeningOnPort: "",
-          hostname: "",
-          ignoreSslErrors: "false",
-        }}
+        empty={{ hostname: "", ignoreSslErrors: "false" }}
         toForm={(row) => ({
-          name: row.name,
-          description: row.description,
-          basePath: row.basePath,
-          listeningOnPort: String(row.listeningOnPort),
           hostname: row.hostname ?? "",
           ignoreSslErrors: String(row.ignoreSslErrors),
         })}
         canWrite={isAdmin}
         canCreate={false}
-        onSave={saveApplication}
+        onSave={saveEnvironment}
       />
       <EntitySection
         title="API key"
         rows={apiKeys.data}
         columns={[
           { key: "name", label: "Nome", render: (row) => row.name },
+          {
+            key: "environmentId",
+            label: "Ambiente",
+            render: (row) =>
+              row.environmentId === null
+                ? "Tutti"
+                : (environments.data?.find(
+                    (environment) =>
+                      environment.environmentId === row.environmentId,
+                  )?.name ?? `#${row.environmentId}`),
+          },
           {
             key: "location",
             label: "Posizione",
@@ -470,6 +531,18 @@ export function ApplicationDetailPage() {
         ]}
         fields={[
           { name: "name", label: "Nome (header o query)", required: true },
+          {
+            name: "environmentId",
+            label: "Ambiente",
+            type: "select",
+            options: [
+              { value: "", label: "Tutti gli ambienti" },
+              ...(environments.data ?? []).map((environment) => ({
+                value: String(environment.environmentId),
+                label: environment.name,
+              })),
+            ],
+          },
           {
             name: "location",
             label: "Posizione",
@@ -485,9 +558,11 @@ export function ApplicationDetailPage() {
             label: "Valore (vuoto = mantieni)",
           },
         ]}
-        empty={{ name: "", location: "Header", value: "" }}
+        empty={{ name: "", environmentId: "", location: "Header", value: "" }}
         toForm={(row) => ({
           name: row.name,
+          environmentId:
+            row.environmentId === null ? "" : String(row.environmentId),
           location: row.location,
           value: "",
         })}
@@ -530,6 +605,63 @@ export function ApplicationDetailPage() {
           />
         </NestedSection>
       ))}
+      <EntitySection
+        title="Chiamate"
+        rows={calls.data?.items}
+        columns={[
+          {
+            key: "createdAt",
+            label: "Data/ora",
+            render: (row) => formatDateTime(row.createdAt),
+          },
+          {
+            key: "environmentName",
+            label: "Ambiente",
+            render: (row) => row.environmentName,
+          },
+          { key: "method", label: "Metodo", render: (row) => row.method },
+          { key: "url", label: "URL", render: (row) => row.url },
+          {
+            key: "status",
+            label: "Stato",
+            render: (row) => row.status ?? "",
+          },
+          {
+            key: "durationMs",
+            label: "Durata ms",
+            render: (row) => row.durationMs,
+          },
+          {
+            key: "sizeBytes",
+            label: "Dimensione",
+            render: (row) => formatBytes(row.sizeBytes),
+          },
+        ]}
+        fields={[]}
+        empty={{}}
+        toForm={() => ({})}
+        canWrite
+        canCreate={false}
+        canEditRow={() => false}
+        onSave={async () => undefined}
+        onDelete={removeCall}
+        rowLabel={(row) => `${row.method} ${row.url}`}
+        rowActions={(row) => (
+          <button
+            type="button"
+            onClick={() => setOpenCall(row)}
+            className="text-sm text-slate-700 underline"
+          >
+            Apri
+          </button>
+        )}
+      />
+      {openCall && (
+        <SavedCallModal
+          callId={openCall.id}
+          onClose={() => setOpenCall(null)}
+        />
+      )}
       {isAdmin && (
         <EntitySection
           title="Azioni applicazione"
@@ -880,6 +1012,7 @@ function ApiSection({
       {calling && (
         <ApiCallModal
           api={calling}
+          applicationId={applicationId}
           csrfToken={csrfToken}
           onClose={() => setCalling(null)}
         />
