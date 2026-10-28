@@ -14,10 +14,20 @@ export function ApiSpecImport({
 }) {
   const [open, setOpen] = useState(false);
   const [spec, setSpec] = useState("");
+  const [fileName, setFileName] = useState<string | null>(null);
   const [parsed, setParsed] = useState<ParsedApi[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const loadFile = async (file: File | undefined) => {
+    if (!file) return;
+    setSpec(await file.text());
+    setFileName(file.name);
+    setParsed(null);
+    setError(null);
+    setMessage(null);
+  };
 
   const analyze = () => {
     setError(null);
@@ -112,24 +122,47 @@ export function ApiSpecImport({
 
       {open && (
         <div className="mt-3 space-y-2">
-          <textarea
-            aria-label="Documento OpenAPI o Swagger"
-            value={spec}
-            onChange={(event) => setSpec(event.target.value)}
-            rows={8}
-            placeholder='{"openapi":"3.0.3", ...} oppure yaml'
-            className="w-full rounded-md border border-slate-300 px-3 py-2 font-mono text-xs"
-          />
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              type="file"
-              accept=".json,.yaml,.yml,application/json"
+          <p className="text-xs text-slate-500">
+            Incolla il testo nel riquadro oppure trascina qui un file JSON/YAML.
+          </p>
+          <div
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              event.preventDefault();
+              void loadFile(event.dataTransfer.files[0]);
+            }}
+          >
+            <textarea
+              aria-label="Documento OpenAPI o Swagger"
+              value={spec}
               onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) void file.text().then(setSpec);
+                setSpec(event.target.value);
+                setFileName(null);
+                setParsed(null);
+                setError(null);
+                setMessage(null);
               }}
-              className="text-xs"
+              rows={8}
+              placeholder='{"openapi":"3.0.3", ...} oppure yaml'
+              className="w-full rounded-md border border-slate-300 px-3 py-2 font-mono text-xs"
             />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="cursor-pointer rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100">
+              Carica file
+              <input
+                type="file"
+                accept=".json,.yaml,.yml,application/json"
+                className="sr-only"
+                onChange={(event) => {
+                  void loadFile(event.target.files?.[0]);
+                  event.target.value = "";
+                }}
+              />
+            </label>
+            {fileName && (
+              <span className="text-xs text-slate-500">File: {fileName}</span>
+            )}
             <button
               type="button"
               onClick={analyze}
