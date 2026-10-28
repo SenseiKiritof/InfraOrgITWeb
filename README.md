@@ -59,7 +59,7 @@ make e2e
 
 ## Docker image
 
-Multi-stage `Dockerfile` (Node 24 → Caddy 2) and `Caddyfile` with SPA fallback.
+Multi-stage `Dockerfile` (Node 24 → Caddy 2) and `Caddyfile` that serves the SPA and proxies `/api`, `/auth`, `/realms` and `/resources` (compose front door).
 
 - workflow `.github/workflows/docker.yml` on `v*` tags
 - image `ghcr.io/senseikiritof/infraorgit-web`, tags `X.Y.Z`, `X.Y`, `sha-<commit>`, `latest`
