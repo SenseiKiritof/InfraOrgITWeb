@@ -5,7 +5,11 @@ import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
 import { PageHeader, SearchForm } from "../../components/page";
 import { apiFetch } from "../../lib/api";
-import type { Application, Project } from "../../lib/inventory";
+import type {
+  Application,
+  Project,
+  ServerApplication,
+} from "../../lib/inventory";
 import { deleteEntity, listOf, paged, saveEntity } from "../../lib/inventory";
 import { useQueryFilter } from "../../lib/useQueryFilter";
 import { useIsSystemAdmin } from "../../lib/useServerAccess";
@@ -103,6 +107,19 @@ export function ProjectDetailPage() {
     enabled: Number.isInteger(projectId),
   });
 
+  const deployments = useQuery({
+    queryKey: ["server-applications", "all"],
+    queryFn: () => paged<ServerApplication>("/api/server-applications"),
+  });
+
+  const serversByApplication = new Map<number, string[]>();
+  for (const deployment of deployments.data?.items ?? []) {
+    const names = serversByApplication.get(deployment.applicationId) ?? [];
+    if (!names.includes(deployment.serverName))
+      names.push(deployment.serverName);
+    serversByApplication.set(deployment.applicationId, names);
+  }
+
   const applicationOptions = useQuery({
     queryKey: ["applications", "options"],
     queryFn: () => paged<Application>("/api/applications"),
@@ -176,6 +193,17 @@ export function ProjectDetailPage() {
             key: "basePath",
             label: "Base path",
             render: (row) => row.basePath,
+          },
+          {
+            key: "listeningOnPort",
+            label: "Porta",
+            render: (row) => row.listeningOnPort,
+          },
+          {
+            key: "servers",
+            label: "Server",
+            render: (row) =>
+              (serversByApplication.get(row.id) ?? []).join(", ") || "—",
           },
         ]}
         fields={[

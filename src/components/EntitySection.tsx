@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { columnWidths } from "../lib/columnWidths";
 import { usePagination } from "../lib/pagination";
 import { nextSort, type SortState, sortedRows } from "../lib/sort";
+import { AutocompleteSelect } from "./AutocompleteSelect";
 import { Pagination } from "./Pagination";
 import { SortableTh } from "./SortableTh";
 
@@ -93,6 +94,13 @@ export function EntitySection<T extends { id: number }>({
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    const missing = fields.find(
+      (field) => field.required && !values[field.name],
+    );
+    if (missing) {
+      setError(`Il campo ${missing.label} è obbligatorio.`);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -283,32 +291,15 @@ export function EntitySection<T extends { id: number }>({
                       className="ml-2 align-middle"
                     />
                   ) : field.type === "select" ? (
-                    <select
+                    <AutocompleteSelect
                       id={`${uid}-field-${field.name}`}
                       value={values[field.name] ?? ""}
-                      onChange={(event) =>
-                        setValues({
-                          ...values,
-                          [field.name]: event.target.value,
-                        })
+                      options={field.options ?? []}
+                      onChange={(value) =>
+                        setValues({ ...values, [field.name]: value })
                       }
                       required={field.required}
-                      ref={
-                        index === 0
-                          ? (node) => {
-                              firstField.current = node;
-                            }
-                          : undefined
-                      }
-                      className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
-                    >
-                      <option value="">—</option>
-                      {field.options?.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
+                    />
                   ) : field.type === "textarea" ? (
                     <textarea
                       id={`${uid}-field-${field.name}`}

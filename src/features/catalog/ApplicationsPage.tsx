@@ -65,6 +65,7 @@ export function ApplicationsPage() {
         basePath: values.basePath,
         listeningOnPort: Number(values.listeningOnPort),
         hostname: values.hostname || null,
+        ignoreSslErrors: values.ignoreSslErrors === "true",
       },
       csrf,
     );
@@ -121,6 +122,11 @@ export function ApplicationsPage() {
             name: "hostname",
             label: "Hostname (URL per le chiamate)",
           },
+          {
+            name: "ignoreSslErrors",
+            label: "Ignora errori certificato SSL",
+            type: "checkbox",
+          },
         ]}
         empty={{
           name: "",
@@ -128,6 +134,7 @@ export function ApplicationsPage() {
           basePath: "",
           listeningOnPort: "",
           hostname: "",
+          ignoreSslErrors: "false",
         }}
         toForm={(row) => ({
           name: row.name,
@@ -135,6 +142,7 @@ export function ApplicationsPage() {
           basePath: row.basePath,
           listeningOnPort: String(row.listeningOnPort),
           hostname: row.hostname ?? "",
+          ignoreSslErrors: String(row.ignoreSslErrors),
         })}
         canWrite={isAdmin}
         onSave={save}
@@ -203,8 +211,10 @@ export function ApplicationDetailPage() {
   const serverOptions = useQuery({
     queryKey: ["servers", "options"],
     queryFn: () => paged<Server>("/api/servers"),
-    enabled: canManageDeployments,
   });
+  const serversById = new Map(
+    (serverOptions.data?.items ?? []).map((server) => [server.id, server]),
+  );
   const adminServers =
     serverOptions.data?.items.filter((server) =>
       adminEnvironmentIds.includes(server.providerEnvironmentId),
@@ -336,6 +346,7 @@ export function ApplicationDetailPage() {
         basePath: values.basePath,
         listeningOnPort: Number(values.listeningOnPort),
         hostname: values.hostname || null,
+        ignoreSslErrors: values.ignoreSslErrors === "true",
       },
       csrf,
     );
@@ -395,6 +406,11 @@ export function ApplicationDetailPage() {
             label: "Hostname",
             render: (row) => row.hostname ?? "",
           },
+          {
+            key: "ignoreSslErrors",
+            label: "SSL",
+            render: (row) => (row.ignoreSslErrors ? "ignorato" : "verificato"),
+          },
         ]}
         fields={[
           { name: "name", label: "Nome", required: true },
@@ -410,6 +426,11 @@ export function ApplicationDetailPage() {
             name: "hostname",
             label: "Hostname (URL per le chiamate)",
           },
+          {
+            name: "ignoreSslErrors",
+            label: "Ignora errori certificato SSL",
+            type: "checkbox",
+          },
         ]}
         empty={{
           name: "",
@@ -417,6 +438,7 @@ export function ApplicationDetailPage() {
           basePath: "",
           listeningOnPort: "",
           hostname: "",
+          ignoreSslErrors: "false",
         }}
         toForm={(row) => ({
           name: row.name,
@@ -424,6 +446,7 @@ export function ApplicationDetailPage() {
           basePath: row.basePath,
           listeningOnPort: String(row.listeningOnPort),
           hostname: row.hostname ?? "",
+          ignoreSslErrors: String(row.ignoreSslErrors),
         })}
         canWrite={isAdmin}
         canCreate={false}
@@ -584,6 +607,17 @@ export function ApplicationDetailPage() {
             key: "serverName",
             label: "Server",
             render: (row) => row.serverName,
+          },
+          {
+            key: "ipAddress",
+            label: "IP",
+            render: (row) => serversById.get(row.serverId)?.ipAddress ?? "",
+          },
+          {
+            key: "environment",
+            label: "Ambiente",
+            render: (row) =>
+              serversById.get(row.serverId)?.providerEnvironmentLabel ?? "",
           },
           {
             key: "versionNumber",

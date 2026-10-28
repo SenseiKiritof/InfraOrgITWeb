@@ -10,7 +10,11 @@ test("login BFF, menu e logout", async ({ page }) => {
 
   await expect(page.getByRole("heading", { name: "InfraOrgIT" })).toBeVisible();
   await expect(page.getByText("Dev Admin", { exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Users" })).toBeVisible();
+  await expect(
+    page
+      .getByRole("navigation", { name: "Menu principale" })
+      .getByRole("link", { name: "Users" }),
+  ).toBeVisible();
 
   await page.getByRole("button", { name: "Passa al tema scuro" }).click();
   await expect(page.locator("html")).toHaveClass(/dark/);

@@ -38,9 +38,8 @@ test("inventario: provider, ambiente, applicazione e progetto", async ({
     .getByRole("link", { name: "Apri" })
     .click();
   await page.getByRole("button", { name: "Collega provider" }).click();
-  await page
-    .getByLabel("Provider", { exact: true })
-    .selectOption({ label: provider });
+  await page.getByLabel("Provider", { exact: true }).fill(provider);
+  await page.getByRole("option", { name: provider, exact: true }).click();
   await page.getByRole("button", { name: "Salva" }).click();
   await expect(page.getByRole("cell", { name: provider })).toBeVisible();
 
@@ -51,6 +50,8 @@ test("inventario: provider, ambiente, applicazione e progetto", async ({
   await page.getByLabel("Base path").fill("/e2e");
   await page.getByLabel("Porta in ascolto").fill("8080");
   await page.getByRole("button", { name: "Salva" }).click();
+  await page.getByLabel("Cerca").fill(application);
+  await page.getByRole("button", { name: "Cerca" }).click();
   await page
     .getByRole("row", { name: application })
     .getByRole("link", { name: "Apri" })
@@ -69,7 +70,7 @@ test("inventario: provider, ambiente, applicazione e progetto", async ({
   await expect(page.getByRole("cell", { name: "1.0.1" })).toBeVisible();
 
   await page.getByRole("button", { name: "API della versione 1.0.1" }).click();
-  await page.getByRole("button", { name: "Nuova API" }).click();
+  await page.getByRole("button", { name: "Nuova API", exact: true }).click();
   await page.getByLabel("URL").fill("/health");
   await page.getByRole("button", { name: "Salva" }).click();
   await expect(page.getByRole("cell", { name: "/health" })).toBeVisible();
@@ -107,9 +108,8 @@ test("inventario: provider, ambiente, applicazione e progetto", async ({
     .getByRole("link", { name: "Apri" })
     .click();
   await page.getByRole("button", { name: "Collega applicazione" }).click();
-  await page
-    .getByLabel("Applicazione", { exact: true })
-    .selectOption({ label: application });
+  await page.getByLabel("Applicazione", { exact: true }).fill(application);
+  await page.getByRole("option", { name: application, exact: true }).click();
   await page.getByRole("button", { name: "Salva" }).click();
   await expect(page.getByRole("cell", { name: application })).toBeVisible();
 });

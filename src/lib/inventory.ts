@@ -64,6 +64,7 @@ export interface Application {
   basePath: string;
   listeningOnPort: number;
   hostname: string | null;
+  ignoreSslErrors: boolean;
   versionCount: number;
 }
 
