@@ -331,7 +331,7 @@ export function DiagramsPage() {
       </div>
 
       {editing !== null && (
-        <div className="fixed inset-0 z-10 flex items-center justify-center bg-slate-900/40 p-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 p-4">
           <form
             role="dialog"
             aria-modal="true"
@@ -339,7 +339,7 @@ export function DiagramsPage() {
               editing === "new" ? "Nuovo diagramma" : "Modifica diagramma"
             }
             onSubmit={(event) => void submit(event)}
-            className="w-full max-w-lg rounded-lg bg-white p-5 shadow-xl"
+            className="max-h-[85vh] overflow-y-auto w-full max-w-lg rounded-lg bg-white p-5 shadow-xl"
           >
             <h2 className="text-lg font-semibold">
               {editing === "new" ? "Nuovo diagramma" : "Modifica diagramma"}
