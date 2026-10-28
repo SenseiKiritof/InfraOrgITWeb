@@ -1,13 +1,22 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { apiFetch } from "../../lib/api";
 import { formatBytes, formatDateTime } from "../../lib/format";
-import type { ApplicationApiCallDetail } from "../../lib/inventory";
+import type {
+  ApplicationApiCallDetail,
+  ApplicationVersionApi,
+} from "../../lib/inventory";
+import { ApiCallModal } from "./ApiCallModal";
 
 export function SavedCallModal({
   callId,
+  applicationId,
+  csrfToken,
   onClose,
 }: {
   callId: number;
+  applicationId: number;
+  csrfToken: string;
   onClose: () => void;
 }) {
   const call = useQuery({
@@ -15,6 +24,26 @@ export function SavedCallModal({
     queryFn: () =>
       apiFetch<ApplicationApiCallDetail>(`/api/api-calls/${callId}`),
   });
+  const [repeatApi, setRepeatApi] = useState<ApplicationVersionApi | null>(
+    null,
+  );
+  const [repeatError, setRepeatError] = useState<string | null>(null);
+
+  const repeat = async () => {
+    if (!call.data?.applicationVersionApiId) return;
+    setRepeatError(null);
+    try {
+      setRepeatApi(
+        await apiFetch<ApplicationVersionApi>(
+          `/api/application-version-apis/${call.data.applicationVersionApiId}`,
+        ),
+      );
+    } catch (cause) {
+      setRepeatError(
+        cause instanceof Error ? cause.message : "API non disponibile",
+      );
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 p-4">
@@ -72,6 +101,24 @@ export function SavedCallModal({
                 Risposta binaria, salvata come base64.
               </p>
             )}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void repeat()}
+                disabled={!call.data.applicationVersionApiId}
+                title={
+                  call.data.applicationVersionApiId
+                    ? "Ripeti con gli stessi parametri"
+                    : "API non più disponibile"
+                }
+                className="rounded-md border border-slate-300 px-3 py-1 text-sm disabled:opacity-50"
+              >
+                Ripeti
+              </button>
+              {repeatError && (
+                <span className="text-xs text-red-700">{repeatError}</span>
+              )}
+            </div>
             {call.data.truncated && (
               <p className="text-xs text-slate-500">
                 Risposta salvata troncata: il body supera 1 MiB.
@@ -80,8 +127,31 @@ export function SavedCallModal({
           </div>
         )}
       </section>
+      {repeatApi && call.data && (
+        <ApiCallModal
+          api={repeatApi}
+          applicationId={applicationId}
+          csrfToken={csrfToken}
+          initialEnvironmentId={call.data.environmentId}
+          initialQuery={parseQuery(call.data.queryJson)}
+          initialBody={call.data.requestBody}
+          onClose={() => setRepeatApi(null)}
+        />
+      )}
     </div>
   );
+}
+
+function parseQuery(value: string | null): Record<string, string> {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value) as Record<string, unknown>;
+    return Object.fromEntries(
+      Object.entries(parsed).map(([key, item]) => [key, String(item)]),
+    );
+  } catch {
+    return {};
+  }
 }
 
 function Body({ title, text }: { title: string; text: string }) {

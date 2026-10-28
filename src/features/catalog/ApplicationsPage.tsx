@@ -656,9 +656,17 @@ export function ApplicationDetailPage() {
           </button>
         )}
       />
+      {calls.data && calls.data.total > calls.data.items.length && (
+        <p className="text-xs text-slate-500">
+          Mostrate le ultime {calls.data.items.length} di {calls.data.total}{" "}
+          chiamate.
+        </p>
+      )}
       {openCall && (
         <SavedCallModal
           callId={openCall.id}
+          applicationId={applicationId}
+          csrfToken={csrf}
           onClose={() => setOpenCall(null)}
         />
       )}

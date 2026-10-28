@@ -16,11 +16,17 @@ export function ApiCallModal({
   applicationId,
   csrfToken,
   onClose,
+  initialEnvironmentId,
+  initialQuery,
+  initialBody,
 }: {
   api: ApplicationVersionApi;
   applicationId: number;
   csrfToken: string;
   onClose: () => void;
+  initialEnvironmentId?: number;
+  initialQuery?: Record<string, string>;
+  initialBody?: string | null;
 }) {
   const queryClient = useQueryClient();
   const params = useQuery({
@@ -38,10 +44,14 @@ export function ApiCallModal({
       ),
   });
 
-  const [values, setValues] = useState<Record<string, string>>({});
-  const [body, setBody] = useState(api.body ?? "");
-  const [environment, setEnvironment] = useState("");
-  const [save, setSave] = useState(true);
+  const [values, setValues] = useState<Record<string, string>>(
+    initialQuery ?? {},
+  );
+  const [body, setBody] = useState(initialBody ?? api.body ?? "");
+  const [environment, setEnvironment] = useState(
+    initialEnvironmentId ? String(initialEnvironmentId) : "",
+  );
+  const [save, setSave] = useState(false);
   const [result, setResult] = useState<ApplicationApiCallResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -49,7 +59,7 @@ export function ApiCallModal({
 
   const sendsBody = ["POST", "PUT", "PATCH"].includes(api.requestType);
   const environmentId = environment;
-  const defaulted = useRef(false);
+  const defaulted = useRef(initialEnvironmentId !== undefined);
   useEffect(() => {
     if (defaulted.current || !environments.data) return;
     defaulted.current = true;
