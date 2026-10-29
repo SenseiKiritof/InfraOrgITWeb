@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useAuth } from "../../app/AuthProvider";
 import { AutocompleteSelect } from "../../components/AutocompleteSelect";
@@ -8,7 +8,7 @@ import { EntitySection } from "../../components/EntitySection";
 import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import { PageHeader, SearchForm } from "../../components/page";
 import { apiFetch } from "../../lib/api";
-import { useI18n } from "../../lib/i18n";
+import { type TranslationKey, useI18n } from "../../lib/i18n";
 import type {
   ApplicationVersion,
   Paged,
@@ -38,6 +38,89 @@ import { useQueryFilter } from "../../lib/useQueryFilter";
 import { useServerAccess } from "../../lib/useServerAccess";
 import { useConsole } from "../remote/ConsoleProvider";
 import { connectionChanged } from "./serverConnection";
+
+type ServerFormState = {
+  name: string;
+  ipAddress: string;
+  hostname: string;
+  sshPort: string;
+  jumpServerId: string;
+  publicIpAddress: string;
+  cpuCores: string;
+  memoryGb: string;
+  diskGb: string;
+  operatingSystem: string;
+  haNode: string;
+  managedBy: string;
+};
+
+const serverFieldDefs: {
+  name: Exclude<keyof ServerFormState, "jumpServerId">;
+  label: TranslationKey;
+  type?: "number";
+  required?: boolean;
+}[] = [
+  { name: "name", label: "common.name", required: true },
+  { name: "ipAddress", label: "common.address", required: true },
+  { name: "hostname", label: "common.hostname", required: true },
+  { name: "sshPort", label: "common.sshPort", type: "number" },
+  { name: "publicIpAddress", label: "servers.publicIp" },
+  { name: "cpuCores", label: "servers.cpuCores", type: "number" },
+  { name: "memoryGb", label: "servers.memoryGb", type: "number" },
+  { name: "diskGb", label: "servers.diskGb", type: "number" },
+  { name: "operatingSystem", label: "servers.operatingSystem" },
+  { name: "haNode", label: "servers.haNode" },
+  { name: "managedBy", label: "servers.managedBy" },
+];
+
+const emptyServerForm: ServerFormState = {
+  name: "",
+  ipAddress: "",
+  hostname: "",
+  sshPort: "22",
+  jumpServerId: "",
+  publicIpAddress: "",
+  cpuCores: "",
+  memoryGb: "",
+  diskGb: "",
+  operatingSystem: "",
+  haNode: "",
+  managedBy: "",
+};
+
+function serverToForm(row: Server): ServerFormState {
+  return {
+    name: row.name,
+    ipAddress: row.ipAddress,
+    hostname: row.hostname,
+    sshPort: String(row.sshPort),
+    jumpServerId: row.jumpServerId ? String(row.jumpServerId) : "",
+    publicIpAddress: row.publicIpAddress ?? "",
+    cpuCores: row.cpuCores ? String(row.cpuCores) : "",
+    memoryGb: row.memoryGb ? String(row.memoryGb) : "",
+    diskGb: row.diskGb ? String(row.diskGb) : "",
+    operatingSystem: row.operatingSystem ?? "",
+    haNode: row.haNode ?? "",
+    managedBy: row.managedBy ?? "",
+  };
+}
+
+function serverPayload(values: FormValues) {
+  return {
+    name: values.name,
+    ipAddress: values.ipAddress,
+    hostname: values.hostname,
+    sshPort: Number(values.sshPort || 22),
+    jumpServerId: values.jumpServerId ? Number(values.jumpServerId) : null,
+    publicIpAddress: values.publicIpAddress || null,
+    cpuCores: optionalNumber(values.cpuCores),
+    memoryGb: optionalNumber(values.memoryGb),
+    diskGb: optionalNumber(values.diskGb),
+    operatingSystem: values.operatingSystem || null,
+    haNode: values.haNode || null,
+    managedBy: values.managedBy || null,
+  };
+}
 
 export function ServersPage() {
   const { session } = useAuth();
@@ -86,18 +169,7 @@ export function ServersPage() {
       row?.id ?? null,
       {
         providerEnvironmentId: Number(values.providerEnvironmentId),
-        name: values.name,
-        ipAddress: values.ipAddress,
-        hostname: values.hostname,
-        sshPort: Number(values.sshPort || 22),
-        jumpServerId: values.jumpServerId ? Number(values.jumpServerId) : null,
-        publicIpAddress: values.publicIpAddress || null,
-        cpuCores: optionalNumber(values.cpuCores),
-        memoryGb: optionalNumber(values.memoryGb),
-        diskGb: optionalNumber(values.diskGb),
-        operatingSystem: values.operatingSystem || null,
-        haNode: values.haNode || null,
-        managedBy: values.managedBy || null,
+        ...serverPayload(values),
       },
       csrf,
     )) as Server | undefined;
@@ -184,17 +256,12 @@ export function ServersPage() {
                   label: environment.label,
                 })) ?? [],
           },
-          { name: "name", label: t("common.name"), required: true },
-          { name: "ipAddress", label: t("common.address"), required: true },
-          { name: "hostname", label: t("common.hostname"), required: true },
-          { name: "sshPort", label: t("common.sshPort"), type: "number" },
-          { name: "publicIpAddress", label: t("servers.publicIp") },
-          { name: "cpuCores", label: t("servers.cpuCores"), type: "number" },
-          { name: "memoryGb", label: t("servers.memoryGb"), type: "number" },
-          { name: "diskGb", label: t("servers.diskGb"), type: "number" },
-          { name: "operatingSystem", label: t("servers.operatingSystem") },
-          { name: "haNode", label: t("servers.haNode") },
-          { name: "managedBy", label: t("servers.managedBy") },
+          ...serverFieldDefs.map((field) => ({
+            name: field.name,
+            label: t(field.label),
+            type: field.type,
+            required: field.required,
+          })),
           {
             name: "jumpServerId",
             label: t("servers.jumpServer"),
@@ -222,35 +289,13 @@ export function ServersPage() {
         ]}
         empty={{
           providerEnvironmentId: "",
-          name: "",
-          ipAddress: "",
-          hostname: "",
-          sshPort: "22",
-          jumpServerId: "",
+          ...emptyServerForm,
           credentialId: "",
-          publicIpAddress: "",
-          cpuCores: "",
-          memoryGb: "",
-          diskGb: "",
-          operatingSystem: "",
-          haNode: "",
-          managedBy: "",
         }}
         toForm={(row) => ({
           providerEnvironmentId: String(row.providerEnvironmentId),
-          name: row.name,
-          ipAddress: row.ipAddress,
-          hostname: row.hostname,
-          sshPort: String(row.sshPort),
-          jumpServerId: row.jumpServerId ? String(row.jumpServerId) : "",
+          ...serverToForm(row),
           credentialId: row.credentialId ? String(row.credentialId) : "",
-          publicIpAddress: row.publicIpAddress ?? "",
-          cpuCores: row.cpuCores ? String(row.cpuCores) : "",
-          memoryGb: row.memoryGb ? String(row.memoryGb) : "",
-          diskGb: row.diskGb ? String(row.diskGb) : "",
-          operatingSystem: row.operatingSystem ?? "",
-          haNode: row.haNode ?? "",
-          managedBy: row.managedBy ?? "",
         })}
         canWrite={adminEnvironmentIds.length > 0}
         canEditRow={(row) =>
@@ -316,20 +361,7 @@ export function ServerDetailPage() {
     );
 
   const console = useConsole();
-  const [edit, setEdit] = useState({
-    name: "",
-    ipAddress: "",
-    hostname: "",
-    sshPort: "22",
-    jumpServerId: "",
-    publicIpAddress: "",
-    cpuCores: "",
-    memoryGb: "",
-    diskGb: "",
-    operatingSystem: "",
-    haNode: "",
-    managedBy: "",
-  });
+  const [edit, setEdit] = useState<ServerFormState>(emptyServerForm);
   const [editMessage, setEditMessage] = useState<string | null>(null);
   const [credentialId, setCredentialId] = useState("");
   const [sshPort, setSshPort] = useState("22");
@@ -344,22 +376,7 @@ export function ServerDetailPage() {
 
   useEffect(() => {
     if (!server.data) return;
-    setEdit({
-      name: server.data.name,
-      ipAddress: server.data.ipAddress,
-      hostname: server.data.hostname,
-      sshPort: String(server.data.sshPort),
-      jumpServerId: server.data.jumpServerId
-        ? String(server.data.jumpServerId)
-        : "",
-      publicIpAddress: server.data.publicIpAddress ?? "",
-      cpuCores: server.data.cpuCores ? String(server.data.cpuCores) : "",
-      memoryGb: server.data.memoryGb ? String(server.data.memoryGb) : "",
-      diskGb: server.data.diskGb ? String(server.data.diskGb) : "",
-      operatingSystem: server.data.operatingSystem ?? "",
-      haNode: server.data.haNode ?? "",
-      managedBy: server.data.managedBy ?? "",
-    });
+    setEdit(serverToForm(server.data));
     setCredentialId(
       server.data.credentialId ? String(server.data.credentialId) : "",
     );
@@ -399,18 +416,7 @@ export function ServerDetailPage() {
         serverId,
         {
           providerEnvironmentId: server.data.providerEnvironmentId,
-          name: edit.name,
-          ipAddress: edit.ipAddress,
-          hostname: edit.hostname,
-          sshPort: Number(edit.sshPort || 22),
-          jumpServerId: edit.jumpServerId ? Number(edit.jumpServerId) : null,
-          publicIpAddress: edit.publicIpAddress || null,
-          cpuCores: optionalNumber(edit.cpuCores),
-          memoryGb: optionalNumber(edit.memoryGb),
-          diskGb: optionalNumber(edit.diskGb),
-          operatingSystem: edit.operatingSystem || null,
-          haNode: edit.haNode || null,
-          managedBy: edit.managedBy || null,
+          ...serverPayload(edit),
         },
         csrf,
       );
@@ -561,7 +567,21 @@ export function ServerDetailPage() {
   return (
     <section className="space-y-4">
       <PageHeaderSlot
-        title={server.data?.name ?? t("servers.title")}
+        title={
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="truncate">
+              {server.data?.name ?? t("servers.title")}
+            </span>
+            {server.data && (
+              <span className="truncate font-normal text-slate-500">
+                {server.data.hostname !== server.data.name
+                  ? `${server.data.hostname} · `
+                  : ""}
+                {server.data.ipAddress}
+              </span>
+            )}
+          </span>
+        }
         actions={
           isAdmin ? (
             <button
@@ -577,30 +597,88 @@ export function ServerDetailPage() {
         }
       />
       <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
-        {server.data ? (
-          <dl className="grid grid-cols-2 gap-2">
+        {!server.data ? (
+          <p className="text-slate-500">{t("common.loading")}</p>
+        ) : isAdmin ? (
+          <form
+            onSubmit={(event) => void saveServer(event)}
+            className="space-y-3"
+          >
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+              {t("servers.details")}
+            </h2>
+            <dl className="grid gap-2 sm:grid-cols-2">
+              <dt className="text-slate-500">{t("common.environment")}</dt>
+              <dd>{server.data.providerEnvironmentLabel}</dd>
+              <dt className="text-slate-500">{t("servers.hostKey")}</dt>
+              <dd>
+                {server.data.hasHostKey
+                  ? t("servers.hostKeyRegistered")
+                  : t("servers.hostKeyMissing")}
+              </dd>
+            </dl>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {serverFieldDefs.map((field) => (
+                <EditField
+                  key={field.name}
+                  label={t(field.label)}
+                  type={field.type}
+                  value={edit[field.name]}
+                  onChange={(value) =>
+                    setEdit({ ...edit, [field.name]: value })
+                  }
+                />
+              ))}
+              <label
+                htmlFor="server-jump"
+                className="flex flex-col gap-1 sm:col-span-2"
+              >
+                <span className="text-xs text-slate-500">
+                  {t("servers.jumpServer")}
+                </span>
+                <AutocompleteSelect
+                  id="server-jump"
+                  value={edit.jumpServerId}
+                  options={[
+                    { value: "", label: "—" },
+                    ...(serverOptions.data?.items
+                      .filter((item) => item.id !== serverId)
+                      .map((item) => ({
+                        value: String(item.id),
+                        label: `${item.name} (${item.ipAddress})`,
+                      })) ?? []),
+                  ]}
+                  onChange={(value) =>
+                    setEdit({ ...edit, jumpServerId: value })
+                  }
+                  className="w-full rounded-md border border-slate-300 px-3 py-1.5"
+                />
+              </label>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="submit"
+                className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
+              >
+                {t("common.save")}
+              </button>
+              {editMessage && (
+                <p role="status" className="text-sm text-slate-600">
+                  {editMessage}
+                </p>
+              )}
+            </div>
+          </form>
+        ) : (
+          <dl className="grid gap-2 sm:grid-cols-2">
             <dt className="text-slate-500">{t("common.environment")}</dt>
             <dd>{server.data.providerEnvironmentLabel}</dd>
-            <dt className="text-slate-500">{t("common.ip")}</dt>
-            <dd>{server.data.ipAddress}</dd>
-            <dt className="text-slate-500">{t("common.hostname")}</dt>
-            <dd>{server.data.hostname}</dd>
-            <dt className="text-slate-500">{t("common.sshPort")}</dt>
-            <dd>{server.data.sshPort}</dd>
-            <dt className="text-slate-500">{t("servers.publicIp")}</dt>
-            <dd>{server.data.publicIpAddress ?? "—"}</dd>
-            <dt className="text-slate-500">{t("servers.cpuCores")}</dt>
-            <dd>{server.data.cpuCores ?? "—"}</dd>
-            <dt className="text-slate-500">{t("servers.memoryGb")}</dt>
-            <dd>{server.data.memoryGb ?? "—"}</dd>
-            <dt className="text-slate-500">{t("servers.diskGb")}</dt>
-            <dd>{server.data.diskGb ?? "—"}</dd>
-            <dt className="text-slate-500">{t("servers.operatingSystem")}</dt>
-            <dd>{server.data.operatingSystem ?? "—"}</dd>
-            <dt className="text-slate-500">{t("servers.haNode")}</dt>
-            <dd>{server.data.haNode ?? "—"}</dd>
-            <dt className="text-slate-500">{t("servers.managedBy")}</dt>
-            <dd>{server.data.managedBy ?? "—"}</dd>
+            {serverFieldDefs.map((field) => (
+              <Fragment key={field.name}>
+                <dt className="text-slate-500">{t(field.label)}</dt>
+                <dd>{server.data[field.name] ?? "—"}</dd>
+              </Fragment>
+            ))}
             <dt className="text-slate-500">{t("servers.proxy")}</dt>
             <dd>
               {server.data.jumpServerName
@@ -614,147 +692,8 @@ export function ServerDetailPage() {
                 : t("servers.hostKeyMissing")}
             </dd>
           </dl>
-        ) : (
-          <p className="text-slate-500">{t("common.loading")}</p>
         )}
       </div>
-
-      {isAdmin && server.data && (
-        <form
-          onSubmit={(event) => void saveServer(event)}
-          className="space-y-3 rounded-lg border border-slate-200 bg-white p-4 text-sm"
-        >
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-            {t("servers.details")}
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="flex flex-col gap-1">
-              <span className="text-xs text-slate-500">{t("common.name")}</span>
-              <input
-                value={edit.name}
-                onChange={(event) =>
-                  setEdit({ ...edit, name: event.target.value })
-                }
-                required
-                className="rounded-md border border-slate-300 px-3 py-1.5"
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-xs text-slate-500">
-                {t("common.address")}
-              </span>
-              <input
-                value={edit.ipAddress}
-                onChange={(event) =>
-                  setEdit({ ...edit, ipAddress: event.target.value })
-                }
-                required
-                className="rounded-md border border-slate-300 px-3 py-1.5"
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-xs text-slate-500">
-                {t("common.hostname")}
-              </span>
-              <input
-                value={edit.hostname}
-                onChange={(event) =>
-                  setEdit({ ...edit, hostname: event.target.value })
-                }
-                required
-                className="rounded-md border border-slate-300 px-3 py-1.5"
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-xs text-slate-500">
-                {t("common.sshPort")}
-              </span>
-              <input
-                type="number"
-                value={edit.sshPort}
-                onChange={(event) =>
-                  setEdit({ ...edit, sshPort: event.target.value })
-                }
-                className="rounded-md border border-slate-300 px-3 py-1.5"
-              />
-            </label>
-            <EditField
-              label={t("servers.publicIp")}
-              value={edit.publicIpAddress}
-              onChange={(value) => setEdit({ ...edit, publicIpAddress: value })}
-            />
-            <EditField
-              label={t("servers.cpuCores")}
-              type="number"
-              value={edit.cpuCores}
-              onChange={(value) => setEdit({ ...edit, cpuCores: value })}
-            />
-            <EditField
-              label={t("servers.memoryGb")}
-              type="number"
-              value={edit.memoryGb}
-              onChange={(value) => setEdit({ ...edit, memoryGb: value })}
-            />
-            <EditField
-              label={t("servers.diskGb")}
-              type="number"
-              value={edit.diskGb}
-              onChange={(value) => setEdit({ ...edit, diskGb: value })}
-            />
-            <EditField
-              label={t("servers.operatingSystem")}
-              value={edit.operatingSystem}
-              onChange={(value) => setEdit({ ...edit, operatingSystem: value })}
-            />
-            <EditField
-              label={t("servers.haNode")}
-              value={edit.haNode}
-              onChange={(value) => setEdit({ ...edit, haNode: value })}
-            />
-            <EditField
-              label={t("servers.managedBy")}
-              value={edit.managedBy}
-              onChange={(value) => setEdit({ ...edit, managedBy: value })}
-            />
-            <label
-              htmlFor="server-jump"
-              className="flex flex-col gap-1 sm:col-span-2"
-            >
-              <span className="text-xs text-slate-500">
-                {t("servers.jumpServer")}
-              </span>
-              <AutocompleteSelect
-                id="server-jump"
-                value={edit.jumpServerId}
-                options={[
-                  { value: "", label: "—" },
-                  ...(serverOptions.data?.items
-                    .filter((item) => item.id !== serverId)
-                    .map((item) => ({
-                      value: String(item.id),
-                      label: `${item.name} (${item.ipAddress})`,
-                    })) ?? []),
-                ]}
-                onChange={(value) => setEdit({ ...edit, jumpServerId: value })}
-                className="w-full rounded-md border border-slate-300 px-3 py-1.5"
-              />
-            </label>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              type="submit"
-              className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
-            >
-              {t("common.save")}
-            </button>
-            {editMessage && (
-              <p role="status" className="text-sm text-slate-600">
-                {editMessage}
-              </p>
-            )}
-          </div>
-        </form>
-      )}
 
       {isSystemAdmin && (
         <form
