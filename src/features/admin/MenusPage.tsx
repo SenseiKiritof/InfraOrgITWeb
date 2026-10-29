@@ -38,7 +38,7 @@ const empty: MenuForm = {
 
 export function MenusPage() {
   const { session } = useAuth();
-  const { t } = useI18n();
+  const { language, t } = useI18n();
   const csrf = session?.csrfToken ?? "";
   const queryClient = useQueryClient();
   const menus = useQuery({
@@ -46,7 +46,10 @@ export function MenusPage() {
     queryFn: getAdminMenus,
     retry: false,
   });
-  const roles = useQuery({ queryKey: ["roles", "options"], queryFn: getRoles });
+  const roles = useQuery({
+    queryKey: ["roles", "options", language],
+    queryFn: () => getRoles(language),
+  });
   const [editing, setEditing] = useState<AdminMenu | "new" | null>(null);
   const [form, setForm] = useState<MenuForm>(empty);
   const [error, setError] = useState<string | null>(null);

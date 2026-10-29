@@ -148,8 +148,11 @@ function Shell() {
 function ShellLayout() {
   const { setTitle, setActions } = useHeaderSlotTargets();
   const { session, logout } = useAuth();
-  const { t } = useI18n();
-  const menus = useQuery({ queryKey: ["menus"], queryFn: getMenus });
+  const { language, t } = useI18n();
+  const menus = useQuery({
+    queryKey: ["menus", language],
+    queryFn: () => getMenus(language),
+  });
   const [logoutError, setLogoutError] = useState<string | null>(null);
   const [dark, setDark] = useState(() =>
     document.documentElement.classList.contains("dark"),
@@ -306,8 +309,11 @@ function MenuList({ menus }: { menus: Menu[] }) {
 
 function HomePage() {
   const { session } = useAuth();
-  const { t } = useI18n();
-  const menus = useQuery({ queryKey: ["menus"], queryFn: getMenus });
+  const { language, t } = useI18n();
+  const menus = useQuery({
+    queryKey: ["menus", language],
+    queryFn: () => getMenus(language),
+  });
   const tiles = homeMenus(menus.data ?? []);
 
   return (

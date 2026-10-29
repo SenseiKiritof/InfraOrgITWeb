@@ -10,6 +10,12 @@ import {
 
 export type Language = "it" | "en";
 
+/** Add a language here, in the dictionaries and in the DB translations table. */
+export const LANGUAGES: { code: Language; label: string }[] = [
+  { code: "it", label: "Italiano" },
+  { code: "en", label: "English" },
+];
+
 export const LANGUAGE_STORAGE_KEY = "infraorgit-language";
 
 const it = {

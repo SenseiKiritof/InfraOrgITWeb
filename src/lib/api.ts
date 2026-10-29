@@ -114,8 +114,8 @@ export async function getSession(): Promise<Session | null> {
   return (await response.json()) as Session;
 }
 
-export function getMenus(): Promise<Menu[]> {
-  return apiFetch<Menu[]>("/api/menus");
+export function getMenus(language: string): Promise<Menu[]> {
+  return apiFetch<Menu[]>(`/api/menus?lang=${language}`);
 }
 
 export function postLogout(csrfToken: string): Promise<void> {

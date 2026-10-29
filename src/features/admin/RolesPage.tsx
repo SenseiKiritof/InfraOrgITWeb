@@ -10,12 +10,12 @@ import { deleteEntity, saveEntity } from "../../lib/inventory";
 
 export function RolesPage() {
   const { session } = useAuth();
-  const { t } = useI18n();
+  const { language, t } = useI18n();
   const csrf = session?.csrfToken ?? "";
   const queryClient = useQueryClient();
   const roles = useQuery({
-    queryKey: ["roles"],
-    queryFn: getRoles,
+    queryKey: ["roles", language],
+    queryFn: () => getRoles(language),
     retry: false,
   });
 

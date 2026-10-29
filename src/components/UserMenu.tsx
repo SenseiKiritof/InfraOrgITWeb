@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { useI18n } from "../lib/i18n";
+import { LANGUAGES, useI18n } from "../lib/i18n";
 import { ArrowRightOnRectangleIcon, UserCircleIcon } from "../lib/icons";
 
 /** User dropdown with the language selector. */
@@ -38,24 +38,18 @@ export function UserMenu({
             Lingua / Language
           </legend>
           <div className="flex gap-1 px-2 pb-1">
-            <button
-              type="button"
-              aria-label="Italiano"
-              aria-pressed={language === "it"}
-              onClick={() => choose("it")}
-              className={optionClass(language === "it")}
-            >
-              Italiano
-            </button>
-            <button
-              type="button"
-              aria-label="English"
-              aria-pressed={language === "en"}
-              onClick={() => choose("en")}
-              className={optionClass(language === "en")}
-            >
-              English
-            </button>
+            {LANGUAGES.map((option) => (
+              <button
+                key={option.code}
+                type="button"
+                aria-label={option.label}
+                aria-pressed={language === option.code}
+                onClick={() => choose(option.code)}
+                className={optionClass(language === option.code)}
+              >
+                {option.label}
+              </button>
+            ))}
           </div>
         </fieldset>
         <button

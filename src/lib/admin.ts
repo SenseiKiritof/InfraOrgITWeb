@@ -68,8 +68,8 @@ export function getGroups(): Promise<Paged<AdminGroup>> {
   return paged<AdminGroup>("/api/groups");
 }
 
-export function getRoles(): Promise<Paged<AdminRole>> {
-  return paged<AdminRole>("/api/roles");
+export function getRoles(language: string): Promise<Paged<AdminRole>> {
+  return paged<AdminRole>(`/api/roles?lang=${language}`);
 }
 
 export function getAdminMenus(): Promise<AdminMenu[]> {

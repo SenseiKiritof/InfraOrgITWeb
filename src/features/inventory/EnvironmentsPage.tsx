@@ -95,7 +95,7 @@ export function EnvironmentDetailPage() {
   const { id } = useParams();
   const environmentId = Number(id);
   const { session } = useAuth();
-  const { t } = useI18n();
+  const { language, t } = useI18n();
   const csrf = session?.csrfToken ?? "";
   const isAdmin = useIsSystemAdmin();
   const queryClient = useQueryClient();
@@ -115,7 +115,10 @@ export function EnvironmentDetailPage() {
     queryKey: ["groups", "options"],
     queryFn: getGroups,
   });
-  const roles = useQuery({ queryKey: ["roles", "options"], queryFn: getRoles });
+  const roles = useQuery({
+    queryKey: ["roles", "options", language],
+    queryFn: () => getRoles(language),
+  });
 
   const groupRoles = useQuery({
     queryKey: ["provider-environment-group-roles", environmentId],

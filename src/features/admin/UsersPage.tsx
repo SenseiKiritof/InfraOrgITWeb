@@ -19,7 +19,7 @@ const userSortValue = (user: AdminUser, key: string) =>
 
 export function UsersPage() {
   const { session } = useAuth();
-  const { t } = useI18n();
+  const { language, t } = useI18n();
   const csrf = session?.csrfToken ?? "";
   const queryClient = useQueryClient();
   const { search, setSearch, q, setQ } = useQueryFilter();
@@ -63,7 +63,10 @@ export function UsersPage() {
     queryKey: ["groups", "options"],
     queryFn: getGroups,
   });
-  const roles = useQuery({ queryKey: ["roles", "options"], queryFn: getRoles });
+  const roles = useQuery({
+    queryKey: ["roles", "options", language],
+    queryFn: () => getRoles(language),
+  });
   const ordered = useSortedRows(users.data?.items, userSortValue);
 
   const start = (user: AdminUser | "new") => {
