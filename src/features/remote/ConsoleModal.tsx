@@ -29,6 +29,8 @@ export function ConsoleModal({
   onClose: () => void;
 }) {
   const [status, setStatus] = useState("Connessione…");
+  const [disconnected, setDisconnected] = useState(false);
+  const [reconnectKey, setReconnectKey] = useState(0);
   const container = useRef<HTMLDivElement | null>(null);
   const terminal = useRef<Terminal | null>(null);
   const fit = useRef<FitAddon | null>(null);
@@ -42,6 +44,8 @@ export function ConsoleModal({
   const closed = useRef(false);
   const visibleRef = useRef(visible);
   const initialResume = useRef(resumeId);
+  const resumeRef = useRef(resumeId);
+  resumeRef.current = resumeId;
 
   const send = useCallback((value: string) => {
     if (socket.current?.readyState === WebSocket.OPEN)
@@ -109,18 +113,24 @@ export function ConsoleModal({
     if (active) terminal.current?.focus();
   }, [visible, active]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reconnectKey forza una nuova connessione
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
     const query = new URLSearchParams({ cols: "100", rows: "30" });
-    if (initialResume.current) query.set("resume", initialResume.current);
+    const resume = resumeRef.current ?? initialResume.current;
+    if (resume) query.set("resume", resume);
     const ws = new WebSocket(
       `${protocol}://${window.location.host}/api/socket/servers/${serverId}/console?${query}`,
     );
     ws.binaryType = "arraybuffer";
     socket.current = ws;
+    let disposed = false;
+    setDisconnected(false);
+    setStatus("Connessione…");
 
     ws.onopen = () => {
       setStatus("Connesso");
+      setDisconnected(false);
       const term = terminal.current;
       if (term) sendResize(term.cols, term.rows);
     };
@@ -133,14 +143,23 @@ export function ConsoleModal({
       terminal.current?.write(new Uint8Array(event.data as ArrayBuffer));
       dataCallback.current?.();
     };
-    ws.onerror = () => setStatus("Errore di connessione");
-    ws.onclose = () => setStatus((current) => `${current} · sessione chiusa`);
+    ws.onerror = () => {
+      if (disposed) return;
+      setStatus("Errore di connessione");
+      setDisconnected(true);
+    };
+    ws.onclose = () => {
+      if (disposed) return;
+      setStatus((current) => `${current} · sessione chiusa`);
+      setDisconnected(true);
+    };
 
     return () => {
+      disposed = true;
       ws.close();
       socket.current = null;
     };
-  }, [serverId, sendResize]);
+  }, [serverId, sendResize, reconnectKey]);
 
   useEffect(() => {
     if (!closing || closed.current) return;
@@ -160,6 +179,18 @@ export function ConsoleModal({
           <span className="text-slate-400">({status})</span>
         </p>
         <div className="flex shrink-0 items-center gap-1.5 text-xs">
+          {disconnected && (
+            <button
+              type="button"
+              onClick={() => {
+                closed.current = false;
+                setReconnectKey((value) => value + 1);
+              }}
+              className="rounded border border-emerald-600 px-2 py-1 text-emerald-300"
+            >
+              Riconnetti
+            </button>
+          )}
           <button
             type="button"
             onClick={onMinimize}

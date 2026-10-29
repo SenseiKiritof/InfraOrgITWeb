@@ -1,4 +1,10 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FakeSocket, stubWebSocket } from "../../test/fakeSocket";
 
@@ -119,6 +125,20 @@ describe("ConsoleModal", () => {
     expect(socket.sent).toContain(
       JSON.stringify({ type: "resize", cols: 100, rows: 30 }),
     );
+  });
+
+  it("permette di riconnettersi dopo la chiusura", () => {
+    renderConsole(true, { resumeId: "tok-123" });
+    const first = FakeSocket.instances[0];
+
+    act(() => {
+      first.onclose?.();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Riconnetti" }));
+
+    expect(FakeSocket.instances).toHaveLength(2);
+    expect(FakeSocket.instances[1].url).toContain("resume=tok-123");
   });
 
   it("riaggancia la sessione con il token di resume", () => {
