@@ -48,6 +48,14 @@ export function ServersPage() {
     queryFn: () => paged<Server>("/api/servers", q),
   });
 
+  const isSystemAdmin = access.data?.isSystemAdmin ?? false;
+  const credentials = useQuery({
+    queryKey: ["server-credentials", "options"],
+    queryFn: getCredentials,
+    enabled: isSystemAdmin,
+    retry: false,
+  });
+
   const environments = useQuery({
     queryKey: ["provider-environments", "options"],
     queryFn: () =>
@@ -57,7 +65,7 @@ export function ServersPage() {
   });
 
   const save = async (row: Server | null, values: FormValues) => {
-    await saveEntity(
+    const saved = (await saveEntity(
       "/api/servers",
       row?.id ?? null,
       {
@@ -69,7 +77,25 @@ export function ServersPage() {
         jumpServerId: values.jumpServerId ? Number(values.jumpServerId) : null,
       },
       csrf,
-    );
+    )) as Server | undefined;
+
+    const serverId = row?.id ?? saved?.id;
+    const credentialId = values.credentialId
+      ? Number(values.credentialId)
+      : null;
+    if (
+      isSystemAdmin &&
+      serverId &&
+      credentialId !== (row?.credentialId ?? null)
+    ) {
+      await assignServerSsh(
+        serverId,
+        credentialId,
+        Number(values.sshPort || 22),
+        csrf,
+      );
+    }
+
     await queryClient.invalidateQueries({ queryKey: ["servers"] });
   };
 
@@ -139,6 +165,20 @@ export function ServersPage() {
                 label: `${item.name} (${item.ipAddress})`,
               })) ?? [],
           },
+          ...(isSystemAdmin
+            ? [
+                {
+                  name: "credentialId",
+                  label: "Credenziale SSH",
+                  type: "select" as const,
+                  options:
+                    credentials.data?.items.map((credential) => ({
+                      value: String(credential.id),
+                      label: `${credential.name} (${credential.username})`,
+                    })) ?? [],
+                },
+              ]
+            : []),
         ]}
         empty={{
           providerEnvironmentId: "",
@@ -147,6 +187,7 @@ export function ServersPage() {
           hostname: "",
           sshPort: "22",
           jumpServerId: "",
+          credentialId: "",
         }}
         toForm={(row) => ({
           providerEnvironmentId: String(row.providerEnvironmentId),
@@ -155,6 +196,7 @@ export function ServersPage() {
           hostname: row.hostname,
           sshPort: String(row.sshPort),
           jumpServerId: row.jumpServerId ? String(row.jumpServerId) : "",
+          credentialId: row.credentialId ? String(row.credentialId) : "",
         })}
         canWrite={adminEnvironmentIds.length > 0}
         canEditRow={(row) =>
