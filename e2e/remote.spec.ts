@@ -52,6 +52,7 @@ test("remoto: credenziali, comandi e test di rete", async ({ page }) => {
     .getByRole("row", { name: template })
     .getByRole("button", { name: "Elimina" })
     .click();
+  await expect(page.getByRole("row", { name: template })).toHaveCount(0);
 
   await page.goto("/reachability");
   await page.getByRole("button", { name: "Nuovo test" }).click();
