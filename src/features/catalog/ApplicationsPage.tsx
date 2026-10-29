@@ -337,11 +337,17 @@ export function ApplicationDetailPage() {
       csrf,
     );
     await queryClient.invalidateQueries({ queryKey: ["server-applications"] });
+    await queryClient.invalidateQueries({
+      queryKey: ["application-environments"],
+    });
   };
 
   const removeDeployment = async (row: ServerApplication) => {
     await deleteEntity(`/api/server-applications/${row.id}`, csrf);
     await queryClient.invalidateQueries({ queryKey: ["server-applications"] });
+    await queryClient.invalidateQueries({
+      queryKey: ["application-environments"],
+    });
   };
 
   const saveApplication = async (
@@ -467,6 +473,122 @@ export function ApplicationDetailPage() {
         onSave={saveApplication}
       />
       <EntitySection
+        title="Versioni"
+        rows={versions.data?.items}
+        columns={[
+          {
+            key: "versionNumber",
+            label: "Versione",
+            render: (row) => row.versionNumber,
+          },
+          { key: "apiCount", label: "API", render: (row) => row.apiCount },
+        ]}
+        fields={[
+          { name: "versionNumber", label: "Numero versione", required: true },
+        ]}
+        empty={{ versionNumber: "" }}
+        toForm={(row) => ({ versionNumber: row.versionNumber })}
+        canWrite={isAdmin}
+        onSave={saveVersion}
+        onDelete={removeVersion}
+        createLabel="Nuova versione"
+      />
+      {versions.data?.items.map((version) => (
+        <NestedSection
+          key={version.id}
+          title={`API della versione ${version.versionNumber}`}
+        >
+          <ApiSection
+            version={version}
+            applicationId={applicationId}
+            canWrite={isAdmin}
+            csrfToken={csrf}
+          />
+        </NestedSection>
+      ))}
+      <EntitySection
+        title="Server"
+        rows={deployments.data?.items}
+        columns={[
+          {
+            key: "serverName",
+            label: "Server",
+            render: (row) => row.serverName,
+          },
+          {
+            key: "ipAddress",
+            label: "IP",
+            render: (row) => serversById.get(row.serverId)?.ipAddress ?? "",
+          },
+          {
+            key: "environment",
+            label: "Ambiente",
+            render: (row) =>
+              serversById.get(row.serverId)?.providerEnvironmentLabel ?? "",
+          },
+          {
+            key: "versionNumber",
+            label: "Versione",
+            render: (row) => row.versionNumber,
+          },
+          {
+            key: "exposedPort",
+            label: "Porta",
+            render: (row) => row.exposedPort,
+          },
+        ]}
+        fields={[
+          {
+            name: "serverId",
+            label: "Server",
+            type: "select",
+            required: true,
+            options: adminServers.map((server) => ({
+              value: String(server.id),
+              label: server.name,
+            })),
+          },
+          {
+            name: "applicationVersionId",
+            label: "Versione",
+            type: "select",
+            required: true,
+            options:
+              versions.data?.items.map((version) => ({
+                value: String(version.id),
+                label: version.versionNumber,
+              })) ?? [],
+          },
+          {
+            name: "exposedPort",
+            label: "Porta esposta",
+            type: "number",
+            required: true,
+          },
+        ]}
+        empty={{
+          serverId: "",
+          applicationVersionId: "",
+          exposedPort: String(application.data?.listeningOnPort ?? ""),
+        }}
+        toForm={(row) => ({
+          serverId: String(row.serverId),
+          applicationVersionId: String(row.applicationVersionId),
+          exposedPort: String(row.exposedPort),
+        })}
+        canWrite={canManageDeployments}
+        canEditRow={(row) =>
+          adminServers.some((server) => server.id === row.serverId)
+        }
+        canDeleteRow={(row) =>
+          adminServers.some((server) => server.id === row.serverId)
+        }
+        onSave={saveDeployment}
+        onDelete={removeDeployment}
+        rowHref={(row) => `/servers/${row.serverId}`}
+        createLabel="Aggiungi server"
+      />
+      <EntitySection
         title="Ambienti"
         rows={environmentRows}
         columns={[
@@ -572,40 +694,6 @@ export function ApplicationDetailPage() {
         createLabel="Nuova API key"
       />
       <EntitySection
-        title="Versioni"
-        rows={versions.data?.items}
-        columns={[
-          {
-            key: "versionNumber",
-            label: "Versione",
-            render: (row) => row.versionNumber,
-          },
-          { key: "apiCount", label: "API", render: (row) => row.apiCount },
-        ]}
-        fields={[
-          { name: "versionNumber", label: "Numero versione", required: true },
-        ]}
-        empty={{ versionNumber: "" }}
-        toForm={(row) => ({ versionNumber: row.versionNumber })}
-        canWrite={isAdmin}
-        onSave={saveVersion}
-        onDelete={removeVersion}
-        createLabel="Nuova versione"
-      />
-      {versions.data?.items.map((version) => (
-        <NestedSection
-          key={version.id}
-          title={`API della versione ${version.versionNumber}`}
-        >
-          <ApiSection
-            version={version}
-            applicationId={applicationId}
-            canWrite={isAdmin}
-            csrfToken={csrf}
-          />
-        </NestedSection>
-      ))}
-      <EntitySection
         title="Chiamate"
         rows={calls.data?.items}
         columns={[
@@ -670,6 +758,33 @@ export function ApplicationDetailPage() {
           onClose={() => setOpenCall(null)}
         />
       )}
+      <EntitySection
+        title="Progetti collegati"
+        rows={projects.data}
+        columns={[
+          { key: "name", label: "Progetto", render: (row) => row.name },
+        ]}
+        fields={[
+          {
+            name: "projectId",
+            label: "Progetto",
+            type: "select",
+            required: true,
+            options:
+              projectOptions.data?.items.map((project) => ({
+                value: String(project.id),
+                label: project.name,
+              })) ?? [],
+          },
+        ]}
+        empty={{ projectId: "" }}
+        toForm={() => ({})}
+        canWrite={isAdmin}
+        canEditRow={() => false}
+        onSave={linkProject}
+        onDelete={unlinkProject}
+        createLabel="Collega progetto"
+      />
       {isAdmin && (
         <EntitySection
           title="Azioni applicazione"
@@ -739,115 +854,6 @@ export function ApplicationDetailPage() {
           createLabel="Nuova azione"
         />
       )}
-      <EntitySection
-        title="Server"
-        rows={deployments.data?.items}
-        columns={[
-          {
-            key: "serverName",
-            label: "Server",
-            render: (row) => row.serverName,
-          },
-          {
-            key: "ipAddress",
-            label: "IP",
-            render: (row) => serversById.get(row.serverId)?.ipAddress ?? "",
-          },
-          {
-            key: "environment",
-            label: "Ambiente",
-            render: (row) =>
-              serversById.get(row.serverId)?.providerEnvironmentLabel ?? "",
-          },
-          {
-            key: "versionNumber",
-            label: "Versione",
-            render: (row) => row.versionNumber,
-          },
-          {
-            key: "exposedPort",
-            label: "Porta",
-            render: (row) => row.exposedPort,
-          },
-        ]}
-        fields={[
-          {
-            name: "serverId",
-            label: "Server",
-            type: "select",
-            required: true,
-            options: adminServers.map((server) => ({
-              value: String(server.id),
-              label: server.name,
-            })),
-          },
-          {
-            name: "applicationVersionId",
-            label: "Versione",
-            type: "select",
-            required: true,
-            options:
-              versions.data?.items.map((version) => ({
-                value: String(version.id),
-                label: version.versionNumber,
-              })) ?? [],
-          },
-          {
-            name: "exposedPort",
-            label: "Porta esposta",
-            type: "number",
-            required: true,
-          },
-        ]}
-        empty={{
-          serverId: "",
-          applicationVersionId: "",
-          exposedPort: String(application.data?.listeningOnPort ?? ""),
-        }}
-        toForm={(row) => ({
-          serverId: String(row.serverId),
-          applicationVersionId: String(row.applicationVersionId),
-          exposedPort: String(row.exposedPort),
-        })}
-        canWrite={canManageDeployments}
-        canEditRow={(row) =>
-          adminServers.some((server) => server.id === row.serverId)
-        }
-        canDeleteRow={(row) =>
-          adminServers.some((server) => server.id === row.serverId)
-        }
-        onSave={saveDeployment}
-        onDelete={removeDeployment}
-        rowHref={(row) => `/servers/${row.serverId}`}
-        createLabel="Aggiungi server"
-      />
-      <EntitySection
-        title="Progetti collegati"
-        rows={projects.data}
-        columns={[
-          { key: "name", label: "Progetto", render: (row) => row.name },
-        ]}
-        fields={[
-          {
-            name: "projectId",
-            label: "Progetto",
-            type: "select",
-            required: true,
-            options:
-              projectOptions.data?.items.map((project) => ({
-                value: String(project.id),
-                label: project.name,
-              })) ?? [],
-          },
-        ]}
-        empty={{ projectId: "" }}
-        toForm={() => ({})}
-        canWrite={isAdmin}
-        canEditRow={() => false}
-        onSave={linkProject}
-        onDelete={unlinkProject}
-        createLabel="Collega progetto"
-      />
     </section>
   );
 }

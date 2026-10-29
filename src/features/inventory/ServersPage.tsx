@@ -432,11 +432,17 @@ export function ServerDetailPage() {
       csrf,
     );
     await queryClient.invalidateQueries({ queryKey: ["server-applications"] });
+    await queryClient.invalidateQueries({
+      queryKey: ["application-environments"],
+    });
   };
 
   const removeDeploy = async (row: ServerApplication) => {
     await deleteEntity(`/api/server-applications/${row.id}`, csrf);
     await queryClient.invalidateQueries({ queryKey: ["server-applications"] });
+    await queryClient.invalidateQueries({
+      queryKey: ["application-environments"],
+    });
   };
 
   return (
