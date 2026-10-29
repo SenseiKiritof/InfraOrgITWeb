@@ -243,7 +243,7 @@ function ShellLayout() {
               onClick={toggleTheme}
               aria-label={dark ? t("app.switchLight") : t("app.switchDark")}
               title={dark ? t("app.themeLight") : t("app.themeDark")}
-              className="rounded-md border border-slate-300 p-2 text-slate-700 hover:bg-slate-100"
+              className="rounded-md border border-slate-300 p-1.5 text-slate-700 hover:bg-slate-100"
             >
               {dark ? (
                 <SunIcon className="h-5 w-5" aria-hidden="true" />

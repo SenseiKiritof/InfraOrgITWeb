@@ -589,7 +589,7 @@ export function ServerDetailPage() {
               onClick={() =>
                 console.open(serverId, server.data?.name ?? t("servers.title"))
               }
-              className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white"
+              className="rounded-md border border-transparent bg-slate-900 px-3 py-1.5 text-sm font-medium text-white"
             >
               {t("console.title")}
             </button>
