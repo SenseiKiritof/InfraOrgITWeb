@@ -1,7 +1,16 @@
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { type TranslationKey, useI18n } from "../../lib/i18n";
 import "@xterm/xterm/css/xterm.css";
+
+type ConsoleStatus = "connecting" | "connected" | "error";
+
+const STATUS_KEYS: Record<ConsoleStatus, TranslationKey> = {
+  connecting: "console.connecting",
+  connected: "console.connected",
+  error: "console.connectionError",
+};
 
 export function ConsoleModal({
   serverId,
@@ -28,7 +37,9 @@ export function ConsoleModal({
   onMinimize: () => void;
   onClose: () => void;
 }) {
-  const [status, setStatus] = useState("Connessione…");
+  const { t } = useI18n();
+  const [status, setStatus] = useState<ConsoleStatus>("connecting");
+  const [sessionClosed, setSessionClosed] = useState(false);
   const [disconnected, setDisconnected] = useState(false);
   const [reconnectKey, setReconnectKey] = useState(0);
   const container = useRef<HTMLDivElement | null>(null);
@@ -126,10 +137,11 @@ export function ConsoleModal({
     socket.current = ws;
     let disposed = false;
     setDisconnected(false);
-    setStatus("Connessione…");
+    setSessionClosed(false);
+    setStatus("connecting");
 
     ws.onopen = () => {
-      setStatus("Connesso");
+      setStatus("connected");
       setDisconnected(false);
       const term = terminal.current;
       if (term) sendResize(term.cols, term.rows);
@@ -145,12 +157,12 @@ export function ConsoleModal({
     };
     ws.onerror = () => {
       if (disposed) return;
-      setStatus("Errore di connessione");
+      setStatus("error");
       setDisconnected(true);
     };
     ws.onclose = () => {
       if (disposed) return;
-      setStatus((current) => `${current} · sessione chiusa`);
+      setSessionClosed(true);
       setDisconnected(true);
     };
 
@@ -175,8 +187,16 @@ export function ConsoleModal({
     >
       <div className="mb-2 flex items-center justify-between gap-2 text-sm text-slate-200">
         <p className="min-w-0 truncate">
-          Console SSH · {serverName}{" "}
-          <span className="text-slate-400">({status})</span>
+          {t("console.title")} · {serverName}{" "}
+          <span className="text-slate-400">
+            (
+            {sessionClosed
+              ? t("console.sessionClosed", {
+                  status: t(STATUS_KEYS[status]),
+                })
+              : t(STATUS_KEYS[status])}
+            )
+          </span>
         </p>
         <div className="flex shrink-0 items-center gap-1.5 text-xs">
           {disconnected && (
@@ -188,16 +208,16 @@ export function ConsoleModal({
               }}
               className="rounded border border-emerald-600 px-2 py-1 text-emerald-300"
             >
-              Riconnetti
+              {t("console.reconnect")}
             </button>
           )}
           <button
             type="button"
             onClick={onMinimize}
-            title="Chiudi il pannello e lascia la sessione nella barra"
+            title={t("console.minimizeHint")}
             className="rounded border border-slate-500 px-2 py-1"
           >
-            Riduci
+            {t("console.minimize")}
           </button>
           <button
             type="button"
@@ -208,14 +228,14 @@ export function ConsoleModal({
             }}
             className="rounded border border-slate-500 px-2 py-1"
           >
-            Chiudi
+            {t("common.close")}
           </button>
         </div>
       </div>
       <div
         ref={container}
         role="application"
-        aria-label="Terminale SSH"
+        aria-label={t("console.terminal")}
         onFocus={() => onActivate?.()}
         className="min-h-0 flex-1 overflow-hidden rounded bg-black p-2"
       />

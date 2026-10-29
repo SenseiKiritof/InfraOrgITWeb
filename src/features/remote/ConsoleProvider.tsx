@@ -14,6 +14,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useI18n } from "../../lib/i18n";
 import { ConsoleModal } from "./ConsoleModal";
 
 type Session = {
@@ -98,6 +99,7 @@ const ConsoleContext = createContext<ConsoleApi | null>(null);
 
 /** Console SSH in un pannello in basso: tab, divisione affiancata e avvisi di output. */
 export function ConsoleProvider({ children }: { children: ReactNode }) {
+  const { t } = useI18n();
   const [sessions, setSessions] = useState<Session[]>(loadSessions);
   const [activeId, setActiveId] = useState<string | null>(
     () => sessions.find((session) => session.visible)?.id ?? null,
@@ -110,14 +112,14 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
   const splitRef = useRef(split);
   const activeRef = useRef(activeId);
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
-  const [storageError, setStorageError] = useState<string | null>(null);
+  const [storageError, setStorageError] = useState(false);
 
   useEffect(() => {
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
-      setStorageError(null);
+      setStorageError(false);
     } catch {
-      setStorageError("Impossibile salvare le console nel browser.");
+      setStorageError(true);
     }
   }, [sessions]);
 
@@ -328,13 +330,18 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
               className="flex h-9 w-full items-center gap-2 px-3 text-xs"
             >
               <CommandLineIcon className="h-4 w-4" aria-hidden="true" />
-              <span>Console ({sessions.length})</span>
+              <span>{t("console.count", { count: sessions.length })}</span>
               <ActivityDot state={receiving ? "receiving" : "idle"} />
               {unread > 0 && (
                 <>
                   <ActivityDot state="unread" />
                   <span>
-                    {unread} {unread === 1 ? "nuovo" : "nuovi"}
+                    {t("console.newOutput", {
+                      count: unread,
+                      label: t(
+                        unread === 1 ? "console.new" : "console.newPlural",
+                      ),
+                    })}
                   </span>
                 </>
               )}
@@ -343,7 +350,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
           ) : (
             <div className="flex h-11 items-center gap-1 px-2">
               <span className="shrink-0 px-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                Console
+                {t("console.label")}
               </span>
               <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
                 {sessions.map((session) => (
@@ -356,7 +363,9 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                     <button
                       type="button"
                       onClick={() => select(session.id)}
-                      title={`Apri la console di ${session.serverName}`}
+                      title={t("console.openSession", {
+                        name: session.serverName,
+                      })}
                       className="flex items-center gap-1.5 py-1.5 pr-1 pl-2 text-xs"
                     >
                       <ActivityDot state={activity[session.id] ?? "idle"} />
@@ -366,7 +375,9 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                     </button>
                     <button
                       type="button"
-                      aria-label={`Chiudi la console di ${session.serverName}`}
+                      aria-label={t("console.closeSession", {
+                        name: session.serverName,
+                      })}
                       onClick={() => close(session.id)}
                       className="px-1.5 py-1 text-slate-400 hover:text-slate-100"
                     >
@@ -379,9 +390,9 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                 <button
                   type="button"
                   onClick={() => setSplit((value) => !value)}
-                  aria-label={split ? "Unisci le console" : "Dividi le console"}
+                  aria-label={split ? t("console.merge") : t("console.split")}
                   aria-pressed={split}
-                  title={split ? "Unisci le console" : "Dividi le console"}
+                  title={split ? t("console.merge") : t("console.split")}
                   className={`rounded p-1 ${
                     split
                       ? "bg-slate-700 text-slate-100"
@@ -392,7 +403,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                 </button>
                 <button
                   type="button"
-                  aria-label="Riduci la barra delle console"
+                  aria-label={t("console.minimizeBar")}
                   onClick={() => setCollapsed(true)}
                   className="rounded p-1 text-slate-400 hover:text-slate-100"
                 >
@@ -405,7 +416,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
       )}
       {storageError && (
         <p className="fixed right-3 bottom-14 z-50 rounded bg-amber-100 px-3 py-1 text-xs text-amber-900 shadow">
-          {storageError}
+          {t("console.storageError")}
         </p>
       )}
     </ConsoleContext.Provider>
@@ -413,12 +424,13 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
 }
 
 function ActivityDot({ state }: { state: Activity }) {
+  const { t } = useI18n();
   if (state === "receiving") {
     return (
       <span
         role="img"
-        aria-label="In ricezione"
-        title="In ricezione"
+        aria-label={t("console.receiving")}
+        title={t("console.receiving")}
         className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-emerald-400"
       />
     );
@@ -427,8 +439,8 @@ function ActivityDot({ state }: { state: Activity }) {
     return (
       <span
         role="img"
-        aria-label="Output non visto"
-        title="Output non visto"
+        aria-label={t("console.unread")}
+        title={t("console.unread")}
         className="h-2 w-2 shrink-0 rounded-full bg-amber-400 ring-2 ring-amber-400/30"
       />
     );

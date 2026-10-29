@@ -19,6 +19,7 @@ import {
   getDiagrams,
   updateDiagram,
 } from "../../lib/diagrams";
+import { useI18n } from "../../lib/i18n";
 import type { Environment, Project, Provider } from "../../lib/inventory";
 import { paged } from "../../lib/inventory";
 import { usePagination } from "../../lib/pagination";
@@ -46,6 +47,7 @@ const emptyForm: FormState = {
 
 export function DiagramsPage() {
   const { session } = useAuth();
+  const { t } = useI18n();
   const csrf = session?.csrfToken ?? "";
   const access = useServerAccess();
   const isSystemAdmin = access.data?.isSystemAdmin ?? false;
@@ -142,23 +144,22 @@ export function DiagramsPage() {
         await queryClient.invalidateQueries({ queryKey: ["diagrams"] });
       }
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "Errore di salvataggio",
-      );
+      setError(cause instanceof Error ? cause.message : t("common.saveError"));
     } finally {
       setSaving(false);
     }
   };
 
   const remove = async (diagram: Diagram) => {
-    if (!window.confirm(`Eliminare il diagramma "${diagram.name}"?`)) return;
+    if (!window.confirm(t("diagrams.deleteConfirm", { name: diagram.name })))
+      return;
     setError(null);
     try {
       await deleteDiagram(diagram.id, csrf);
       await queryClient.invalidateQueries({ queryKey: ["diagrams"] });
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Errore di eliminazione",
+        cause instanceof Error ? cause.message : t("common.deleteError"),
       );
     }
   };
@@ -182,23 +183,31 @@ export function DiagramsPage() {
           options?.find((option) => option.id === item.entityId)?.name ??
           `#${item.entityId}`;
         return item.scopeType === "ProviderEnvironment"
-          ? `Ambiente ${name}`
+          ? t("diagrams.scopeEnvironment", { name })
           : item.scopeType === "Provider"
-            ? `Provider ${name}`
-            : `Progetto ${name}`;
+            ? t("diagrams.scopeProvider", { name })
+            : t("diagrams.scopeProject", { name });
       })
-      .join(", ") || "Vista globale";
+      .join(", ") || t("diagrams.globalView");
 
   const canCreate =
     isSystemAdmin || (access.data?.adminEnvironmentIds.length ?? 0) > 0;
 
   const columns = [
-    { key: "name", label: "Nome", render: (row: Diagram) => row.name },
-    { key: "scope", label: "Scope", render: (row: Diagram) => scopeLabel(row) },
+    {
+      key: "name",
+      label: t("common.name"),
+      render: (row: Diagram) => row.name,
+    },
+    {
+      key: "scope",
+      label: t("common.scope"),
+      render: (row: Diagram) => scopeLabel(row),
+    },
     {
       key: "isDefault",
-      label: "Predefinito",
-      render: (row: Diagram) => (row.isDefault ? "sì" : ""),
+      label: t("diagrams.default"),
+      render: (row: Diagram) => (row.isDefault ? t("common.yes") : ""),
     },
   ];
   const paginated = usePagination(ordered.rows);
@@ -207,14 +216,14 @@ export function DiagramsPage() {
   return (
     <section className="space-y-4">
       <PageHeader
-        title="Diagrammi"
-        description="Vista globale e diagrammi salvati."
+        title={t("diagrams.title")}
+        description={t("diagrams.description")}
       >
         <Link
           to="/diagrams/default"
           className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
         >
-          Vista globale
+          {t("diagrams.globalView")}
         </Link>
       </PageHeader>
       <SearchForm
@@ -235,7 +244,7 @@ export function DiagramsPage() {
       <div className="rounded-lg border border-slate-200 bg-white">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Diagrammi
+            {t("diagrams.title")}
           </h2>
           {canCreate && (
             <button
@@ -243,16 +252,18 @@ export function DiagramsPage() {
               onClick={startCreate}
               className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
             >
-              Nuovo diagramma
+              {t("diagrams.create")}
             </button>
           )}
         </div>
         <div className="overflow-x-auto">
           {diagrams.isLoading ? (
-            <p className="px-4 py-6 text-sm text-slate-500">Caricamento…</p>
+            <p className="px-4 py-6 text-sm text-slate-500">
+              {t("common.loading")}
+            </p>
           ) : diagrams.data?.items.length === 0 ? (
             <p className="px-4 py-6 text-sm text-slate-500">
-              Nessun diagramma.
+              {t("diagrams.none")}
             </p>
           ) : (
             <table className="w-full text-left text-sm">
@@ -276,7 +287,7 @@ export function DiagramsPage() {
                     />
                   ))}
                   <th className="px-4 py-2">
-                    <span className="sr-only">Azioni</span>
+                    <span className="sr-only">{t("common.actions")}</span>
                   </th>
                 </tr>
               </thead>
@@ -300,21 +311,21 @@ export function DiagramsPage() {
                         to={`/diagrams/${diagram.id}`}
                         className="text-sm font-medium underline"
                       >
-                        Apri
+                        {t("common.open")}
                       </Link>
                       <button
                         type="button"
                         onClick={() => startEdit(diagram)}
                         className="text-sm underline"
                       >
-                        Modifica
+                        {t("common.edit")}
                       </button>
                       <button
                         type="button"
                         onClick={() => void remove(diagram)}
                         className="text-sm text-red-700 underline"
                       >
-                        Elimina
+                        {t("common.delete")}
                       </button>
                     </td>
                   </tr>
@@ -339,13 +350,13 @@ export function DiagramsPage() {
             role="dialog"
             aria-modal="true"
             aria-label={
-              editing === "new" ? "Nuovo diagramma" : "Modifica diagramma"
+              editing === "new" ? t("diagrams.create") : t("diagrams.edit")
             }
             onSubmit={(event) => void submit(event)}
             className="max-h-[85vh] overflow-y-auto w-full max-w-lg rounded-lg bg-white p-5 shadow-xl"
           >
             <h2 className="text-lg font-semibold">
-              {editing === "new" ? "Nuovo diagramma" : "Modifica diagramma"}
+              {editing === "new" ? t("diagrams.create") : t("diagrams.edit")}
             </h2>
             <div className="mt-4 space-y-3">
               <div>
@@ -353,7 +364,7 @@ export function DiagramsPage() {
                   htmlFor="diagram-name"
                   className="block text-sm font-medium"
                 >
-                  Nome
+                  {t("common.name")}
                 </label>
                 <input
                   id="diagram-name"
@@ -370,7 +381,7 @@ export function DiagramsPage() {
                   htmlFor="diagram-description"
                   className="block text-sm font-medium"
                 >
-                  Descrizione
+                  {t("common.description")}
                 </label>
                 <textarea
                   id="diagram-description"
@@ -391,7 +402,7 @@ export function DiagramsPage() {
                       setForm({ ...form, isDefault: event.target.checked })
                     }
                   />
-                  Usa come vista globale predefinita
+                  {t("diagrams.useAsDefault")}
                 </label>
               )}
               <div>
@@ -399,7 +410,7 @@ export function DiagramsPage() {
                   htmlFor="diagram-provider"
                   className="block text-sm font-medium"
                 >
-                  Provider (opzionale)
+                  {t("diagrams.providerOptional")}
                 </label>
                 <AutocompleteSelect
                   id="diagram-provider"
@@ -420,7 +431,7 @@ export function DiagramsPage() {
                   htmlFor="diagram-environment"
                   className="block text-sm font-medium"
                 >
-                  Ambiente (opzionale)
+                  {t("diagrams.environmentOptional")}
                 </label>
                 <AutocompleteSelect
                   id="diagram-environment"
@@ -442,7 +453,7 @@ export function DiagramsPage() {
                   htmlFor="diagram-project"
                   className="block text-sm font-medium"
                 >
-                  Progetto (opzionale)
+                  {t("diagrams.projectOptional")}
                 </label>
                 <AutocompleteSelect
                   id="diagram-project"
@@ -470,14 +481,14 @@ export function DiagramsPage() {
                 onClick={() => setEditing(null)}
                 className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
               >
-                Annulla
+                {t("common.cancel")}
               </button>
               <button
                 type="submit"
                 disabled={saving}
                 className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
               >
-                Salva
+                {t("common.save")}
               </button>
             </div>
           </form>

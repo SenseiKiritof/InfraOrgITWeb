@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { useAuth } from "../../app/AuthProvider";
 import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
+import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import { PageHeader, SearchForm } from "../../components/page";
 import type {
   AdminGroup,
@@ -11,6 +12,7 @@ import type {
 } from "../../lib/admin";
 import { getEnvironmentGroupRoles, getGroups, getRoles } from "../../lib/admin";
 import { apiFetch } from "../../lib/api";
+import { useI18n } from "../../lib/i18n";
 import type {
   Environment,
   Paged,
@@ -23,6 +25,7 @@ import { useIsSystemAdmin } from "../../lib/useServerAccess";
 
 export function EnvironmentsPage() {
   const { session } = useAuth();
+  const { t } = useI18n();
   const csrf = session?.csrfToken ?? "";
   const isAdmin = useIsSystemAdmin();
   const queryClient = useQueryClient();
@@ -46,8 +49,8 @@ export function EnvironmentsPage() {
   return (
     <section className="space-y-4">
       <PageHeader
-        title="Ambienti"
-        description="Anagrafica degli ambienti (produzione, staging, …)."
+        title={t("environments.title")}
+        description={t("environments.description")}
       />
       <SearchForm
         value={search}
@@ -57,28 +60,32 @@ export function EnvironmentsPage() {
       <EntitySection
         rows={environments.data?.items}
         columns={[
-          { key: "name", label: "Nome", render: (row) => row.name },
+          { key: "name", label: t("common.name"), render: (row) => row.name },
           {
             key: "description",
-            label: "Descrizione",
+            label: t("common.description"),
             render: (row) => row.description,
           },
           {
             key: "providerCount",
-            label: "Provider",
+            label: t("common.provider"),
             render: (row) => row.providerCount,
           },
         ]}
         fields={[
-          { name: "name", label: "Nome", required: true },
-          { name: "description", label: "Descrizione", type: "textarea" },
+          { name: "name", label: t("common.name"), required: true },
+          {
+            name: "description",
+            label: t("common.description"),
+            type: "textarea",
+          },
         ]}
         empty={{ name: "", description: "" }}
         toForm={(row) => ({ name: row.name, description: row.description })}
         canWrite={isAdmin}
         onSave={save}
         rowHref={(row) => `/environments/${row.id}`}
-        createLabel="Nuovo ambiente"
+        createLabel={t("environments.create")}
       />
     </section>
   );
@@ -88,6 +95,7 @@ export function EnvironmentDetailPage() {
   const { id } = useParams();
   const environmentId = Number(id);
   const { session } = useAuth();
+  const { t } = useI18n();
   const csrf = session?.csrfToken ?? "";
   const isAdmin = useIsSystemAdmin();
   const queryClient = useQueryClient();
@@ -191,21 +199,27 @@ export function EnvironmentDetailPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeader title={environment.data?.name ?? "Ambiente"} />
+      <PageHeaderSlot
+        title={environment.data?.name ?? t("environments.detail")}
+      />
       <EntitySection
-        title="Anagrafica"
+        title={t("common.record")}
         rows={environment.data ? [environment.data] : undefined}
         columns={[
-          { key: "name", label: "Nome", render: (row) => row.name },
+          { key: "name", label: t("common.name"), render: (row) => row.name },
           {
             key: "description",
-            label: "Descrizione",
+            label: t("common.description"),
             render: (row) => row.description,
           },
         ]}
         fields={[
-          { name: "name", label: "Nome", required: true },
-          { name: "description", label: "Descrizione", type: "textarea" },
+          { name: "name", label: t("common.name"), required: true },
+          {
+            name: "description",
+            label: t("common.description"),
+            type: "textarea",
+          },
         ]}
         empty={{ name: "", description: "" }}
         toForm={(row) => ({ name: row.name, description: row.description })}
@@ -214,24 +228,24 @@ export function EnvironmentDetailPage() {
         onSave={saveEnvironment}
       />
       <EntitySection
-        title="Provider collegati"
+        title={t("environments.linkedProviders")}
         rows={links.data?.items}
         columns={[
           {
             key: "providerName",
-            label: "Provider",
+            label: t("common.provider"),
             render: (row) => row.providerName,
           },
           {
             key: "serverCount",
-            label: "Server",
+            label: t("common.server"),
             render: (row) => row.serverCount,
           },
         ]}
         fields={[
           {
             name: "providerId",
-            label: "Provider",
+            label: t("common.provider"),
             type: "select",
             required: true,
             options:
@@ -246,19 +260,27 @@ export function EnvironmentDetailPage() {
         canWrite={isAdmin}
         onSave={saveLink}
         onDelete={removeLink}
-        createLabel="Collega provider"
+        createLabel={t("environments.linkProvider")}
       />
       <EntitySection
-        title="Ruoli per ambiente"
+        title={t("environments.roles")}
         rows={groupRoles.data?.items}
         columns={[
-          { key: "groupName", label: "Gruppo", render: (row) => row.groupName },
-          { key: "roleName", label: "Ruolo", render: (row) => row.roleName },
+          {
+            key: "groupName",
+            label: t("common.group"),
+            render: (row) => row.groupName,
+          },
+          {
+            key: "roleName",
+            label: t("common.role"),
+            render: (row) => row.roleName,
+          },
         ]}
         fields={[
           {
             name: "groupId",
-            label: "Gruppo",
+            label: t("common.group"),
             type: "select",
             required: true,
             options:
@@ -269,7 +291,7 @@ export function EnvironmentDetailPage() {
           },
           {
             name: "roleId",
-            label: "Ruolo",
+            label: t("common.role"),
             type: "select",
             required: true,
             options:
@@ -287,7 +309,7 @@ export function EnvironmentDetailPage() {
         canEditRow={() => false}
         onSave={saveGroupRole}
         onDelete={removeGroupRole}
-        createLabel="Assegna ruolo"
+        createLabel={t("environments.assignRole")}
       />
     </section>
   );

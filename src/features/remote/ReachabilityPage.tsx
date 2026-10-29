@@ -3,12 +3,14 @@ import { useAuth } from "../../app/AuthProvider";
 import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
 import { PageHeader } from "../../components/page";
+import { useI18n } from "../../lib/i18n";
 import { deleteEntity, saveEntity } from "../../lib/inventory";
 import type { ReachabilityTest } from "../../lib/remote";
 import { getGlobalReachability } from "../../lib/remote";
 
 export function ReachabilityPage() {
   const { session } = useAuth();
+  const { t } = useI18n();
   const csrf = session?.csrfToken ?? "";
   const queryClient = useQueryClient();
   const tests = useQuery({
@@ -39,24 +41,33 @@ export function ReachabilityPage() {
   return (
     <section className="space-y-4">
       <PageHeader
-        title="Test di rete"
-        description="Test globali: vengono eseguiti su ogni server dalla pagina del server."
+        title={t("reachability.title")}
+        description={t("reachability.description")}
       />
       <EntitySection
         rows={tests.data}
         columns={[
-          { key: "hostname", label: "Host", render: (row) => row.hostname },
-          { key: "port", label: "Porta", render: (row) => row.port },
+          {
+            key: "hostname",
+            label: t("common.host"),
+            render: (row) => row.hostname,
+          },
+          { key: "port", label: t("common.port"), render: (row) => row.port },
           {
             key: "description",
-            label: "Descrizione",
+            label: t("common.description"),
             render: (row) => row.description,
           },
         ]}
         fields={[
-          { name: "hostname", label: "Host", required: true },
-          { name: "port", label: "Porta", type: "number", required: true },
-          { name: "description", label: "Descrizione" },
+          { name: "hostname", label: t("common.host"), required: true },
+          {
+            name: "port",
+            label: t("common.port"),
+            type: "number",
+            required: true,
+          },
+          { name: "description", label: t("common.description") },
         ]}
         empty={{ hostname: "", port: "443", description: "" }}
         toForm={(row) => ({
@@ -67,7 +78,7 @@ export function ReachabilityPage() {
         canWrite
         onSave={save}
         onDelete={remove}
-        createLabel="Nuovo test"
+        createLabel={t("reachability.create")}
       />
     </section>
   );

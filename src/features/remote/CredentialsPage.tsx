@@ -4,6 +4,7 @@ import { useAuth } from "../../app/AuthProvider";
 import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
 import { PageHeader } from "../../components/page";
+import { useI18n } from "../../lib/i18n";
 import type { Server } from "../../lib/inventory";
 import { deleteEntity, saveEntity } from "../../lib/inventory";
 import type { ServerCredential } from "../../lib/remote";
@@ -16,6 +17,7 @@ import {
 
 export function CredentialsPage() {
   const { session } = useAuth();
+  const { t } = useI18n();
   const csrf = session?.csrfToken ?? "";
   const queryClient = useQueryClient();
   const [managing, setManaging] = useState<ServerCredential | null>(null);
@@ -78,7 +80,7 @@ export function CredentialsPage() {
       await queryClient.invalidateQueries({ queryKey: ["servers"] });
     } catch (cause) {
       setManagerError(
-        cause instanceof Error ? cause.message : "Operazione non riuscita",
+        cause instanceof Error ? cause.message : t("common.operationError"),
       );
     } finally {
       setManagerBusy(false);
@@ -138,7 +140,9 @@ export function CredentialsPage() {
         added++;
       } catch (cause) {
         failures.push(
-          `${server.name}: ${cause instanceof Error ? cause.message : "errore"}`,
+          `${server.name}: ${
+            cause instanceof Error ? cause.message : t("credentials.error")
+          }`,
         );
       }
     }
@@ -147,55 +151,73 @@ export function CredentialsPage() {
     await queryClient.invalidateQueries({ queryKey: ["servers"] });
     setSelectedServerIds([]);
     setManagerBusy(false);
-    if (added > 0) setManagerMessage(`${added} server aggiunti.`);
+    if (added > 0) setManagerMessage(t("credentials.added", { count: added }));
     if (failures.length > 0)
-      setManagerError(`Non aggiunti: ${failures.join("; ")}`);
+      setManagerError(
+        t("credentials.notAdded", { failures: failures.join("; ") }),
+      );
   };
 
   return (
     <section className="space-y-4">
       <PageHeader
-        title="Credenziali"
-        description="Segreti SSH cifrati: non vengono mai restituiti al client."
+        title={t("credentials.title")}
+        description={t("credentials.description")}
       />
       <EntitySection
         rows={credentials.data?.items}
         columns={[
-          { key: "name", label: "Nome", render: (row) => row.name },
-          { key: "username", label: "Utente", render: (row) => row.username },
-          { key: "authType", label: "Tipo", render: (row) => row.authType },
+          { key: "name", label: t("common.name"), render: (row) => row.name },
+          {
+            key: "username",
+            label: t("credentials.user"),
+            render: (row) => row.username,
+          },
+          {
+            key: "authType",
+            label: t("common.type"),
+            render: (row) => row.authType,
+          },
           {
             key: "hasSecret",
-            label: "Segreto",
-            render: (row) => (row.hasSecret ? "impostato" : "assente"),
+            label: t("credentials.secret"),
+            render: (row) =>
+              row.hasSecret ? t("credentials.set") : t("credentials.missing"),
           },
           {
             key: "serversCount",
-            label: "Server",
+            label: t("common.server"),
             render: (row) => row.serversCount,
           },
         ]}
         fields={[
-          { name: "name", label: "Nome", required: true },
-          { name: "username", label: "Utente SSH", required: true },
+          { name: "name", label: t("common.name"), required: true },
+          {
+            name: "username",
+            label: t("credentials.sshUser"),
+            required: true,
+          },
           {
             name: "authType",
-            label: "Tipo",
+            label: t("common.type"),
             type: "select",
             required: true,
             options: [
               { value: "Password", label: "Password" },
-              { value: "PrivateKey", label: "Chiave privata" },
+              {
+                value: "PrivateKey",
+                label: t("credentials.privateKey"),
+              },
             ],
           },
           {
             name: "secret",
-            label: "Password o chiave privata (vuoto = invariato)",
+            label: t("credentials.secretHint"),
             type: "textarea",
           },
           {
             name: "passphrase",
-            label: "Passphrase della chiave (opzionale)",
+            label: t("credentials.passphrase"),
             type: "textarea",
           },
         ]}
@@ -222,10 +244,10 @@ export function CredentialsPage() {
             onClick={() => openManager(row)}
             className="text-sm font-medium text-slate-900 underline"
           >
-            Server
+            {t("common.server")}
           </button>
         )}
-        createLabel="Nuova credenziale"
+        createLabel={t("credentials.create")}
       />
 
       {managing && (
@@ -233,13 +255,13 @@ export function CredentialsPage() {
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Gestisci server della credenziale"
+            aria-label={t("credentials.manageServers")}
             className="max-h-[85vh] overflow-y-auto w-full max-w-2xl rounded-lg bg-white p-5 shadow-xl"
           >
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-lg font-semibold">
-                  Server della credenziale
+                  {t("credentials.serversTitle")}
                 </h2>
                 <p className="text-sm text-slate-500">{managing.name}</p>
               </div>
@@ -248,7 +270,7 @@ export function CredentialsPage() {
                 onClick={() => setManaging(null)}
                 className="text-sm underline"
               >
-                Chiudi
+                {t("common.close")}
               </button>
             </div>
 
@@ -264,11 +286,11 @@ export function CredentialsPage() {
             <div className="mt-4 space-y-5">
               <section>
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-                  Associati ({split.assigned.length})
+                  {t("credentials.assigned", { count: split.assigned.length })}
                 </h3>
                 {split.assigned.length === 0 ? (
                   <p className="mt-2 text-sm text-slate-500">
-                    Nessun server usa questa credenziale.
+                    {t("credentials.noneAssigned")}
                   </p>
                 ) : (
                   <ul className="mt-2 divide-y divide-slate-100 rounded-md border border-slate-200">
@@ -290,7 +312,7 @@ export function CredentialsPage() {
                           onClick={() => void updateCredential(server, null)}
                           className="text-sm text-red-700 underline disabled:opacity-50"
                         >
-                          Rimuovi
+                          {t("credentials.remove")}
                         </button>
                       </li>
                     ))}
@@ -300,17 +322,17 @@ export function CredentialsPage() {
 
               <section>
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-                  Aggiungi server senza credenziale
+                  {t("credentials.addServers")}
                 </h3>
                 {split.available.length === 0 ? (
                   <p className="mt-2 text-sm text-slate-500">
-                    Nessun server senza credenziale disponibile.
+                    {t("credentials.noneAvailable")}
                   </p>
                 ) : (
                   <div className="mt-2 space-y-2">
                     <input
-                      aria-label="Cerca server"
-                      placeholder="Cerca server…"
+                      aria-label={t("credentials.searchServers")}
+                      placeholder={t("credentials.searchServersPlaceholder")}
                       value={serverFilter}
                       onChange={(event) => setServerFilter(event.target.value)}
                       className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
@@ -323,15 +345,17 @@ export function CredentialsPage() {
                             checked={allVisibleSelected}
                             onChange={toggleAllVisible}
                           />
-                          Seleziona tutti visibili
+                          {t("credentials.selectAllVisible")}
                         </label>
                         <span className="text-sm text-slate-500">
-                          {selectedServerIds.length} selezionati
+                          {t("credentials.selectedCount", {
+                            count: selectedServerIds.length,
+                          })}
                         </span>
                       </div>
                       {visibleAvailable.length === 0 ? (
                         <p className="px-3 py-4 text-sm text-slate-500">
-                          Nessun server corrisponde.
+                          {t("credentials.noMatch")}
                         </p>
                       ) : (
                         <ul className="max-h-56 divide-y divide-slate-100 overflow-auto">
@@ -364,7 +388,9 @@ export function CredentialsPage() {
                       onClick={() => void addServers()}
                       className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
                     >
-                      Aggiungi selezionati ({selectedServerIds.length})
+                      {t("credentials.addSelected", {
+                        count: selectedServerIds.length,
+                      })}
                     </button>
                   </div>
                 )}

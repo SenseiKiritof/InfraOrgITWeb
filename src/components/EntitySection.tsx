@@ -2,6 +2,7 @@ import type { FormEvent, ReactNode } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { columnWidths } from "../lib/columnWidths";
+import { useI18n } from "../lib/i18n";
 import { usePagination } from "../lib/pagination";
 import { nextSort, type SortState, sortedRows } from "../lib/sort";
 import { AutocompleteSelect } from "./AutocompleteSelect";
@@ -67,8 +68,10 @@ export function EntitySection<T extends { id: number }>({
   rowLabel,
   selection,
   headerActions,
-  createLabel = "Nuovo",
+  createLabel,
 }: EntitySectionProps<T>) {
+  const { t } = useI18n();
+  const newLabel = createLabel ?? t("common.new");
   const [editing, setEditing] = useState<T | "new" | null>(null);
   const [values, setValues] = useState<FormValues>(empty);
   const [error, setError] = useState<string | null>(null);
@@ -107,7 +110,7 @@ export function EntitySection<T extends { id: number }>({
       (field) => field.required && !values[field.name],
     );
     if (missing) {
-      setError(`Il campo ${missing.label} è obbligatorio.`);
+      setError(t("common.requiredField", { field: missing.label }));
       return;
     }
     setBusy(true);
@@ -116,9 +119,7 @@ export function EntitySection<T extends { id: number }>({
       await onSave(editing === "new" ? null : editing, values);
       setEditing(null);
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "Errore di salvataggio",
-      );
+      setError(cause instanceof Error ? cause.message : t("common.saveError"));
     } finally {
       setBusy(false);
     }
@@ -126,13 +127,18 @@ export function EntitySection<T extends { id: number }>({
 
   const remove = async (row: T) => {
     if (!onDelete) return;
-    if (!window.confirm(`Eliminare "${(rowLabel ?? labelOf)(row)}"?`)) return;
+    if (
+      !window.confirm(
+        t("common.deleteConfirm", { name: (rowLabel ?? labelOf)(row) }),
+      )
+    )
+      return;
     setError(null);
     try {
       await onDelete(row);
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Errore di eliminazione",
+        cause instanceof Error ? cause.message : t("common.deleteError"),
       );
     }
   };
@@ -155,7 +161,7 @@ export function EntitySection<T extends { id: number }>({
               onClick={startCreate}
               className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
             >
-              {createLabel}
+              {newLabel}
             </button>
           )}
         </div>
@@ -171,9 +177,13 @@ export function EntitySection<T extends { id: number }>({
       )}
 
       {rows === undefined ? (
-        <p className="px-4 py-6 text-sm text-slate-500">Caricamento…</p>
+        <p className="px-4 py-6 text-sm text-slate-500">
+          {t("common.loading")}
+        </p>
       ) : rows.length === 0 ? (
-        <p className="px-4 py-6 text-sm text-slate-500">Nessun elemento.</p>
+        <p className="px-4 py-6 text-sm text-slate-500">
+          {t("common.noItems")}
+        </p>
       ) : (
         <div className="max-h-[60vh] overflow-auto">
           <table className="w-full text-left text-sm">
@@ -193,7 +203,7 @@ export function EntitySection<T extends { id: number }>({
                   >
                     <input
                       type="checkbox"
-                      aria-label="Seleziona tutti"
+                      aria-label={t("common.selectAll")}
                       checked={
                         rows !== undefined &&
                         rows.length > 0 &&
@@ -228,7 +238,7 @@ export function EntitySection<T extends { id: number }>({
                   scope="col"
                   className="sticky top-0 z-10 bg-slate-50 px-4 py-2"
                 >
-                  <span className="sr-only">Azioni</span>
+                  <span className="sr-only">{t("common.actions")}</span>
                 </th>
               </tr>
             </thead>
@@ -242,7 +252,9 @@ export function EntitySection<T extends { id: number }>({
                       <td className="px-3 py-2">
                         <input
                           type="checkbox"
-                          aria-label={`Seleziona ${labelOf(row)}`}
+                          aria-label={t("common.selectRow", {
+                            name: labelOf(row),
+                          })}
                           checked={selection.selectedIds.includes(row.id)}
                           onChange={(event) =>
                             selection.onChange(
@@ -267,7 +279,7 @@ export function EntitySection<T extends { id: number }>({
                           to={rowHref(row)}
                           className="text-sm font-medium text-slate-900 underline"
                         >
-                          Apri
+                          {t("common.open")}
                         </Link>
                       )}
                       {rowActions?.(row)}
@@ -277,7 +289,7 @@ export function EntitySection<T extends { id: number }>({
                           onClick={() => startEdit(row)}
                           className="text-sm text-slate-700 underline"
                         >
-                          Modifica
+                          {t("common.edit")}
                         </button>
                       )}
                       {deletable && onDelete && (
@@ -286,7 +298,7 @@ export function EntitySection<T extends { id: number }>({
                           onClick={() => void remove(row)}
                           className="text-sm text-red-700 underline"
                         >
-                          Elimina
+                          {t("common.delete")}
                         </button>
                       )}
                     </td>
@@ -314,7 +326,7 @@ export function EntitySection<T extends { id: number }>({
           <form
             role="dialog"
             aria-modal="true"
-            aria-label={editing === "new" ? createLabel : "Modifica"}
+            aria-label={editing === "new" ? newLabel : t("common.edit")}
             onSubmit={(event) => void submit(event)}
             onKeyDown={(event) => {
               if (event.key === "Escape") setEditing(null);
@@ -322,7 +334,7 @@ export function EntitySection<T extends { id: number }>({
             className="max-h-[85vh] overflow-y-auto w-full max-w-lg rounded-lg bg-white p-5 shadow-xl"
           >
             <h2 className="text-lg font-semibold">
-              {editing === "new" ? createLabel : "Modifica"}
+              {editing === "new" ? newLabel : t("common.edit")}
             </h2>
             <div className="mt-4 space-y-3">
               {fields.map((field, index) => (
@@ -413,14 +425,14 @@ export function EntitySection<T extends { id: number }>({
                 onClick={() => setEditing(null)}
                 className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
               >
-                Annulla
+                {t("common.cancel")}
               </button>
               <button
                 type="submit"
                 disabled={busy}
                 className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
               >
-                Salva
+                {t("common.save")}
               </button>
             </div>
           </form>

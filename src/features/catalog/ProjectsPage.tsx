@@ -3,8 +3,10 @@ import { useParams } from "react-router-dom";
 import { useAuth } from "../../app/AuthProvider";
 import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
+import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import { PageHeader, SearchForm } from "../../components/page";
 import { apiFetch } from "../../lib/api";
+import { useI18n } from "../../lib/i18n";
 import type {
   Application,
   Project,
@@ -16,6 +18,7 @@ import { useIsSystemAdmin } from "../../lib/useServerAccess";
 
 export function ProjectsPage() {
   const { session } = useAuth();
+  const { t } = useI18n();
   const csrf = session?.csrfToken ?? "";
   const isAdmin = useIsSystemAdmin();
   const queryClient = useQueryClient();
@@ -44,8 +47,8 @@ export function ProjectsPage() {
   return (
     <section className="space-y-4">
       <PageHeader
-        title="Progetti"
-        description="Raggruppamenti di applicazioni."
+        title={t("projects.title")}
+        description={t("projects.description")}
       />
       <SearchForm
         value={search}
@@ -55,21 +58,25 @@ export function ProjectsPage() {
       <EntitySection
         rows={projects.data?.items}
         columns={[
-          { key: "name", label: "Nome", render: (row) => row.name },
+          { key: "name", label: t("common.name"), render: (row) => row.name },
           {
             key: "description",
-            label: "Descrizione",
+            label: t("common.description"),
             render: (row) => row.description ?? "",
           },
           {
             key: "applicationCount",
-            label: "Applicazioni",
+            label: t("common.applications"),
             render: (row) => row.applicationCount,
           },
         ]}
         fields={[
-          { name: "name", label: "Nome", required: true },
-          { name: "description", label: "Descrizione", type: "textarea" },
+          { name: "name", label: t("common.name"), required: true },
+          {
+            name: "description",
+            label: t("common.description"),
+            type: "textarea",
+          },
         ]}
         empty={{ name: "", description: "" }}
         toForm={(row) => ({
@@ -80,7 +87,7 @@ export function ProjectsPage() {
         onSave={save}
         onDelete={remove}
         rowHref={(row) => `/projects/${row.id}`}
-        createLabel="Nuovo progetto"
+        createLabel={t("projects.create")}
       />
     </section>
   );
@@ -90,6 +97,7 @@ export function ProjectDetailPage() {
   const { id } = useParams();
   const projectId = Number(id);
   const { session } = useAuth();
+  const { t } = useI18n();
   const csrf = session?.csrfToken ?? "";
   const isAdmin = useIsSystemAdmin();
   const queryClient = useQueryClient();
@@ -159,21 +167,25 @@ export function ProjectDetailPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeader title={project.data?.name ?? "Progetto"} />
+      <PageHeaderSlot title={project.data?.name ?? t("projects.detail")} />
       <EntitySection
-        title="Anagrafica"
+        title={t("common.record")}
         rows={project.data ? [project.data] : undefined}
         columns={[
-          { key: "name", label: "Nome", render: (row) => row.name },
+          { key: "name", label: t("common.name"), render: (row) => row.name },
           {
             key: "description",
-            label: "Descrizione",
+            label: t("common.description"),
             render: (row) => row.description ?? "",
           },
         ]}
         fields={[
-          { name: "name", label: "Nome", required: true },
-          { name: "description", label: "Descrizione", type: "textarea" },
+          { name: "name", label: t("common.name"), required: true },
+          {
+            name: "description",
+            label: t("common.description"),
+            type: "textarea",
+          },
         ]}
         empty={{ name: "", description: "" }}
         toForm={(row) => ({
@@ -185,23 +197,27 @@ export function ProjectDetailPage() {
         onSave={saveProject}
       />
       <EntitySection
-        title="Applicazioni collegate"
+        title={t("projects.linkedApplications")}
         rows={applications.data}
         columns={[
-          { key: "name", label: "Applicazione", render: (row) => row.name },
+          {
+            key: "name",
+            label: t("common.application"),
+            render: (row) => row.name,
+          },
           {
             key: "basePath",
-            label: "Base path",
+            label: t("common.basePath"),
             render: (row) => row.basePath,
           },
           {
             key: "listeningOnPort",
-            label: "Porta",
+            label: t("common.port"),
             render: (row) => row.listeningOnPort,
           },
           {
             key: "servers",
-            label: "Server",
+            label: t("common.server"),
             render: (row) =>
               (serversByApplication.get(row.id) ?? []).join(", ") || "—",
           },
@@ -209,7 +225,7 @@ export function ProjectDetailPage() {
         fields={[
           {
             name: "applicationId",
-            label: "Applicazione",
+            label: t("common.application"),
             type: "select",
             required: true,
             options:
@@ -226,7 +242,7 @@ export function ProjectDetailPage() {
         onSave={linkApplication}
         onDelete={unlinkApplication}
         rowHref={(row) => `/applications/${row.id}`}
-        createLabel="Collega applicazione"
+        createLabel={t("projects.linkApplication")}
       />
     </section>
   );

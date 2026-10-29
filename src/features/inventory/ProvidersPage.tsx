@@ -3,8 +3,10 @@ import { useParams } from "react-router-dom";
 import { useAuth } from "../../app/AuthProvider";
 import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
+import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import { PageHeader, SearchForm } from "../../components/page";
 import { apiFetch } from "../../lib/api";
+import { useI18n } from "../../lib/i18n";
 import type { Paged, Provider, ProviderEnvironment } from "../../lib/inventory";
 import { deleteEntity, paged, saveEntity } from "../../lib/inventory";
 import { useQueryFilter } from "../../lib/useQueryFilter";
@@ -12,6 +14,7 @@ import { useIsSystemAdmin } from "../../lib/useServerAccess";
 
 export function ProvidersPage() {
   const { session } = useAuth();
+  const { t } = useI18n();
   const csrf = session?.csrfToken ?? "";
   const isAdmin = useIsSystemAdmin();
   const queryClient = useQueryClient();
@@ -40,8 +43,8 @@ export function ProvidersPage() {
   return (
     <section className="space-y-4">
       <PageHeader
-        title="Providers"
-        description="Provider che espongono ambienti di esecuzione."
+        title={t("providers.title")}
+        description={t("providers.description")}
       />
       <SearchForm
         value={search}
@@ -51,21 +54,21 @@ export function ProvidersPage() {
       <EntitySection
         rows={providers.data?.items}
         columns={[
-          { key: "name", label: "Nome", render: (row) => row.name },
+          { key: "name", label: t("common.name"), render: (row) => row.name },
           {
             key: "environmentCount",
-            label: "Ambienti",
+            label: t("common.environments"),
             render: (row) => row.environmentCount,
           },
         ]}
-        fields={[{ name: "name", label: "Nome", required: true }]}
+        fields={[{ name: "name", label: t("common.name"), required: true }]}
         empty={{ name: "" }}
         toForm={(row) => ({ name: row.name })}
         canWrite={isAdmin}
         onSave={save}
         onDelete={remove}
         rowHref={(row) => `/providers/${row.id}`}
-        createLabel="Nuovo provider"
+        createLabel={t("providers.create")}
       />
     </section>
   );
@@ -75,6 +78,7 @@ export function ProviderDetailPage() {
   const { id } = useParams();
   const providerId = Number(id);
   const { session } = useAuth();
+  const { t } = useI18n();
   const csrf = session?.csrfToken ?? "";
   const isAdmin = useIsSystemAdmin();
   const queryClient = useQueryClient();
@@ -102,12 +106,14 @@ export function ProviderDetailPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeader title={provider.data?.name ?? "Provider"} />
+      <PageHeaderSlot title={provider.data?.name ?? t("providers.detail")} />
       <EntitySection
-        title="Anagrafica"
+        title={t("common.record")}
         rows={provider.data ? [provider.data] : undefined}
-        columns={[{ key: "name", label: "Nome", render: (row) => row.name }]}
-        fields={[{ name: "name", label: "Nome", required: true }]}
+        columns={[
+          { key: "name", label: t("common.name"), render: (row) => row.name },
+        ]}
+        fields={[{ name: "name", label: t("common.name"), required: true }]}
         empty={{ name: "" }}
         toForm={(row) => ({ name: row.name })}
         canWrite={isAdmin}
@@ -115,17 +121,17 @@ export function ProviderDetailPage() {
         onSave={save}
       />
       <EntitySection
-        title="Ambienti del provider"
+        title={t("providers.environments")}
         rows={environments.data?.items}
         columns={[
           {
             key: "environmentName",
-            label: "Ambiente",
+            label: t("common.environment"),
             render: (row) => row.environmentName,
           },
           {
             key: "serverCount",
-            label: "Server",
+            label: t("common.server"),
             render: (row) => row.serverCount,
           },
         ]}

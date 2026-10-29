@@ -11,6 +11,11 @@ import {
   useNavigate,
   useSearchParams,
 } from "react-router-dom";
+import {
+  HeaderSlotProvider,
+  useHeaderSlotTargets,
+} from "../components/PageHeaderSlot";
+import { UserMenu } from "../components/UserMenu";
 import { GroupsPage } from "../features/admin/GroupsPage";
 import { MenusPage } from "../features/admin/MenusPage";
 import { RolesPage } from "../features/admin/RolesPage";
@@ -47,14 +52,8 @@ import type { Menu } from "../lib/api";
 import { getMenus } from "../lib/api";
 import { backAction } from "../lib/back";
 import { homeMenus } from "../lib/home";
-import {
-  ArrowLeftIcon,
-  ArrowRightOnRectangleIcon,
-  iconForPath,
-  MoonIcon,
-  SunIcon,
-  UserCircleIcon,
-} from "../lib/icons";
+import { LanguageProvider, useI18n } from "../lib/i18n";
+import { ArrowLeftIcon, iconForPath, MoonIcon, SunIcon } from "../lib/icons";
 import { AuthProvider, useAuth } from "./AuthProvider";
 
 const DiagramPage = lazy(() =>
@@ -70,30 +69,34 @@ const DiagramsPage = lazy(() =>
 
 export function App() {
   return (
-    <Routes>
-      <Route path="/login-error" element={<LoginErrorPage />} />
-      <Route
-        path="*"
-        element={
-          <AuthProvider>
-            <AuthenticatedApp />
-          </AuthProvider>
-        }
-      />
-    </Routes>
+    <LanguageProvider>
+      <Routes>
+        <Route path="/login-error" element={<LoginErrorPage />} />
+        <Route
+          path="*"
+          element={
+            <AuthProvider>
+              <AuthenticatedApp />
+            </AuthProvider>
+          }
+        />
+      </Routes>
+    </LanguageProvider>
   );
 }
 
 function AuthenticatedApp() {
   const { session, loading, error } = useAuth();
+  const { t } = useI18n();
 
-  if (loading) return <Centered>Caricamento sessione…</Centered>;
-  if (error) return <Centered>Errore: {error}</Centered>;
-  if (!session) return <Centered>Reindirizzamento al login…</Centered>;
+  if (loading) return <Centered>{t("app.sessionLoading")}</Centered>;
+  if (error)
+    return <Centered>{t("app.sessionError", { message: error })}</Centered>;
+  if (!session) return <Centered>{t("app.redirecting")}</Centered>;
 
   return (
     <ConsoleProvider>
-      <Suspense fallback={<Centered>Caricamento pagina…</Centered>}>
+      <Suspense fallback={<Centered>{t("app.pageLoading")}</Centered>}>
         <Routes>
           <Route element={<Shell />}>
             <Route index element={<HomePage />} />
@@ -135,7 +138,17 @@ const DETAIL_ROUTE =
   /^\/(servers|applications|projects|providers|environments|diagrams)\/\d+$/;
 
 function Shell() {
+  return (
+    <HeaderSlotProvider>
+      <ShellLayout />
+    </HeaderSlotProvider>
+  );
+}
+
+function ShellLayout() {
+  const { setTitle, setActions } = useHeaderSlotTargets();
   const { session, logout } = useAuth();
+  const { t } = useI18n();
   const menus = useQuery({ queryKey: ["menus"], queryFn: getMenus });
   const [logoutError, setLogoutError] = useState<string | null>(null);
   const [dark, setDark] = useState(() =>
@@ -166,9 +179,7 @@ function Shell() {
       window.location.assign("/auth/login");
       return;
     }
-    setLogoutError(
-      "Logout non riuscito. La sessione è ancora attiva: riprova.",
-    );
+    setLogoutError(t("app.logoutError"));
   };
 
   return (
@@ -185,11 +196,13 @@ function Shell() {
           </p>
         </div>
         <nav
-          aria-label="Menu principale"
+          aria-label={t("app.mainMenu")}
           className="min-h-0 flex-1 overflow-y-auto p-3"
         >
           {menus.isLoading && (
-            <p className="px-2 text-sm text-slate-500">Caricamento menu…</p>
+            <p className="px-2 text-sm text-slate-500">
+              {t("app.menuLoading")}
+            </p>
           )}
           {menus.error && (
             <p className="px-2 text-sm text-red-600">{menus.error.message}</p>
@@ -200,7 +213,7 @@ function Shell() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-slate-200 bg-white px-6">
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="flex min-w-0 shrink-0 items-center gap-3">
             {detailParent && (
               <Link
                 to={`/${detailParent}`}
@@ -212,16 +225,21 @@ function Shell() {
                 className="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
               >
                 <ArrowLeftIcon className="h-4 w-4" aria-hidden="true" />
-                Indietro
+                {t("app.back")}
               </Link>
             )}
           </div>
+          <div
+            ref={setTitle}
+            className="flex min-w-0 flex-1 items-center justify-center px-4 text-sm font-semibold text-slate-700"
+          />
           <div className="flex items-center gap-2">
+            <div ref={setActions} className="flex items-center gap-2" />
             <button
               type="button"
               onClick={toggleTheme}
-              aria-label={dark ? "Passa al tema chiaro" : "Passa al tema scuro"}
-              title={dark ? "Tema chiaro" : "Tema scuro"}
+              aria-label={dark ? t("app.switchLight") : t("app.switchDark")}
+              title={dark ? t("app.themeLight") : t("app.themeDark")}
               className="rounded-md border border-slate-300 p-2 text-slate-700 hover:bg-slate-100"
             >
               {dark ? (
@@ -230,30 +248,11 @@ function Shell() {
                 <MoonIcon className="h-5 w-5" aria-hidden="true" />
               )}
             </button>
-            <details className="relative">
-              <summary className="flex cursor-pointer list-none items-center gap-2 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 [&::-webkit-details-marker]:hidden">
-                <UserCircleIcon className="h-5 w-5" aria-hidden="true" />
-                <span className="max-w-[14rem] truncate">
-                  {session?.user.name} {session?.user.surname}
-                </span>
-              </summary>
-              <div className="absolute right-0 z-30 mt-2 w-48 rounded-md border border-slate-200 bg-white p-1 shadow-lg">
-                <p className="truncate px-3 py-2 text-xs text-slate-500">
-                  {session?.user.username}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => void handleLogout()}
-                  className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
-                >
-                  <ArrowRightOnRectangleIcon
-                    className="h-4 w-4"
-                    aria-hidden="true"
-                  />
-                  Logout
-                </button>
-              </div>
-            </details>
+            <UserMenu
+              name={`${session?.user.name ?? ""} ${session?.user.surname ?? ""}`}
+              username={session?.user.username ?? ""}
+              onLogout={() => void handleLogout()}
+            />
           </div>
         </header>
         {logoutError && (
@@ -307,6 +306,7 @@ function MenuList({ menus }: { menus: Menu[] }) {
 
 function HomePage() {
   const { session } = useAuth();
+  const { t } = useI18n();
   const menus = useQuery({ queryKey: ["menus"], queryFn: getMenus });
   const tiles = homeMenus(menus.data ?? []);
 
@@ -314,10 +314,12 @@ function HomePage() {
     <section className="max-w-5xl">
       <h1 className="text-2xl font-semibold">InfraOrgIT</h1>
       <p className="mt-2 text-slate-600">
-        Benvenuto, {session?.user.name} {session?.user.surname}.
+        {t("app.welcome", {
+          name: `${session?.user.name ?? ""} ${session?.user.surname ?? ""}`,
+        })}
       </p>
       {menus.isLoading && (
-        <p className="mt-6 text-sm text-slate-500">Caricamento sezioni…</p>
+        <p className="mt-6 text-sm text-slate-500">{t("app.homeLoading")}</p>
       )}
       {menus.error && (
         <p className="mt-6 text-sm text-red-600">{menus.error.message}</p>
@@ -349,27 +351,27 @@ function HomePage() {
 
 function PlaceholderPage() {
   const location = useLocation();
+  const { t } = useI18n();
   return (
     <section className="max-w-3xl">
-      <p className="text-xs uppercase tracking-wide text-slate-500">Pagina</p>
-      <h1 className="mt-1 text-2xl font-semibold">{location.pathname}</h1>
-      <p className="mt-2 text-slate-600">
-        Sezione in arrivo nella prossima fase.
+      <p className="text-xs uppercase tracking-wide text-slate-500">
+        {t("app.placeholder")}
       </p>
+      <h1 className="mt-1 text-2xl font-semibold">{location.pathname}</h1>
+      <p className="mt-2 text-slate-600">{t("app.comingSoon")}</p>
     </section>
   );
 }
 
 function LoginErrorPage() {
   const [params] = useSearchParams();
+  const { t } = useI18n();
   const code = params.get("code");
   return (
     <Centered>
       <div className="max-w-md rounded-lg border border-slate-200 bg-white p-6 text-center">
-        <h1 className="text-lg font-semibold">Accesso non riuscito</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Il login non è stato completato. Riprova o contatta un amministratore.
-        </p>
+        <h1 className="text-lg font-semibold">{t("app.loginErrorTitle")}</h1>
+        <p className="mt-2 text-sm text-slate-600">{t("app.loginErrorBody")}</p>
         {code && (
           <p className="mt-1 font-mono text-xs text-slate-400">{code}</p>
         )}
@@ -377,7 +379,7 @@ function LoginErrorPage() {
           href="/auth/login"
           className="mt-4 inline-block rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
         >
-          Riprova
+          {t("app.retry")}
         </a>
       </div>
     </Centered>

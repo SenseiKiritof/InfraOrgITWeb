@@ -5,10 +5,12 @@ import { EntitySection } from "../../components/EntitySection";
 import { PageHeader } from "../../components/page";
 import type { AdminRole } from "../../lib/admin";
 import { getRoles } from "../../lib/admin";
+import { useI18n } from "../../lib/i18n";
 import { deleteEntity, saveEntity } from "../../lib/inventory";
 
 export function RolesPage() {
   const { session } = useAuth();
+  const { t } = useI18n();
   const csrf = session?.csrfToken ?? "";
   const queryClient = useQueryClient();
   const roles = useQuery({
@@ -35,33 +37,45 @@ export function RolesPage() {
   return (
     <section className="space-y-4">
       <PageHeader
-        title="Ruoli"
-        description="I ruoli di sistema non si eliminano e non cambiano nome o scope."
+        title={t("roles.title")}
+        description={t("roles.description")}
       />
       <EntitySection
         rows={roles.data?.items}
         columns={[
-          { key: "name", label: "Nome", render: (row) => row.name },
-          { key: "label", label: "Etichetta", render: (row) => row.label },
-          { key: "scopeEnum", label: "Scope", render: (row) => row.scopeEnum },
+          { key: "name", label: t("common.name"), render: (row) => row.name },
+          {
+            key: "label",
+            label: t("common.label"),
+            render: (row) => row.label,
+          },
+          {
+            key: "scopeEnum",
+            label: t("common.scope"),
+            render: (row) => row.scopeEnum,
+          },
           {
             key: "usersCount",
-            label: "Utenti",
+            label: t("common.users"),
             render: (row) => row.usersCount,
           },
-          { key: "menusCount", label: "Menu", render: (row) => row.menusCount },
+          {
+            key: "menusCount",
+            label: t("menus.title"),
+            render: (row) => row.menusCount,
+          },
           {
             key: "assignmentsCount",
-            label: "Ambienti",
+            label: t("common.environments"),
             render: (row) => row.assignmentsCount,
           },
         ]}
         fields={[
-          { name: "name", label: "Nome", required: true },
-          { name: "label", label: "Etichetta", required: true },
+          { name: "name", label: t("common.name"), required: true },
+          { name: "label", label: t("common.label"), required: true },
           {
             name: "scopeEnum",
-            label: "Scope",
+            label: t("common.scope"),
             type: "select",
             required: true,
             options: [
@@ -79,7 +93,7 @@ export function RolesPage() {
         canWrite
         onSave={save}
         onDelete={remove}
-        createLabel="Nuovo ruolo"
+        createLabel={t("roles.create")}
       />
     </section>
   );

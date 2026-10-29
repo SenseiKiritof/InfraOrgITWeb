@@ -1,4 +1,5 @@
 import { parse as parseYaml } from "yaml";
+import { tGlobal } from "./i18n";
 
 export type ApiMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 export type QueryParamKind =
@@ -67,19 +68,24 @@ function trim(value: string, max: number): string {
  */
 export function parseApiSpec(input: string): ParsedSpec {
   const source = input.trim();
-  if (!source) throw new Error("Incolla un documento OpenAPI o Swagger.");
+  if (!source) throw new Error(tGlobal("openapi.empty"));
 
   let document: unknown;
   try {
     document = parseYaml(source);
   } catch (cause) {
     throw new Error(
-      `Documento non leggibile: ${cause instanceof Error ? cause.message : "sintassi non valida"}.`,
+      tGlobal("openapi.unreadable", {
+        reason:
+          cause instanceof Error
+            ? cause.message
+            : tGlobal("openapi.invalidSyntax"),
+      }),
     );
   }
 
   const root = record(document);
-  if (!root) throw new Error("Il documento non contiene un oggetto radice.");
+  if (!root) throw new Error(tGlobal("openapi.noRoot"));
   if (typeof root.openapi === "string") {
     return {
       apis: parseOpenApi3(root),
@@ -92,9 +98,7 @@ export function parseApiSpec(input: string): ParsedSpec {
       apiKeys: securityKeys(record(root.securityDefinitions)),
     };
   }
-  throw new Error(
-    "Formato non riconosciuto: serve un documento OpenAPI 3.x o Swagger 2.0.",
-  );
+  throw new Error(tGlobal("openapi.unknownFormat"));
 }
 
 /**
@@ -146,7 +150,7 @@ function parsePaths(
   v2: boolean,
 ): ParsedApi[] {
   const paths = record(document.paths);
-  if (!paths) throw new Error("Il documento non contiene paths.");
+  if (!paths) throw new Error(tGlobal("openapi.noPaths"));
 
   const operations: ParsedApi[] = [];
   for (const [path, rawItem] of Object.entries(paths)) {
@@ -181,7 +185,7 @@ function parsePaths(
   }
 
   if (operations.length === 0) {
-    throw new Error("Nessuna operazione trovata nel documento.");
+    throw new Error(tGlobal("openapi.noOperations"));
   }
   return operations;
 }

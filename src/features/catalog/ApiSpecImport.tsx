@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { apiFetch } from "../../lib/api";
+import { useI18n } from "../../lib/i18n";
 import type {
   ApplicationApiKey,
   ApplicationVersionApi,
@@ -17,6 +18,7 @@ export function ApiSpecImport({
   csrfToken: string;
   onImported: () => void;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [spec, setSpec] = useState("");
   const [fileName, setFileName] = useState<string | null>(null);
@@ -42,7 +44,7 @@ export function ApiSpecImport({
     } catch (cause) {
       setParsed(null);
       setError(
-        cause instanceof Error ? cause.message : "Documento non valido.",
+        cause instanceof Error ? cause.message : t("specImport.invalid"),
       );
     }
   };
@@ -116,14 +118,18 @@ export function ApiSpecImport({
 
       setParsed(null);
       setSpec("");
-      setMessage(`Importate ${done} API e ${keys} API key.`);
+      setMessage(t("specImport.imported", { apis: done, keys }));
       onImported();
     } catch (cause) {
       if (done > 0) onImported();
       setError(
-        `${done} API importate, poi errore: ${
-          cause instanceof Error ? cause.message : "importazione interrotta"
-        }`,
+        t("specImport.partialError", {
+          count: done,
+          error:
+            cause instanceof Error
+              ? cause.message
+              : t("specImport.interrupted"),
+        }),
       );
     } finally {
       setBusy(false);
@@ -135,11 +141,9 @@ export function ApiSpecImport({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Importa specifica
+            {t("specImport.title")}
           </h3>
-          <p className="text-xs text-slate-500">
-            OpenAPI 3.x o Swagger 2.0 in JSON o YAML.
-          </p>
+          <p className="text-xs text-slate-500">{t("specImport.formats")}</p>
         </div>
         <button
           type="button"
@@ -150,18 +154,15 @@ export function ApiSpecImport({
           }}
           className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
         >
-          {open ? "Chiudi" : "Apri"}
+          {open ? t("common.close") : t("common.open")}
         </button>
       </div>
 
       {open && (
         <div className="mt-3 space-y-2">
-          <p className="text-xs text-slate-500">
-            Incolla il testo nel riquadro oppure trascina un file JSON/YAML sul
-            riquadro.
-          </p>
+          <p className="text-xs text-slate-500">{t("specImport.hint")}</p>
           <textarea
-            aria-label="Documento OpenAPI o Swagger"
+            aria-label={t("specImport.documentLabel")}
             value={spec}
             onChange={(event) => {
               setSpec(event.target.value);
@@ -176,12 +177,12 @@ export function ApiSpecImport({
               void loadFile(event.dataTransfer.files[0]);
             }}
             rows={8}
-            placeholder='{"openapi":"3.0.3", ...} oppure yaml'
+            placeholder={t("specImport.placeholder")}
             className="w-full rounded-md border border-slate-300 px-3 py-2 font-mono text-xs"
           />
           <div className="flex flex-wrap items-center gap-2">
             <label className="cursor-pointer rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100">
-              Carica file
+              {t("specImport.upload")}
               <input
                 type="file"
                 accept=".json,.yaml,.yml,application/json"
@@ -193,7 +194,9 @@ export function ApiSpecImport({
               />
             </label>
             {fileName && (
-              <span className="text-xs text-slate-500">File: {fileName}</span>
+              <span className="text-xs text-slate-500">
+                {t("specImport.fileName", { name: fileName })}
+              </span>
             )}
             <button
               type="button"
@@ -201,7 +204,7 @@ export function ApiSpecImport({
               disabled={busy || !spec.trim()}
               className="rounded-md border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-50"
             >
-              Analizza
+              {t("specImport.analyze")}
             </button>
             {parsed && (
               <button
@@ -211,8 +214,11 @@ export function ApiSpecImport({
                 className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
               >
                 {busy
-                  ? "Importazione…"
-                  : `Importa ${parsed.apis.length} API e ${parsed.apiKeys.length} API key`}
+                  ? t("specImport.importing")
+                  : t("specImport.import", {
+                      apis: parsed.apis.length,
+                      keys: parsed.apiKeys.length,
+                    })}
               </button>
             )}
           </div>
@@ -254,7 +260,9 @@ export function ApiSpecImport({
                   </span>
                   <span className="font-mono">{api.url}</span>
                   <span className="text-slate-500">
-                    {api.queryParams.length} query param
+                    {t("specImport.queryParamCount", {
+                      count: api.queryParams.length,
+                    })}
                   </span>
                   {api.description && (
                     <span className="text-slate-500">{api.description}</span>

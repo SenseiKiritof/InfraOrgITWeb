@@ -5,6 +5,8 @@ import { Pagination } from "../../components/Pagination";
 import { PageHeader, SearchForm } from "../../components/page";
 import { SortableTh } from "../../components/SortableTh";
 import { columnWidths } from "../../lib/columnWidths";
+import { formatDateTime } from "../../lib/format";
+import { useI18n } from "../../lib/i18n";
 import type { CommandExecution } from "../../lib/remote";
 import { getExecutions } from "../../lib/remote";
 import { nextSort, type SortState } from "../../lib/sort";
@@ -17,41 +19,46 @@ interface ExecutionColumn {
   render: (row: CommandExecution) => ReactNode;
 }
 
-const columns: ExecutionColumn[] = [
-  {
-    key: "startedAt",
-    weight: 17,
-    label: "Data",
-    render: (row) => new Date(row.startedAt).toLocaleString(),
-  },
-  {
-    key: "username",
-    label: "Utente",
-    weight: 12,
-    render: (row) => row.username,
-  },
-  {
-    key: "serverName",
-    label: "Server",
-    weight: 18,
-    render: (row) => row.serverName,
-  },
-  { key: "kind", label: "Tipo", weight: 10, render: (row) => row.kind },
-  {
-    key: "label",
-    label: "Etichetta",
-    weight: 27,
-    render: (row) => row.label,
-  },
-  {
-    key: "exitCode",
-    label: "Exit",
-    weight: 6,
-    render: (row) => row.exitCode ?? "—",
-  },
-];
-
 export function ExecutionsPage() {
+  const { t } = useI18n();
+  const columns: ExecutionColumn[] = [
+    {
+      key: "startedAt",
+      weight: 17,
+      label: t("executions.date"),
+      render: (row) => formatDateTime(row.startedAt),
+    },
+    {
+      key: "username",
+      label: t("common.user"),
+      weight: 12,
+      render: (row) => row.username,
+    },
+    {
+      key: "serverName",
+      label: t("common.server"),
+      weight: 18,
+      render: (row) => row.serverName,
+    },
+    {
+      key: "kind",
+      label: t("common.type"),
+      weight: 10,
+      render: (row) => row.kind,
+    },
+    {
+      key: "label",
+      label: t("common.label"),
+      weight: 27,
+      render: (row) => row.label,
+    },
+    {
+      key: "exitCode",
+      label: "Exit",
+      weight: 6,
+      render: (row) => row.exitCode ?? "—",
+    },
+  ];
   const { search, setSearch, q, setQ } = useQueryFilter();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -83,8 +90,8 @@ export function ExecutionsPage() {
   return (
     <section className="space-y-4">
       <PageHeader
-        title="Registro esecuzioni"
-        description="Audit delle esecuzioni remote: script e output sono redatti."
+        title={t("executions.title")}
+        description={t("executions.description")}
       />
       <SearchForm
         value={search}
@@ -96,10 +103,12 @@ export function ExecutionsPage() {
       />
       <div className="rounded-lg border border-slate-200 bg-white">
         {executions.isLoading ? (
-          <p className="px-4 py-6 text-sm text-slate-500">Caricamento…</p>
+          <p className="px-4 py-6 text-sm text-slate-500">
+            {t("common.loading")}
+          </p>
         ) : executions.data?.items.length === 0 ? (
           <p className="px-4 py-6 text-sm text-slate-500">
-            Nessuna esecuzione.
+            {t("executions.none")}
           </p>
         ) : (
           <>
@@ -122,7 +131,7 @@ export function ExecutionsPage() {
                         onSort={changeSort}
                       />
                     ))}
-                    <th className="px-4 py-2">Output</th>
+                    <th className="px-4 py-2">{t("executions.output")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -139,10 +148,10 @@ export function ExecutionsPage() {
                       <td className="px-4 py-2">
                         <details>
                           <summary className="cursor-pointer underline">
-                            Dettaglio
+                            {t("executions.detail")}
                           </summary>
                           <pre className="mt-2 max-h-48 max-w-xl overflow-auto rounded bg-slate-900 p-2 text-xs text-slate-100">
-                            {execution.output || "(vuoto)"}
+                            {execution.output || t("executions.empty")}
                           </pre>
                         </details>
                       </td>

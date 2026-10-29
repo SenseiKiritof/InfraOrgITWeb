@@ -1,6 +1,7 @@
 import type { Node } from "@xyflow/react";
 import { type GraphNodeData, nodeKey } from "./buildGraph";
 import type { DiagramNode, DiagramNodeType } from "./diagrams";
+import { getLanguage, translate } from "./i18n";
 
 export interface AddedDiagramNode {
   nodeType: DiagramNodeType;
@@ -29,34 +30,55 @@ export function addedDiagramNodes(
   return added;
 }
 
-export function addedSummary(nodes: AddedDiagramNode[]): string {
+export function addedSummary(
+  nodes: AddedDiagramNode[],
+  language = getLanguage(),
+): string {
+  const t = (
+    key: Parameters<typeof translate>[1],
+    params?: Record<string, string | number>,
+  ) => translate(language, key, params);
   const servers = nodes.filter((node) => node.nodeType === "Server").length;
   const applications = nodes.filter(
     (node) => node.nodeType === "ServerApplication",
   ).length;
   const parts: string[] = [];
   if (servers > 0) {
-    parts.push(`${servers} ${servers === 1 ? "nuovo server" : "nuovi server"}`);
+    parts.push(
+      `${servers} ${
+        servers === 1 ? t("diagrams.newServer") : t("diagrams.newServers")
+      }`,
+    );
   }
   if (applications > 0) {
     parts.push(
-      `${applications} ${applications === 1 ? "nuova applicazione" : "nuove applicazioni"}`,
+      `${applications} ${
+        applications === 1
+          ? t("diagrams.newApplication")
+          : t("diagrams.newApplications")
+      }`,
     );
   }
   if (parts.length === 0) {
-    return `Aggiunti ${nodes.length} ${nodes.length === 1 ? "nodo" : "nodi"} al diagramma.`;
+    return t("diagrams.addedNodes", {
+      count: nodes.length,
+      nodes: nodes.length === 1 ? t("diagrams.node") : t("diagrams.nodes"),
+    });
   }
-  return `Aggiunti ${parts.join(" e ")} al diagramma.`;
+  return t("diagrams.added", { parts: parts.join(t("diagrams.partsJoin")) });
 }
 
-export function addedTypeLabel(type: DiagramNodeType): string {
+export function addedTypeLabel(
+  type: DiagramNodeType,
+  language = getLanguage(),
+): string {
   switch (type) {
     case "Server":
       return "Server";
     case "ServerApplication":
-      return "Applicazione";
+      return translate(language, "common.application");
     case "ProviderEnvironment":
-      return "Ambiente";
+      return translate(language, "common.environment");
     default:
       return "Provider";
   }

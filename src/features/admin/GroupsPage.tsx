@@ -5,10 +5,12 @@ import { EntitySection } from "../../components/EntitySection";
 import { PageHeader } from "../../components/page";
 import type { AdminGroup } from "../../lib/admin";
 import { getGroups } from "../../lib/admin";
+import { useI18n } from "../../lib/i18n";
 import { deleteEntity, saveEntity } from "../../lib/inventory";
 
 export function GroupsPage() {
   const { session } = useAuth();
+  const { t } = useI18n();
   const csrf = session?.csrfToken ?? "";
   const queryClient = useQueryClient();
   const groups = useQuery({
@@ -35,26 +37,26 @@ export function GroupsPage() {
   return (
     <section className="space-y-4">
       <PageHeader
-        title="Gruppi"
-        description="Gruppi per le assegnazioni di ruolo sugli ambienti."
+        title={t("groups.title")}
+        description={t("groups.description")}
       />
       <EntitySection
         rows={groups.data?.items}
         columns={[
-          { key: "name", label: "Nome", render: (row) => row.name },
+          { key: "name", label: t("common.name"), render: (row) => row.name },
           {
             key: "usersCount",
-            label: "Utenti",
+            label: t("common.users"),
             render: (row) => row.usersCount,
           },
         ]}
-        fields={[{ name: "name", label: "Nome", required: true }]}
+        fields={[{ name: "name", label: t("common.name"), required: true }]}
         empty={{ name: "" }}
         toForm={(row) => ({ name: row.name })}
         canWrite
         onSave={save}
         onDelete={remove}
-        createLabel="Nuovo gruppo"
+        createLabel={t("groups.create")}
       />
     </section>
   );

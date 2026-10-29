@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { useI18n } from "../lib/i18n";
 
 export interface AutocompleteOption {
   value: string;
@@ -49,6 +50,7 @@ export function AutocompleteSelect({
   className?: string;
 }) {
   const selected = options.find((option) => option.value === value);
+  const { t } = useI18n();
   const [query, setQuery] = useState(selected?.label ?? "");
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
@@ -137,7 +139,7 @@ export function AutocompleteSelect({
         value={query}
         required={required}
         disabled={disabled}
-        placeholder="Cerca…"
+        placeholder={t("common.searchEllipsis")}
         onChange={(event) => {
           setQuery(event.target.value);
           setHighlight(0);

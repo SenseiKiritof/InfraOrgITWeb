@@ -5,9 +5,11 @@ import { useParams } from "react-router-dom";
 import { useAuth } from "../../app/AuthProvider";
 import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
+import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import { PageHeader, SearchForm } from "../../components/page";
 import { apiFetch } from "../../lib/api";
 import { formatBytes, formatDateTime } from "../../lib/format";
+import { useI18n } from "../../lib/i18n";
 import type {
   Application,
   ApplicationApiCall,
@@ -49,6 +51,7 @@ const paramTypes = [
 
 export function ApplicationsPage() {
   const { session } = useAuth();
+  const { t } = useI18n();
   const csrf = session?.csrfToken ?? "";
   const isAdmin = useIsSystemAdmin();
   const queryClient = useQueryClient();
@@ -83,8 +86,8 @@ export function ApplicationsPage() {
   return (
     <section className="space-y-4">
       <PageHeader
-        title="Applicazioni"
-        description="Catalogo applicazioni con versioni, API e query param."
+        title={t("applications.title")}
+        description={t("applications.description")}
       />
       <SearchForm
         value={search}
@@ -94,41 +97,45 @@ export function ApplicationsPage() {
       <EntitySection
         rows={applications.data?.items}
         columns={[
-          { key: "name", label: "Nome", render: (row) => row.name },
+          { key: "name", label: t("common.name"), render: (row) => row.name },
           {
             key: "basePath",
-            label: "Base path",
+            label: t("common.basePath"),
             render: (row) => row.basePath,
           },
           {
             key: "listeningOnPort",
-            label: "Porta",
+            label: t("common.port"),
             render: (row) => row.listeningOnPort,
           },
           {
             key: "isFrontend",
-            label: "Tipo",
+            label: t("common.type"),
             render: (row) => (row.isFrontend ? "FE" : "BE"),
           },
           {
             key: "versionCount",
-            label: "Versioni",
+            label: t("common.versions"),
             render: (row) => row.versionCount,
           },
         ]}
         fields={[
-          { name: "name", label: "Nome", required: true },
-          { name: "description", label: "Descrizione", type: "textarea" },
-          { name: "basePath", label: "Base path", required: true },
+          { name: "name", label: t("common.name"), required: true },
+          {
+            name: "description",
+            label: t("common.description"),
+            type: "textarea",
+          },
+          { name: "basePath", label: t("common.basePath"), required: true },
           {
             name: "listeningOnPort",
-            label: "Porta in ascolto",
+            label: t("applications.listeningPort"),
             type: "number",
             required: true,
           },
           {
             name: "isFrontend",
-            label: "Applicazione frontend (senza API)",
+            label: t("applications.isFrontend"),
             type: "checkbox",
           },
         ]}
@@ -150,7 +157,7 @@ export function ApplicationsPage() {
         onSave={save}
         onDelete={remove}
         rowHref={(row) => `/applications/${row.id}`}
-        createLabel="Nuova applicazione"
+        createLabel={t("applications.create")}
       />
     </section>
   );
@@ -160,6 +167,7 @@ export function ApplicationDetailPage() {
   const { id } = useParams();
   const applicationId = Number(id);
   const { session } = useAuth();
+  const { t } = useI18n();
   const csrf = session?.csrfToken ?? "";
   const isAdmin = useIsSystemAdmin();
   const access = useServerAccess();
@@ -270,7 +278,7 @@ export function ApplicationDetailPage() {
         ? (JSON.parse(values.parameterValues) as Record<string, string>)
         : {};
     } catch {
-      throw new Error("ParameterValues deve essere un oggetto JSON valido.");
+      throw new Error(t("applications.invalidParameterValues"));
     }
 
     const commandTemplateId = values.commandTemplateId
@@ -438,46 +446,52 @@ export function ApplicationDetailPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeader title={application.data?.name ?? "Applicazione"} />
+      <PageHeaderSlot
+        title={application.data?.name ?? t("applications.detail")}
+      />
       <EntitySection
-        title="Anagrafica"
+        title={t("common.record")}
         rows={application.data ? [application.data] : undefined}
         columns={[
-          { key: "name", label: "Nome", render: (row) => row.name },
+          { key: "name", label: t("common.name"), render: (row) => row.name },
           {
             key: "description",
-            label: "Descrizione",
+            label: t("common.description"),
             render: (row) => row.description,
           },
           {
             key: "basePath",
-            label: "Base path",
+            label: t("common.basePath"),
             render: (row) => row.basePath,
           },
           {
             key: "listeningOnPort",
-            label: "Porta",
+            label: t("common.port"),
             render: (row) => row.listeningOnPort,
           },
           {
             key: "isFrontend",
-            label: "Tipo",
+            label: t("common.type"),
             render: (row) => (row.isFrontend ? "FE" : "BE"),
           },
         ]}
         fields={[
-          { name: "name", label: "Nome", required: true },
-          { name: "description", label: "Descrizione", type: "textarea" },
-          { name: "basePath", label: "Base path", required: true },
+          { name: "name", label: t("common.name"), required: true },
+          {
+            name: "description",
+            label: t("common.description"),
+            type: "textarea",
+          },
+          { name: "basePath", label: t("common.basePath"), required: true },
           {
             name: "listeningOnPort",
-            label: "Porta in ascolto",
+            label: t("applications.listeningPort"),
             type: "number",
             required: true,
           },
           {
             name: "isFrontend",
-            label: "Applicazione frontend (senza API)",
+            label: t("applications.isFrontend"),
             type: "checkbox",
           },
         ]}
@@ -500,31 +514,37 @@ export function ApplicationDetailPage() {
         onSave={saveApplication}
       />
       <EntitySection
-        title="Versioni"
+        title={t("common.versions")}
         rows={versions.data?.items}
         columns={[
           {
             key: "versionNumber",
-            label: "Versione",
+            label: t("common.version"),
             render: (row) => row.versionNumber,
           },
           { key: "apiCount", label: "API", render: (row) => row.apiCount },
         ]}
         fields={[
-          { name: "versionNumber", label: "Numero versione", required: true },
+          {
+            name: "versionNumber",
+            label: t("applications.versionNumber"),
+            required: true,
+          },
         ]}
         empty={{ versionNumber: "" }}
         toForm={(row) => ({ versionNumber: row.versionNumber })}
         canWrite={isAdmin}
         onSave={saveVersion}
         onDelete={removeVersion}
-        createLabel="Nuova versione"
+        createLabel={t("applications.createVersion")}
       />
       {!isFrontend &&
         versions.data?.items.map((version) => (
           <NestedSection
             key={version.id}
-            title={`API della versione ${version.versionNumber}`}
+            title={t("applications.versionApis", {
+              version: version.versionNumber,
+            })}
           >
             <ApiSection
               version={version}
@@ -535,40 +555,40 @@ export function ApplicationDetailPage() {
           </NestedSection>
         ))}
       <EntitySection
-        title="Server"
+        title={t("common.servers")}
         rows={deployments.data?.items}
         columns={[
           {
             key: "serverName",
-            label: "Server",
+            label: t("common.server"),
             render: (row) => row.serverName,
           },
           {
             key: "ipAddress",
-            label: "IP",
+            label: t("common.ip"),
             render: (row) => serversById.get(row.serverId)?.ipAddress ?? "",
           },
           {
             key: "environment",
-            label: "Ambiente",
+            label: t("common.environment"),
             render: (row) =>
               serversById.get(row.serverId)?.providerEnvironmentLabel ?? "",
           },
           {
             key: "versionNumber",
-            label: "Versione",
+            label: t("common.version"),
             render: (row) => row.versionNumber,
           },
           {
             key: "exposedPort",
-            label: "Porta",
+            label: t("common.port"),
             render: (row) => row.exposedPort,
           },
         ]}
         fields={[
           {
             name: "serverId",
-            label: "Server (nome, IP o ambiente)",
+            label: t("applications.serverHint"),
             type: "select",
             required: true,
             options: adminServers.map((server) => ({
@@ -578,7 +598,7 @@ export function ApplicationDetailPage() {
           },
           {
             name: "applicationVersionId",
-            label: "Versione",
+            label: t("common.version"),
             type: "select",
             required: true,
             options:
@@ -589,7 +609,7 @@ export function ApplicationDetailPage() {
           },
           {
             name: "exposedPort",
-            label: "Porta esposta",
+            label: t("servers.exposedPort"),
             type: "number",
             required: true,
           },
@@ -614,32 +634,39 @@ export function ApplicationDetailPage() {
         onSave={saveDeployment}
         onDelete={removeDeployment}
         rowHref={(row) => `/servers/${row.serverId}`}
-        createLabel="Aggiungi server"
+        createLabel={t("applications.addServer")}
       />
       <EntitySection
-        title="Ambienti"
+        title={t("common.environments")}
         rows={environmentRows}
         columns={[
-          { key: "name", label: "Ambiente", render: (row) => row.name },
+          {
+            key: "name",
+            label: t("common.environment"),
+            render: (row) => row.name,
+          },
           {
             key: "hostname",
-            label: "Hostname",
+            label: t("common.hostname"),
             render: (row) => row.hostname ?? "",
           },
           {
             key: "ignoreSslErrors",
             label: "SSL",
-            render: (row) => (row.ignoreSslErrors ? "ignorato" : "verificato"),
+            render: (row) =>
+              row.ignoreSslErrors
+                ? t("applications.sslIgnored")
+                : t("applications.sslVerified"),
           },
         ]}
         fields={[
           {
             name: "hostname",
-            label: "Hostname (URL per le chiamate)",
+            label: t("applications.hostnameHint"),
           },
           {
             name: "ignoreSslErrors",
-            label: "Ignora errori certificato SSL",
+            label: t("applications.ignoreSsl"),
             type: "checkbox",
           },
         ]}
@@ -654,16 +681,20 @@ export function ApplicationDetailPage() {
       />
       {!isFrontend && (
         <EntitySection
-          title="API key"
+          title={t("applications.apiKey")}
           rows={apiKeys.data}
           columns={[
-            { key: "name", label: "Nome", render: (row) => row.name },
+            {
+              key: "name",
+              label: t("common.name"),
+              render: (row) => row.name,
+            },
             {
               key: "environmentId",
-              label: "Ambiente",
+              label: t("common.environment"),
               render: (row) =>
                 row.environmentId === null
-                  ? "Tutti"
+                  ? t("applications.allEnvironmentsShort")
                   : (environments.data?.find(
                       (environment) =>
                         environment.environmentId === row.environmentId,
@@ -671,23 +702,30 @@ export function ApplicationDetailPage() {
             },
             {
               key: "location",
-              label: "Posizione",
+              label: t("applications.location"),
               render: (row) => row.location,
             },
             {
               key: "hasValue",
-              label: "Valore",
-              render: (row) => (row.hasValue ? "configurato" : "mancante"),
+              label: t("applications.value"),
+              render: (row) =>
+                row.hasValue
+                  ? t("applications.configured")
+                  : t("applications.missing"),
             },
           ]}
           fields={[
-            { name: "name", label: "Nome (header o query)", required: true },
+            {
+              name: "name",
+              label: t("applications.nameHint"),
+              required: true,
+            },
             {
               name: "environmentId",
-              label: "Ambiente",
+              label: t("common.environment"),
               type: "select",
               options: [
-                { value: "", label: "Tutti gli ambienti" },
+                { value: "", label: t("applications.allEnvironments") },
                 ...(environments.data ?? []).map((environment) => ({
                   value: String(environment.environmentId),
                   label: environment.name,
@@ -696,7 +734,7 @@ export function ApplicationDetailPage() {
             },
             {
               name: "location",
-              label: "Posizione",
+              label: t("applications.location"),
               type: "select",
               required: true,
               options: [
@@ -706,7 +744,7 @@ export function ApplicationDetailPage() {
             },
             {
               name: "value",
-              label: "Valore (vuoto = mantieni)",
+              label: t("applications.valueHint"),
             },
           ]}
           empty={{ name: "", environmentId: "", location: "Header", value: "" }}
@@ -720,40 +758,44 @@ export function ApplicationDetailPage() {
           canWrite={isAdmin}
           onSave={saveApiKey}
           onDelete={removeApiKey}
-          createLabel="Nuova API key"
+          createLabel={t("applications.createApiKey")}
         />
       )}
       {!isFrontend && (
         <>
           <EntitySection
-            title="Chiamate"
+            title={t("applications.calls")}
             rows={calls.data?.items}
             columns={[
               {
                 key: "createdAt",
-                label: "Data/ora",
+                label: t("common.dateTime"),
                 render: (row) => formatDateTime(row.createdAt),
               },
               {
                 key: "environmentName",
-                label: "Ambiente",
+                label: t("common.environment"),
                 render: (row) => row.environmentName,
               },
-              { key: "method", label: "Metodo", render: (row) => row.method },
+              {
+                key: "method",
+                label: t("common.method"),
+                render: (row) => row.method,
+              },
               { key: "url", label: "URL", render: (row) => row.url },
               {
                 key: "status",
-                label: "Stato",
+                label: t("common.status"),
                 render: (row) => row.status ?? "",
               },
               {
                 key: "durationMs",
-                label: "Durata ms",
+                label: t("common.durationMs"),
                 render: (row) => row.durationMs,
               },
               {
                 key: "sizeBytes",
-                label: "Dimensione",
+                label: t("common.size"),
                 render: (row) => formatBytes(row.sizeBytes),
               },
             ]}
@@ -772,14 +814,16 @@ export function ApplicationDetailPage() {
                 onClick={() => setOpenCall(row)}
                 className="text-sm text-slate-700 underline"
               >
-                Apri
+                {t("common.open")}
               </button>
             )}
           />
           {calls.data && calls.data.total > calls.data.items.length && (
             <p className="text-xs text-slate-500">
-              Mostrate le ultime {calls.data.items.length} di {calls.data.total}{" "}
-              chiamate.
+              {t("applications.callsLimited", {
+                shown: calls.data.items.length,
+                total: calls.data.total,
+              })}
             </p>
           )}
           {openCall && (
@@ -793,15 +837,19 @@ export function ApplicationDetailPage() {
         </>
       )}
       <EntitySection
-        title="Progetti collegati"
+        title={t("applications.linkedProjects")}
         rows={projects.data}
         columns={[
-          { key: "name", label: "Progetto", render: (row) => row.name },
+          {
+            key: "name",
+            label: t("common.project"),
+            render: (row) => row.name,
+          },
         ]}
         fields={[
           {
             name: "projectId",
-            label: "Progetto",
+            label: t("common.project"),
             type: "select",
             required: true,
             options:
@@ -817,32 +865,50 @@ export function ApplicationDetailPage() {
         canEditRow={() => false}
         onSave={linkProject}
         onDelete={unlinkProject}
-        createLabel="Collega progetto"
+        createLabel={t("applications.linkProject")}
       />
       {isAdmin && (
         <EntitySection
-          title="Azioni applicazione"
+          title={t("applications.actionsTitle")}
           rows={actions.data}
           columns={[
-            { key: "label", label: "Etichetta", render: (row) => row.label },
-            { key: "order", label: "Ordine", render: (row) => row.order },
+            {
+              key: "label",
+              label: t("common.label"),
+              render: (row) => row.label,
+            },
+            {
+              key: "order",
+              label: t("applications.order"),
+              render: (row) => row.order,
+            },
             {
               key: "commandTemplateName",
-              label: "Comando",
-              render: (row) => row.commandTemplateName ?? "script custom",
+              label: t("applications.command"),
+              render: (row) =>
+                row.commandTemplateName ?? t("applications.customScript"),
             },
             {
               key: "requiresConfirmation",
-              label: "Conferma",
-              render: (row) => (row.requiresConfirmation ? "sì" : ""),
+              label: t("applications.confirmation"),
+              render: (row) =>
+                row.requiresConfirmation ? t("common.yes") : "",
             },
           ]}
           fields={[
-            { name: "label", label: "Etichetta", required: true },
-            { name: "order", label: "Ordine", type: "number" },
+            {
+              name: "label",
+              label: t("common.label"),
+              required: true,
+            },
+            {
+              name: "order",
+              label: t("applications.order"),
+              type: "number",
+            },
             {
               name: "commandTemplateId",
-              label: "Comando base",
+              label: t("applications.baseCommand"),
               type: "select",
               options:
                 commandTemplates.data?.items.map(
@@ -852,15 +918,19 @@ export function ApplicationDetailPage() {
                   }),
                 ) ?? [],
             },
-            { name: "customScript", label: "Script custom", type: "textarea" },
+            {
+              name: "customScript",
+              label: t("applications.customScriptLabel"),
+              type: "textarea",
+            },
             {
               name: "parameterValues",
-              label: "Valori parametri (JSON)",
+              label: t("applications.parameterValues"),
               type: "textarea",
             },
             {
               name: "requiresConfirmation",
-              label: "Richiede conferma",
+              label: t("applications.requiresConfirmation"),
               type: "checkbox",
             },
           ]}
@@ -885,7 +955,7 @@ export function ApplicationDetailPage() {
           canWrite={isAdmin}
           onSave={saveAction}
           onDelete={removeAction}
-          createLabel="Nuova azione"
+          createLabel={t("applications.createAction")}
         />
       )}
     </section>
@@ -904,6 +974,7 @@ function ApiSection({
   csrfToken: string;
 }) {
   const queryClient = useQueryClient();
+  const { t } = useI18n();
   const [calling, setCalling] = useState<ApplicationVersionApi | null>(null);
   const apis = useQuery({
     queryKey: ["application-version-apis", version.id],
@@ -981,8 +1052,10 @@ function ApiSection({
         type="search"
         value={search}
         onChange={(event) => setSearch(event.target.value)}
-        aria-label={`Cerca API della versione ${version.versionNumber}`}
-        placeholder="Cerca API: metodo, URL o descrizione…"
+        aria-label={t("applications.searchApiLabel", {
+          version: version.versionNumber,
+        })}
+        placeholder={t("applications.searchApiPlaceholder")}
         className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
       />
       <EntitySection
@@ -990,13 +1063,13 @@ function ApiSection({
         columns={[
           {
             key: "requestType",
-            label: "Metodo",
+            label: t("common.method"),
             render: (row) => row.requestType,
           },
           { key: "url", label: "URL", render: (row) => row.url },
           {
             key: "description",
-            label: "Descrizione",
+            label: t("common.description"),
             render: (row) => row.description,
           },
           {
@@ -1008,13 +1081,13 @@ function ApiSection({
         fields={[
           {
             name: "requestType",
-            label: "Metodo",
+            label: t("common.method"),
             type: "select",
             required: true,
             options: requestTypes.map((type) => ({ value: type, label: type })),
           },
           { name: "url", label: "URL", required: true },
-          { name: "description", label: "Descrizione" },
+          { name: "description", label: t("common.description") },
           { name: "body", label: "Body", type: "textarea" },
         ]}
         empty={{
@@ -1039,16 +1112,19 @@ function ApiSection({
               onClick={() => setCalling(row)}
               className="text-sm text-slate-700 underline"
             >
-              Chiama
+              {t("applications.call")}
             </button>
           ) : null
         }
-        createLabel="Nuova API"
+        createLabel={t("applications.newApi")}
       />
       {visibleApis?.map((api) => (
         <NestedSection
           key={api.id}
-          title={`Query param di ${api.requestType} ${api.url}`}
+          title={t("applications.queryParamsOf", {
+            method: api.requestType,
+            url: api.url,
+          })}
         >
           <QueryParamSection
             api={api}
@@ -1079,6 +1155,7 @@ function QueryParamSection({
   csrfToken: string;
 }) {
   const queryClient = useQueryClient();
+  const { t } = useI18n();
   const params = useQuery({
     queryKey: ["application-api-query-params", api.id],
     queryFn: () =>
@@ -1128,14 +1205,18 @@ function QueryParamSection({
     <EntitySection
       rows={params.data?.items}
       columns={[
-        { key: "name", label: "Nome", render: (row) => row.name },
-        { key: "paramType", label: "Tipo", render: (row) => row.paramType },
+        { key: "name", label: t("common.name"), render: (row) => row.name },
+        {
+          key: "paramType",
+          label: t("common.type"),
+          render: (row) => row.paramType,
+        },
       ]}
       fields={[
-        { name: "name", label: "Nome", required: true },
+        { name: "name", label: t("common.name"), required: true },
         {
           name: "paramType",
-          label: "Tipo",
+          label: t("common.type"),
           type: "select",
           required: true,
           options: paramTypes.map((type) => ({ value: type, label: type })),
@@ -1146,7 +1227,7 @@ function QueryParamSection({
       canWrite={canWrite}
       onSave={save}
       onDelete={remove}
-      createLabel="Nuovo query param"
+      createLabel={t("applications.newQueryParam")}
     />
   );
 }

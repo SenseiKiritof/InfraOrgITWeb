@@ -1,3 +1,4 @@
+import { useI18n } from "../lib/i18n";
 import { PAGE_SIZES } from "../lib/pagination";
 
 export function Pagination({
@@ -15,17 +16,18 @@ export function Pagination({
   onPage: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
 }) {
+  const { t } = useI18n();
   if (total === 0) return null;
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-4 py-2 text-sm">
       <span className="text-slate-500">
-        {total} {total === 1 ? "elemento" : "elementi"}
-        {pageCount > 1 && ` · Pagina ${page} di ${pageCount}`}
+        {total} {t(total === 1 ? "pagination.item" : "pagination.items")}
+        {pageCount > 1 && ` · ${t("pagination.pageInfo", { page, pageCount })}`}
       </span>
       <div className="flex items-center gap-3">
         <label className="flex items-center gap-1 text-xs text-slate-500">
-          Elementi per pagina
+          {t("pagination.itemsPerPage")}
           <select
             value={pageSize}
             onChange={(event) => onPageSizeChange(Number(event.target.value))}
@@ -46,7 +48,7 @@ export function Pagination({
               onClick={() => onPage(page - 1)}
               className="rounded border border-slate-300 px-3 py-1 disabled:opacity-40"
             >
-              Precedente
+              {t("pagination.previous")}
             </button>
             <button
               type="button"
@@ -54,7 +56,7 @@ export function Pagination({
               onClick={() => onPage(page + 1)}
               className="rounded border border-slate-300 px-3 py-1 disabled:opacity-40"
             >
-              Successiva
+              {t("pagination.next")}
             </button>
           </div>
         )}

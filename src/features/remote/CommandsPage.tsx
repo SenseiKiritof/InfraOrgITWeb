@@ -3,12 +3,14 @@ import { useAuth } from "../../app/AuthProvider";
 import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
 import { PageHeader } from "../../components/page";
+import { useI18n } from "../../lib/i18n";
 import { deleteEntity, saveEntity } from "../../lib/inventory";
 import type { CommandTemplate } from "../../lib/remote";
 import { getCommandTemplates } from "../../lib/remote";
 
 export function CommandsPage() {
   const { session } = useAuth();
+  const { t } = useI18n();
   const csrf = session?.csrfToken ?? "";
   const queryClient = useQueryClient();
 
@@ -40,16 +42,16 @@ export function CommandsPage() {
   return (
     <section className="space-y-4">
       <PageHeader
-        title="Comandi"
-        description="Template con placeholder {{Nome}}. I valori sono quotati prima dell'esecuzione."
+        title={t("commands.title")}
+        description={t("commands.description")}
       />
       <EntitySection
         rows={templates.data?.items}
         columns={[
-          { key: "name", label: "Nome", render: (row) => row.name },
+          { key: "name", label: t("common.name"), render: (row) => row.name },
           {
             key: "description",
-            label: "Descrizione",
+            label: t("common.description"),
             render: (row) => row.description,
           },
           {
@@ -59,8 +61,8 @@ export function CommandsPage() {
           },
         ]}
         fields={[
-          { name: "name", label: "Nome", required: true },
-          { name: "description", label: "Descrizione" },
+          { name: "name", label: t("common.name"), required: true },
+          { name: "description", label: t("common.description") },
           { name: "script", label: "Script", type: "textarea", required: true },
         ]}
         empty={{ name: "", description: "", script: "" }}
@@ -72,7 +74,7 @@ export function CommandsPage() {
         canWrite
         onSave={save}
         onDelete={remove}
-        createLabel="Nuovo comando"
+        createLabel={t("commands.create")}
       />
     </section>
   );

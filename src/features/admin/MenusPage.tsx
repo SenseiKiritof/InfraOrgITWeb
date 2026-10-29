@@ -9,6 +9,7 @@ import { SortableTh } from "../../components/SortableTh";
 import type { AdminMenu } from "../../lib/admin";
 import { getAdminMenus, getRoles } from "../../lib/admin";
 import { columnWidths } from "../../lib/columnWidths";
+import { useI18n } from "../../lib/i18n";
 import { deleteEntity, saveEntity } from "../../lib/inventory";
 import { usePagination } from "../../lib/pagination";
 import { nextSort, useSortedRows } from "../../lib/sort";
@@ -37,6 +38,7 @@ const empty: MenuForm = {
 
 export function MenusPage() {
   const { session } = useAuth();
+  const { t } = useI18n();
   const csrf = session?.csrfToken ?? "";
   const queryClient = useQueryClient();
   const menus = useQuery({
@@ -91,14 +93,12 @@ export function MenusPage() {
       await queryClient.invalidateQueries({ queryKey: ["admin-menus"] });
       await queryClient.invalidateQueries({ queryKey: ["menus"] });
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "Errore di salvataggio",
-      );
+      setError(cause instanceof Error ? cause.message : t("common.saveError"));
     }
   };
 
   const remove = async (menu: AdminMenu) => {
-    if (!window.confirm(`Eliminare il menu "${menu.name}"?`)) return;
+    if (!window.confirm(t("menus.deleteConfirm", { name: menu.name }))) return;
     setError(null);
     try {
       await deleteEntity(`/api/menus/${menu.id}`, csrf);
@@ -106,7 +106,7 @@ export function MenusPage() {
       await queryClient.invalidateQueries({ queryKey: ["menus"] });
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Errore di eliminazione",
+        cause instanceof Error ? cause.message : t("common.deleteError"),
       );
     }
   };
@@ -131,31 +131,41 @@ export function MenusPage() {
     });
 
   const columns = [
-    { key: "name", label: "Nome", render: (menu: AdminMenu) => menu.name },
-    { key: "path", label: "Path", render: (menu: AdminMenu) => menu.path },
+    {
+      key: "name",
+      label: t("common.name"),
+      render: (menu: AdminMenu) => menu.name,
+    },
+    {
+      key: "path",
+      label: t("common.path"),
+      render: (menu: AdminMenu) => menu.path,
+    },
     {
       key: "parent",
-      label: "Padre",
+      label: t("menus.parent"),
       render: (menu: AdminMenu) => parentName(menu.parentId),
     },
     {
       key: "order",
-      label: "Ordine",
+      label: t("common.order"),
       render: (menu: AdminMenu) => menu.order ?? "",
     },
     {
       key: "isActive",
-      label: "Attivo",
-      render: (menu: AdminMenu) => (menu.isActive ? "sì" : "no"),
+      label: t("menus.active"),
+      render: (menu: AdminMenu) =>
+        menu.isActive ? t("common.yes") : t("common.no"),
     },
     {
       key: "isVisible",
-      label: "Visibile",
-      render: (menu: AdminMenu) => (menu.isVisible ? "sì" : "no"),
+      label: t("menus.visible"),
+      render: (menu: AdminMenu) =>
+        menu.isVisible ? t("common.yes") : t("common.no"),
     },
     {
       key: "roles",
-      label: "Ruoli",
+      label: t("common.roles"),
       render: (menu: AdminMenu) => menu.roleIds.length,
     },
   ];
@@ -165,8 +175,8 @@ export function MenusPage() {
   return (
     <section className="space-y-4">
       <PageHeader
-        title="Menu"
-        description="Voci della sidebar e ruoli che possono vederle."
+        title={t("menus.title")}
+        description={t("menus.description")}
       />
       {error && (
         <p
@@ -180,14 +190,14 @@ export function MenusPage() {
       <div className="rounded-lg border border-slate-200 bg-white">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Menu
+            {t("menus.title")}
           </h2>
           <button
             type="button"
             onClick={() => start("new")}
             className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
           >
-            Nuovo menu
+            {t("menus.create")}
           </button>
         </div>
         <div className="overflow-x-auto">
@@ -212,7 +222,7 @@ export function MenusPage() {
                   />
                 ))}
                 <th className="px-4 py-2">
-                  <span className="sr-only">Azioni</span>
+                  <span className="sr-only">{t("common.actions")}</span>
                 </th>
               </tr>
             </thead>
@@ -230,14 +240,14 @@ export function MenusPage() {
                       onClick={() => start(menu)}
                       className="text-sm underline"
                     >
-                      Modifica
+                      {t("common.edit")}
                     </button>
                     <button
                       type="button"
                       onClick={() => void remove(menu)}
                       className="text-sm text-red-700 underline"
                     >
-                      Elimina
+                      {t("common.delete")}
                     </button>
                   </td>
                 </tr>
@@ -260,16 +270,16 @@ export function MenusPage() {
           <form
             role="dialog"
             aria-modal="true"
-            aria-label={editing === "new" ? "Nuovo menu" : "Modifica menu"}
+            aria-label={editing === "new" ? t("menus.create") : t("menus.edit")}
             onSubmit={(event) => void submit(event)}
             className="max-h-[85vh] w-full max-w-2xl overflow-auto rounded-lg bg-white p-5 shadow-xl"
           >
             <h2 className="text-lg font-semibold">
-              {editing === "new" ? "Nuovo menu" : "Modifica menu"}
+              {editing === "new" ? t("menus.create") : t("menus.edit")}
             </h2>
             <div className="mt-4 grid grid-cols-2 gap-3">
               <label className="flex flex-col gap-1 text-sm">
-                <span className="font-medium">Nome</span>
+                <span className="font-medium">{t("common.name")}</span>
                 <input
                   value={form.name}
                   onChange={(event) =>
@@ -280,7 +290,7 @@ export function MenusPage() {
                 />
               </label>
               <label className="flex flex-col gap-1 text-sm">
-                <span className="font-medium">Path</span>
+                <span className="font-medium">{t("common.path")}</span>
                 <input
                   value={form.path}
                   onChange={(event) =>
@@ -291,7 +301,7 @@ export function MenusPage() {
                 />
               </label>
               <label className="flex flex-col gap-1 text-sm">
-                <span className="font-medium">Ordine</span>
+                <span className="font-medium">{t("common.order")}</span>
                 <input
                   type="number"
                   value={form.order}
@@ -305,12 +315,12 @@ export function MenusPage() {
                 htmlFor="menu-parent"
                 className="flex flex-col gap-1 text-sm"
               >
-                <span className="font-medium">Padre</span>
+                <span className="font-medium">{t("menus.parent")}</span>
                 <AutocompleteSelect
                   id="menu-parent"
                   value={form.parentId}
                   options={[
-                    { value: "", label: "— nessuno —" },
+                    { value: "", label: t("common.none") },
                     ...(menus.data
                       ?.filter(
                         (menu) => editing === "new" || menu.id !== editing.id,
@@ -334,7 +344,7 @@ export function MenusPage() {
                     setForm({ ...form, isActive: event.target.checked })
                   }
                 />
-                Attivo
+                {t("menus.active")}
               </label>
               <label className="flex items-center gap-2">
                 <input
@@ -344,7 +354,7 @@ export function MenusPage() {
                     setForm({ ...form, isVisible: event.target.checked })
                   }
                 />
-                Visibile
+                {t("menus.visible")}
               </label>
               <label className="flex items-center gap-2">
                 <input
@@ -354,13 +364,13 @@ export function MenusPage() {
                     setForm({ ...form, hideBackButton: event.target.checked })
                   }
                 />
-                Nasconde il pulsante Indietro
+                {t("menus.hideBack")}
               </label>
             </div>
 
             <fieldset className="mt-4">
               <legend className="text-sm font-medium">
-                Ruoli che vedono la voce
+                {t("menus.visibleRoles")}
               </legend>
               <div className="mt-1 grid grid-cols-2 gap-1 text-sm">
                 {roles.data?.items.map((role) => (
@@ -375,8 +385,7 @@ export function MenusPage() {
                 ))}
               </div>
               <p className="mt-1 text-xs text-slate-500">
-                Nessun ruolo selezionato: la voce è visibile a tutti gli
-                autenticati.
+                {t("menus.noRoleHint")}
               </p>
             </fieldset>
 
@@ -391,13 +400,13 @@ export function MenusPage() {
                 onClick={() => setEditing(null)}
                 className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
               >
-                Annulla
+                {t("common.cancel")}
               </button>
               <button
                 type="submit"
                 className="rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white"
               >
-                Salva
+                {t("common.save")}
               </button>
             </div>
           </form>

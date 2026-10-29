@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useI18n } from "../lib/i18n";
 
 export function PageHeader({
   title,
@@ -31,6 +32,7 @@ export function SearchForm({
   onChange: (value: string) => void;
   onSubmit: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <form
       onSubmit={(event) => {
@@ -40,20 +42,20 @@ export function SearchForm({
       className="flex gap-2"
     >
       <label htmlFor="search" className="sr-only">
-        Cerca
+        {t("common.search")}
       </label>
       <input
         id="search"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        placeholder="Cerca…"
+        placeholder={t("common.searchEllipsis")}
         className="w-64 rounded-md border border-slate-300 px-3 py-1.5 text-sm"
       />
       <button
         type="submit"
         className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
       >
-        Cerca
+        {t("common.search")}
       </button>
     </form>
   );

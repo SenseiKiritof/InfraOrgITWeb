@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { apiFetch } from "../../lib/api";
 import { formatBytes, formatDateTime } from "../../lib/format";
+import { useI18n } from "../../lib/i18n";
 import type {
   ApplicationApiCallDetail,
   ApplicationVersionApi,
@@ -19,6 +20,7 @@ export function SavedCallModal({
   csrfToken: string;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const call = useQuery({
     queryKey: ["api-calls", "detail", callId],
     queryFn: () =>
@@ -40,7 +42,7 @@ export function SavedCallModal({
       );
     } catch (cause) {
       setRepeatError(
-        cause instanceof Error ? cause.message : "API non disponibile",
+        cause instanceof Error ? cause.message : t("savedCall.apiUnavailable"),
       );
     }
   };
@@ -50,13 +52,13 @@ export function SavedCallModal({
       <section
         role="dialog"
         aria-modal="true"
-        aria-label="Chiamata salvata"
+        aria-label={t("savedCall.dialogLabel")}
         className="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-xl"
       >
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
           <div>
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-              Chiamata salvata
+              {t("savedCall.title")}
             </h2>
             <p className="mt-1 font-mono text-sm">
               {call.data?.method} {call.data?.url}
@@ -67,18 +69,18 @@ export function SavedCallModal({
             onClick={onClose}
             className="rounded-md border border-slate-300 px-2 py-1 text-sm"
           >
-            Chiudi
+            {t("common.close")}
           </button>
         </div>
 
         {call.isLoading && (
-          <p className="mt-4 text-sm text-slate-500">Caricamento…</p>
+          <p className="mt-4 text-sm text-slate-500">{t("common.loading")}</p>
         )}
         {call.error && (
           <p role="alert" className="mt-4 text-sm text-red-700">
             {call.error instanceof Error
               ? call.error.message
-              : "Chiamata non disponibile"}
+              : t("savedCall.unavailable")}
           </p>
         )}
 
@@ -93,13 +95,17 @@ export function SavedCallModal({
               <Body title="Query" text={call.data.queryJson} />
             )}
             {call.data.requestBody && (
-              <Body title="Body richiesta" text={call.data.requestBody} />
+              <Body
+                title={t("savedCall.requestBody")}
+                text={call.data.requestBody}
+              />
             )}
-            <Body title="Risposta" text={call.data.responseBody ?? ""} />
+            <Body
+              title={t("savedCall.response")}
+              text={call.data.responseBody ?? ""}
+            />
             {call.data.binary && (
-              <p className="text-xs text-slate-500">
-                Risposta binaria, salvata come base64.
-              </p>
+              <p className="text-xs text-slate-500">{t("savedCall.binary")}</p>
             )}
             <div className="flex items-center gap-2">
               <button
@@ -108,12 +114,12 @@ export function SavedCallModal({
                 disabled={!call.data.applicationVersionApiId}
                 title={
                   call.data.applicationVersionApiId
-                    ? "Ripeti con gli stessi parametri"
-                    : "API non più disponibile"
+                    ? t("savedCall.repeatHint")
+                    : t("savedCall.noLongerAvailable")
                 }
                 className="rounded-md border border-slate-300 px-3 py-1 text-sm disabled:opacity-50"
               >
-                Ripeti
+                {t("savedCall.repeat")}
               </button>
               {repeatError && (
                 <span className="text-xs text-red-700">{repeatError}</span>
@@ -121,7 +127,7 @@ export function SavedCallModal({
             </div>
             {call.data.truncated && (
               <p className="text-xs text-slate-500">
-                Risposta salvata troncata: il body supera 1 MiB.
+                {t("savedCall.truncated")}
               </p>
             )}
           </div>

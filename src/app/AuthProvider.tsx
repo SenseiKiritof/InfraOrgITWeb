@@ -14,6 +14,7 @@ import {
   redirectToLogin,
   SESSION_REFRESHED_EVENT,
 } from "../lib/api";
+import { tGlobal } from "../lib/i18n";
 
 interface AuthContextValue {
   session: Session | null;
@@ -40,7 +41,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(null);
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Sessione non disponibile",
+        cause instanceof Error
+          ? cause.message
+          : tGlobal("app.sessionUnavailable"),
       );
     } finally {
       setLoading(false);

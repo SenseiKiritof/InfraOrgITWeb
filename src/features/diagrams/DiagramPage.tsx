@@ -33,6 +33,7 @@ import {
   saveEdges,
   saveNodes,
 } from "../../lib/diagrams";
+import { useI18n } from "../../lib/i18n";
 import { useServerAccess } from "../../lib/useServerAccess";
 import { nodeTypes as graphNodeTypes } from "./GraphNodes";
 import { edgeTypes as graphEdgeTypes } from "./ProxyEdge";
@@ -40,7 +41,7 @@ import { edgeTypes as graphEdgeTypes } from "./ProxyEdge";
 function toPayload(nodes: Node<GraphNodeData>[]): DiagramNode[] {
   return nodes.map((node) => {
     const data = node.data;
-    if (!data) throw new Error("Nodo senza dati");
+    if (!data) throw new Error("Node without data");
     const width =
       node.measured?.width ??
       (typeof node.style?.width === "number" ? node.style.width : null);
@@ -61,6 +62,7 @@ function toPayload(nodes: Node<GraphNodeData>[]): DiagramNode[] {
 
 export function DiagramPage() {
   const { id } = useParams<{ id: string }>();
+  const { t } = useI18n();
   const isDefault = id === "default";
   const numericId = Number(id);
   const navigate = useNavigate();
@@ -96,7 +98,7 @@ export function DiagramPage() {
     queryKey: ["diagram-graph", diagramQuery.data?.id],
     queryFn: () => {
       const diagram = diagramQuery.data;
-      if (!diagram) throw new Error("Diagramma non caricato");
+      if (!diagram) throw new Error(t("diagrams.notLoaded"));
       return getGraph(diagram.id);
     },
     enabled: diagramQuery.data !== undefined,
@@ -144,7 +146,7 @@ export function DiagramPage() {
       await action();
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Operazione non riuscita",
+        cause instanceof Error ? cause.message : t("common.operationError"),
       );
     }
   };
@@ -158,7 +160,7 @@ export function DiagramPage() {
 
       const payloadEdges: DiagramEdge[] = edges.map((edge) => {
         const data = edge.data;
-        if (!data) throw new Error("Collegamento senza dati");
+        if (!data) throw new Error(t("diagrams.edgeWithoutData"));
         return {
           proxyConnectionId: data.proxyConnectionId,
           targetNodeType: data.targetNodeType,
@@ -172,7 +174,7 @@ export function DiagramPage() {
 
       await saveNodes(graph.diagram.id, payloadNodes, csrf);
       await saveEdges(graph.diagram.id, payloadEdges, csrf);
-      setMessage("Layout salvato.");
+      setMessage(t("diagrams.layoutSaved"));
     });
 
   const saveAs = () =>
@@ -180,8 +182,8 @@ export function DiagramPage() {
       const graph = graphQuery.data;
       if (!graph) return;
       const name = window.prompt(
-        "Nome del nuovo diagramma",
-        `${graph.diagram.name} copia`,
+        t("diagrams.newNamePrompt"),
+        t("diagrams.copyName", { name: graph.diagram.name }),
       );
       if (!name) return;
 
@@ -201,7 +203,11 @@ export function DiagramPage() {
     run(async () => {
       const graph = graphQuery.data;
       if (!graph) return;
-      if (!window.confirm(`Eliminare il diagramma "${graph.diagram.name}"?`))
+      if (
+        !window.confirm(
+          t("diagrams.deleteConfirm", { name: graph.diagram.name }),
+        )
+      )
         return;
       await deleteDiagram(graph.diagram.id, csrf);
       navigate("/diagrams");
@@ -215,16 +221,29 @@ export function DiagramPage() {
         selected.entityId,
       );
       const detail = [
-        `${preview.environments} ambienti`,
-        `${preview.servers.length} server${preview.servers.length ? `: ${preview.servers.join(", ")}` : ""}`,
-        `${preview.applications.length} applicazioni${preview.applications.length ? `: ${preview.applications.join(", ")}` : ""}`,
-        `${preview.proxyConnections} connessioni proxy`,
-        `${preview.proxyRoutes} route`,
+        t("diagrams.environmentCount", { count: preview.environments }),
+        `${t("diagrams.serverCount", { count: preview.servers.length })}${
+          preview.servers.length ? `: ${preview.servers.join(", ")}` : ""
+        }`,
+        `${t("diagrams.applicationCount", {
+          count: preview.applications.length,
+        })}${
+          preview.applications.length
+            ? `: ${preview.applications.join(", ")}`
+            : ""
+        }`,
+        t("diagrams.proxyConnectionCount", {
+          count: preview.proxyConnections,
+        }),
+        t("diagrams.routeCount", { count: preview.proxyRoutes }),
       ].join("\n");
 
       if (
         !window.confirm(
-          `Eliminare il nodo ${selected.nodeType} #${selected.entityId}?\n${detail}`,
+          `${t("diagrams.deleteNodeConfirm", {
+            type: selected.nodeType,
+            id: selected.entityId,
+          })}\n${detail}`,
         )
       )
         return;
@@ -238,7 +257,7 @@ export function DiagramPage() {
     run(async () => {
       const created = await createDiagram(
         {
-          name: "Vista globale",
+          name: t("diagrams.globalView"),
           description: null,
           isDefault: true,
           scopeItems: [],
@@ -262,17 +281,15 @@ export function DiagramPage() {
   if (missingDefault) {
     return (
       <section className="space-y-4">
-        <PageHeader title="Vista globale" />
-        <p className="text-sm text-slate-600">
-          Nessun diagramma predefinito. Creane uno per usare la vista globale.
-        </p>
+        <PageHeader title={t("diagrams.globalView")} />
+        <p className="text-sm text-slate-600">{t("diagrams.noDefault")}</p>
         {isSystemAdmin && (
           <button
             type="button"
             onClick={() => void createDefault()}
             className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white"
           >
-            Crea vista globale
+            {t("diagrams.createGlobal")}
           </button>
         )}
         {error && <p className="text-sm text-red-700">{error}</p>}
@@ -283,12 +300,10 @@ export function DiagramPage() {
   if (diagramQuery.isError) {
     return (
       <section className="space-y-4">
-        <PageHeader title="Diagramma" />
-        <p className="text-sm text-red-700">
-          Diagramma non trovato. Torna all'elenco.
-        </p>
+        <PageHeader title={t("diagrams.detail")} />
+        <p className="text-sm text-red-700">{t("diagrams.notFound")}</p>
         <Link to="/diagrams" className="text-sm underline">
-          Diagrammi
+          {t("diagrams.title")}
         </Link>
       </section>
     );
@@ -299,9 +314,9 @@ export function DiagramPage() {
   return (
     <section ref={sectionRef} className="flex h-full min-h-0 flex-col gap-3">
       <PageHeader
-        title={diagram?.name ?? "Diagramma"}
+        title={diagram?.name ?? t("diagrams.detail")}
         description={
-          diagram?.isDefault ? "Vista globale predefinita" : undefined
+          diagram?.isDefault ? t("diagrams.defaultGlobalView") : undefined
         }
       >
         <div className="flex flex-wrap gap-2">
@@ -309,35 +324,37 @@ export function DiagramPage() {
             to="/diagrams"
             className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
           >
-            Elenco
+            {t("diagrams.list")}
           </Link>
           <button
             type="button"
             onClick={() => void save()}
             className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white"
           >
-            Salva
+            {t("common.save")}
           </button>
           <button
             type="button"
             onClick={() => void saveAs()}
             className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
           >
-            Salva come…
+            {t("diagrams.saveAs")}
           </button>
           <button
             type="button"
             onClick={toggleFullscreen}
             className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
           >
-            {isFullscreen ? "Esci" : "Schermo intero"}
+            {isFullscreen
+              ? t("diagrams.exitFullscreen")
+              : t("diagrams.fullscreen")}
           </button>
           <button
             type="button"
             onClick={() => void removeDiagram()}
             className="rounded-md border border-red-300 px-3 py-1.5 text-sm text-red-700"
           >
-            Elimina
+            {t("common.delete")}
           </button>
         </div>
       </PageHeader>
@@ -351,11 +368,13 @@ export function DiagramPage() {
               onClick={() => setShowAddedDetails((value) => !value)}
               className="underline"
             >
-              {showAddedDetails ? "Nascondi dettagli" : "Dettagli"}
+              {showAddedDetails
+                ? t("diagrams.hideDetails")
+                : t("diagrams.details")}
             </button>
             <button
               type="button"
-              aria-label="Chiudi l'avviso dei nodi aggiunti"
+              aria-label={t("diagrams.dismissAdded")}
               onClick={() => {
                 setAdded(null);
                 setShowAddedDetails(false);
@@ -395,7 +414,7 @@ export function DiagramPage() {
 
       <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-slate-200 bg-white">
         {graphQuery.isLoading ? (
-          <p className="p-4 text-sm text-slate-500">Caricamento diagramma…</p>
+          <p className="p-4 text-sm text-slate-500">{t("diagrams.loading")}</p>
         ) : (
           <ReactFlow
             nodes={nodes}
@@ -436,7 +455,7 @@ export function DiagramPage() {
               onClick={() => setSelected(null)}
               className="text-sm underline"
             >
-              Chiudi
+              {t("common.close")}
             </button>
           </div>
           {canDeleteNode(selected) && (
@@ -445,7 +464,7 @@ export function DiagramPage() {
               onClick={() => void removeNode()}
               className="mt-3 rounded-md border border-red-300 px-3 py-1.5 text-sm text-red-700"
             >
-              Elimina nodo e dipendenze
+              {t("diagrams.deleteNodeDependencies")}
             </button>
           )}
         </aside>

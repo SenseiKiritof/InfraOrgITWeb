@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { AutocompleteSelect } from "../../components/AutocompleteSelect";
 import { apiFetch } from "../../lib/api";
 import { formatBytes } from "../../lib/format";
+import { useI18n } from "../../lib/i18n";
 import type {
   ApplicationApiCallResult,
   ApplicationApiQueryParam,
@@ -29,6 +30,7 @@ export function ApiCallModal({
   initialBody?: string | null;
 }) {
   const queryClient = useQueryClient();
+  const { t } = useI18n();
   const params = useQuery({
     queryKey: ["application-api-query-params", api.id],
     queryFn: () =>
@@ -69,7 +71,7 @@ export function ApiCallModal({
 
   const send = async () => {
     if (!environmentId) {
-      setError("Seleziona un ambiente.");
+      setError(t("apiCall.selectEnvironment"));
       return;
     }
     setBusy(true);
@@ -95,7 +97,7 @@ export function ApiCallModal({
       await queryClient.invalidateQueries({ queryKey: ["api-calls"] });
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Chiamata non riuscita",
+        cause instanceof Error ? cause.message : t("applications.failed"),
       );
     } finally {
       setBusy(false);
@@ -107,13 +109,16 @@ export function ApiCallModal({
       <section
         role="dialog"
         aria-modal="true"
-        aria-label={`Chiamata ${api.requestType} ${api.url}`}
+        aria-label={t("apiCall.dialogLabel", {
+          method: api.requestType,
+          url: api.url,
+        })}
         className="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-xl"
       >
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
           <div>
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-              Chiama API
+              {t("apiCall.title")}
             </h2>
             <p className="mt-1 font-mono text-sm">
               {api.requestType} {api.url}
@@ -124,7 +129,7 @@ export function ApiCallModal({
             onClick={onClose}
             className="rounded-md border border-slate-300 px-2 py-1 text-sm"
           >
-            Chiudi
+            {t("common.close")}
           </button>
         </div>
 
@@ -134,7 +139,7 @@ export function ApiCallModal({
             className="block space-y-1 text-sm"
           >
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Ambiente
+              {t("common.environment")}
             </span>
             <AutocompleteSelect
               id="api-call-environment"
@@ -150,7 +155,7 @@ export function ApiCallModal({
           {params.data?.items.length ? (
             <fieldset className="space-y-2">
               <legend className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Query param
+                {t("apiCall.queryParam")}
               </legend>
               {params.data.items.map((param) => (
                 <label
@@ -179,7 +184,7 @@ export function ApiCallModal({
           {sendsBody && (
             <label className="block space-y-1 text-sm">
               <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Body JSON
+                {t("apiCall.body")}
               </span>
               <textarea
                 value={body}
@@ -196,7 +201,7 @@ export function ApiCallModal({
               checked={save}
               onChange={(event) => setSave(event.target.checked)}
             />
-            Salva la chiamata
+            {t("apiCall.saveCall")}
           </label>
 
           <button
@@ -205,7 +210,7 @@ export function ApiCallModal({
             disabled={busy}
             className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
           >
-            {busy ? "Chiamata…" : "Chiama"}
+            {busy ? t("apiCall.calling") : t("applications.call")}
           </button>
 
           {error && (
@@ -227,32 +232,39 @@ export function ApiCallModal({
               </pre>
               {result.truncated && (
                 <p className="text-xs text-slate-500">
-                  Risposta troncata: il body supera 10 MiB.
+                  {t("apiCall.truncated")}
                 </p>
               )}
               {result.binary && (
-                <p className="text-xs text-slate-500">
-                  Risposta binaria: usa Scarica per il file originale.
-                </p>
+                <p className="text-xs text-slate-500">{t("apiCall.binary")}</p>
               )}
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => void copyResult(result, setCopied, setError)}
+                  onClick={() =>
+                    void copyResult(
+                      result,
+                      setCopied,
+                      setError,
+                      t("apiCall.copyFailed"),
+                    )
+                  }
                   disabled={result.binary}
                   className="rounded-md border border-slate-300 px-3 py-1 text-sm disabled:opacity-50"
                 >
-                  Copia
+                  {t("apiCall.copy")}
                 </button>
                 <button
                   type="button"
-                  onClick={() => download(result)}
+                  onClick={() => download(result, t("apiCall.newFile"))}
                   className="rounded-md border border-slate-300 px-3 py-1 text-sm"
                 >
-                  Scarica
+                  {t("apiCall.download")}
                 </button>
                 {copied && (
-                  <span className="text-xs text-slate-500">Copiato</span>
+                  <span className="text-xs text-slate-500">
+                    {t("apiCall.copied")}
+                  </span>
                 )}
               </div>
             </div>
@@ -267,16 +279,17 @@ async function copyResult(
   result: ApplicationApiCallResult,
   onCopied: (value: boolean) => void,
   onError: (message: string) => void,
+  message: string,
 ): Promise<void> {
   try {
     await navigator.clipboard.writeText(result.body);
     onCopied(true);
   } catch {
-    onError("Copia non riuscita: clipboard non disponibile.");
+    onError(message);
   }
 }
 
-function download(result: ApplicationApiCallResult): void {
+function download(result: ApplicationApiCallResult, newFile: string): void {
   const extension = result.binary
     ? extensionFor(result.contentType)
     : result.contentType.includes("json")
@@ -289,7 +302,7 @@ function download(result: ApplicationApiCallResult): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `api-call-${result.callId ?? "nuova"}.${extension}`;
+  link.download = `api-call-${result.callId ?? newFile}.${extension}`;
   document.body.append(link);
   link.click();
   link.remove();

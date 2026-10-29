@@ -5,8 +5,10 @@ import { useAuth } from "../../app/AuthProvider";
 import { AutocompleteSelect } from "../../components/AutocompleteSelect";
 import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
+import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import { PageHeader, SearchForm } from "../../components/page";
 import { apiFetch } from "../../lib/api";
+import { useI18n } from "../../lib/i18n";
 import type {
   ApplicationVersion,
   Paged,
@@ -38,6 +40,7 @@ import { useConsole } from "../remote/ConsoleProvider";
 
 export function ServersPage() {
   const { session } = useAuth();
+  const { t } = useI18n();
   const csrf = session?.csrfToken ?? "";
   const access = useServerAccess();
   const adminEnvironmentIds = access.data?.adminEnvironmentIds ?? [];
@@ -108,8 +111,8 @@ export function ServersPage() {
   return (
     <section className="space-y-4">
       <PageHeader
-        title="Server"
-        description="Server gestiti per ambiente provider."
+        title={t("servers.title")}
+        description={t("servers.description")}
       />
       <SearchForm
         value={search}
@@ -119,17 +122,25 @@ export function ServersPage() {
       <EntitySection
         rows={servers.data?.items}
         columns={[
-          { key: "name", label: "Nome", render: (row) => row.name },
+          { key: "name", label: t("common.name"), render: (row) => row.name },
           {
             key: "providerEnvironmentLabel",
-            label: "Ambiente",
+            label: t("common.environment"),
             render: (row) => row.providerEnvironmentLabel,
           },
-          { key: "ipAddress", label: "IP", render: (row) => row.ipAddress },
-          { key: "sshPort", label: "Porta SSH", render: (row) => row.sshPort },
+          {
+            key: "ipAddress",
+            label: t("common.ip"),
+            render: (row) => row.ipAddress,
+          },
+          {
+            key: "sshPort",
+            label: t("common.sshPort"),
+            render: (row) => row.sshPort,
+          },
           {
             key: "jumpServerName",
-            label: "Proxy",
+            label: t("servers.proxy"),
             render: (row) =>
               row.jumpServerName
                 ? `${row.jumpServerName} (${row.jumpServerIpAddress ?? "—"})`
@@ -139,7 +150,7 @@ export function ServersPage() {
         fields={[
           {
             name: "providerEnvironmentId",
-            label: "Ambiente provider",
+            label: t("servers.providerEnvironment"),
             type: "select",
             required: true,
             options:
@@ -152,13 +163,13 @@ export function ServersPage() {
                   label: environment.label,
                 })) ?? [],
           },
-          { name: "name", label: "Nome", required: true },
-          { name: "ipAddress", label: "Indirizzo IP", required: true },
-          { name: "hostname", label: "Hostname", required: true },
-          { name: "sshPort", label: "Porta SSH", type: "number" },
+          { name: "name", label: t("common.name"), required: true },
+          { name: "ipAddress", label: t("common.address"), required: true },
+          { name: "hostname", label: t("common.hostname"), required: true },
+          { name: "sshPort", label: t("common.sshPort"), type: "number" },
           {
             name: "jumpServerId",
-            label: "Server proxy (jump)",
+            label: t("servers.jumpServer"),
             type: "select",
             options:
               servers.data?.items.map((item) => ({
@@ -170,7 +181,7 @@ export function ServersPage() {
             ? [
                 {
                   name: "credentialId",
-                  label: "Credenziale SSH",
+                  label: t("servers.sshCredential"),
                   type: "select" as const,
                   options:
                     credentials.data?.items.map((credential) => ({
@@ -209,7 +220,7 @@ export function ServersPage() {
         onSave={save}
         onDelete={remove}
         rowHref={(row) => `/servers/${row.id}`}
-        createLabel="Nuovo server"
+        createLabel={t("servers.create")}
       />
     </section>
   );
@@ -219,6 +230,7 @@ export function ServerDetailPage() {
   const { id } = useParams();
   const serverId = Number(id);
   const { session } = useAuth();
+  const { t } = useI18n();
   const csrf = session?.csrfToken ?? "";
   const access = useServerAccess();
   const queryClient = useQueryClient();
@@ -331,10 +343,10 @@ export function ServerDetailPage() {
         csrf,
       );
       await queryClient.invalidateQueries({ queryKey: ["servers"] });
-      setEditMessage("Server aggiornato.");
+      setEditMessage(t("servers.updated"));
     } catch (cause) {
       setEditMessage(
-        cause instanceof Error ? cause.message : "Salvataggio non riuscito",
+        cause instanceof Error ? cause.message : t("servers.saveFailed"),
       );
     }
   };
@@ -350,29 +362,26 @@ export function ServerDetailPage() {
         csrf,
       );
       await queryClient.invalidateQueries({ queryKey: ["servers"] });
-      setSshMessage("Configurazione SSH salvata.");
+      setSshMessage(t("servers.sshSaved"));
     } catch (cause) {
       setSshMessage(
-        cause instanceof Error ? cause.message : "Salvataggio SSH non riuscito",
+        cause instanceof Error ? cause.message : t("servers.sshSaveFailed"),
       );
     }
   };
 
   const clearHostKey = async () => {
-    if (
-      !window.confirm(
-        "Azzerare la host key salvata? Verrà riappresa alla prossima connessione.",
-      )
-    )
-      return;
+    if (!window.confirm(t("servers.clearHostKeyConfirm"))) return;
     setSshMessage(null);
     try {
       await resetHostKey(serverId, csrf);
       await queryClient.invalidateQueries({ queryKey: ["servers"] });
-      setSshMessage("Host key azzerata.");
+      setSshMessage(t("servers.hostKeyCleared"));
     } catch (cause) {
       setSshMessage(
-        cause instanceof Error ? cause.message : "Reset host key non riuscito",
+        cause instanceof Error
+          ? cause.message
+          : t("servers.hostKeyResetFailed"),
       );
     }
   };
@@ -432,7 +441,8 @@ export function ServerDetailPage() {
           hostname: null,
           port: null,
           reachable: false,
-          error: cause instanceof Error ? cause.message : "Test non riuscito",
+          error:
+            cause instanceof Error ? cause.message : t("servers.testFailed"),
         },
       ]);
     } finally {
@@ -466,41 +476,48 @@ export function ServerDetailPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeader title={server.data?.name ?? "Server"}>
-        {isAdmin && (
-          <button
-            type="button"
-            onClick={() =>
-              console.open(serverId, server.data?.name ?? "Server")
-            }
-            className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white"
-          >
-            Console SSH
-          </button>
-        )}
-      </PageHeader>
+      <PageHeaderSlot
+        title={server.data?.name ?? t("servers.title")}
+        actions={
+          isAdmin ? (
+            <button
+              type="button"
+              onClick={() =>
+                console.open(serverId, server.data?.name ?? t("servers.title"))
+              }
+              className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white"
+            >
+              {t("console.title")}
+            </button>
+          ) : undefined
+        }
+      />
       <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
         {server.data ? (
           <dl className="grid grid-cols-2 gap-2">
-            <dt className="text-slate-500">Ambiente</dt>
+            <dt className="text-slate-500">{t("common.environment")}</dt>
             <dd>{server.data.providerEnvironmentLabel}</dd>
-            <dt className="text-slate-500">IP</dt>
+            <dt className="text-slate-500">{t("common.ip")}</dt>
             <dd>{server.data.ipAddress}</dd>
-            <dt className="text-slate-500">Hostname</dt>
+            <dt className="text-slate-500">{t("common.hostname")}</dt>
             <dd>{server.data.hostname}</dd>
-            <dt className="text-slate-500">Porta SSH</dt>
+            <dt className="text-slate-500">{t("common.sshPort")}</dt>
             <dd>{server.data.sshPort}</dd>
-            <dt className="text-slate-500">Server proxy</dt>
+            <dt className="text-slate-500">{t("servers.proxy")}</dt>
             <dd>
               {server.data.jumpServerName
                 ? `${server.data.jumpServerName} (${server.data.jumpServerIpAddress ?? "—"})`
                 : "—"}
             </dd>
-            <dt className="text-slate-500">Host key</dt>
-            <dd>{server.data.hasHostKey ? "registrata" : "non registrata"}</dd>
+            <dt className="text-slate-500">{t("servers.hostKey")}</dt>
+            <dd>
+              {server.data.hasHostKey
+                ? t("servers.hostKeyRegistered")
+                : t("servers.hostKeyMissing")}
+            </dd>
           </dl>
         ) : (
-          <p className="text-slate-500">Caricamento…</p>
+          <p className="text-slate-500">{t("common.loading")}</p>
         )}
       </div>
 
@@ -510,11 +527,11 @@ export function ServerDetailPage() {
           className="space-y-3 rounded-lg border border-slate-200 bg-white p-4 text-sm"
         >
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Dati server
+            {t("servers.details")}
           </h2>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="flex flex-col gap-1">
-              <span className="text-xs text-slate-500">Nome</span>
+              <span className="text-xs text-slate-500">{t("common.name")}</span>
               <input
                 value={edit.name}
                 onChange={(event) =>
@@ -525,7 +542,9 @@ export function ServerDetailPage() {
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-xs text-slate-500">Indirizzo IP</span>
+              <span className="text-xs text-slate-500">
+                {t("common.address")}
+              </span>
               <input
                 value={edit.ipAddress}
                 onChange={(event) =>
@@ -536,7 +555,9 @@ export function ServerDetailPage() {
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-xs text-slate-500">Hostname</span>
+              <span className="text-xs text-slate-500">
+                {t("common.hostname")}
+              </span>
               <input
                 value={edit.hostname}
                 onChange={(event) =>
@@ -547,7 +568,9 @@ export function ServerDetailPage() {
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-xs text-slate-500">Porta SSH</span>
+              <span className="text-xs text-slate-500">
+                {t("common.sshPort")}
+              </span>
               <input
                 type="number"
                 value={edit.sshPort}
@@ -562,7 +585,7 @@ export function ServerDetailPage() {
               className="flex flex-col gap-1 sm:col-span-2"
             >
               <span className="text-xs text-slate-500">
-                Server proxy (jump)
+                {t("servers.jumpServer")}
               </span>
               <AutocompleteSelect
                 id="server-jump"
@@ -586,7 +609,7 @@ export function ServerDetailPage() {
               type="submit"
               className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
             >
-              Salva
+              {t("common.save")}
             </button>
             {editMessage && (
               <p role="status" className="text-sm text-slate-600">
@@ -603,16 +626,18 @@ export function ServerDetailPage() {
           className="space-y-2 rounded-lg border border-slate-200 bg-white p-4 text-sm"
         >
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Credenziale SSH
+            {t("servers.sshCredential")}
           </h2>
           <div className="flex flex-wrap items-end gap-3">
             <label htmlFor="server-credential" className="flex flex-col gap-1">
-              <span className="text-xs text-slate-500">Credenziale</span>
+              <span className="text-xs text-slate-500">
+                {t("servers.credential")}
+              </span>
               <AutocompleteSelect
                 id="server-credential"
                 value={credentialId}
                 options={[
-                  { value: "", label: "— nessuna —" },
+                  { value: "", label: t("common.noCredential") },
                   ...(credentials.data?.items.map(
                     (credential: ServerCredential) => ({
                       value: String(credential.id),
@@ -625,7 +650,9 @@ export function ServerDetailPage() {
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-xs text-slate-500">Porta SSH</span>
+              <span className="text-xs text-slate-500">
+                {t("common.sshPort")}
+              </span>
               <input
                 type="number"
                 min={1}
@@ -639,14 +666,14 @@ export function ServerDetailPage() {
               type="submit"
               className="rounded-md bg-slate-900 px-3 py-1.5 font-medium text-white"
             >
-              Salva SSH
+              {t("servers.saveSsh")}
             </button>
             <button
               type="button"
               onClick={() => void clearHostKey()}
               className="rounded-md border border-red-300 px-3 py-1.5 text-red-700"
             >
-              Azzera host key
+              {t("servers.clearHostKey")}
             </button>
           </div>
           {sshMessage && <p className="text-sm text-slate-700">{sshMessage}</p>}
@@ -655,26 +682,42 @@ export function ServerDetailPage() {
 
       <section className="space-y-2">
         <EntitySection
-          title="Test di raggiungibilità"
+          title={t("servers.reachability")}
           rows={reachabilityRows}
           columns={[
-            { key: "hostname", label: "Host", render: (row) => row.hostname },
-            { key: "port", label: "Porta", render: (row) => row.port },
+            {
+              key: "hostname",
+              label: t("common.host"),
+              render: (row) => row.hostname,
+            },
+            {
+              key: "port",
+              label: t("common.port"),
+              render: (row) => row.port,
+            },
             {
               key: "description",
-              label: "Descrizione",
+              label: t("common.description"),
               render: (row) => row.description,
             },
             {
               key: "scope",
-              label: "Tipo",
-              render: (row) => (row.serverId === null ? "Globale" : "Server"),
+              label: t("common.type"),
+              render: (row) =>
+                row.serverId === null
+                  ? t("servers.scopeGlobal")
+                  : t("common.server"),
             },
           ]}
           fields={[
-            { name: "hostname", label: "Host", required: true },
-            { name: "port", label: "Porta", type: "number", required: true },
-            { name: "description", label: "Descrizione" },
+            { name: "hostname", label: t("common.host"), required: true },
+            {
+              name: "port",
+              label: t("common.port"),
+              type: "number",
+              required: true,
+            },
+            { name: "description", label: t("common.description") },
           ]}
           empty={{ hostname: "", port: "443", description: "" }}
           toForm={(row) => ({
@@ -695,7 +738,9 @@ export function ServerDetailPage() {
             isOperator ? (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-slate-500">
-                  {selectedTests.length} selezionati
+                  {t("servers.selectedCount", {
+                    count: selectedTests.length,
+                  })}
                 </span>
                 <button
                   type="button"
@@ -708,8 +753,8 @@ export function ServerDetailPage() {
                   className="rounded-md border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-50"
                 >
                   {runningReachability === "selected"
-                    ? "Test in corso…"
-                    : "Effettua selezionati"}
+                    ? t("servers.testing")
+                    : t("servers.runSelected")}
                 </button>
                 <button
                   type="button"
@@ -726,13 +771,13 @@ export function ServerDetailPage() {
                   className="rounded-md border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-50"
                 >
                   {runningReachability === "all"
-                    ? "Test in corso…"
-                    : "Effettua tutti i test"}
+                    ? t("servers.testing")
+                    : t("servers.runAll")}
                 </button>
               </div>
             ) : undefined
           }
-          createLabel="Nuovo test"
+          createLabel={t("servers.newTest")}
         />
         {reachabilityResults.length > 0 && (
           <ul className="rounded-lg border border-slate-200 bg-white p-3 text-sm">
@@ -740,8 +785,8 @@ export function ServerDetailPage() {
               <li
                 key={`${result.serverId}-${result.hostname}-${result.port}-${result.reachable}-${result.error}`}
               >
-                {result.serverName} · {result.hostname ?? "connessione"}:
-                {result.port ?? ""}{" "}
+                {result.serverName} ·{" "}
+                {result.hostname ?? t("servers.connection")}:{result.port ?? ""}{" "}
                 <span
                   className={
                     result.reachable ? "text-emerald-700" : "text-red-700"
@@ -757,29 +802,29 @@ export function ServerDetailPage() {
       </section>
 
       <EntitySection
-        title="Applicazioni deployate"
+        title={t("servers.deployedApplications")}
         rows={deployed.data}
         columns={[
           {
             key: "applicationName",
-            label: "Applicazione",
+            label: t("common.application"),
             render: (row) => row.applicationName,
           },
           {
             key: "versionNumber",
-            label: "Versione",
+            label: t("common.version"),
             render: (row) => row.versionNumber,
           },
           {
             key: "exposedPort",
-            label: "Porta",
+            label: t("common.port"),
             render: (row) => row.exposedPort,
           },
         ]}
         fields={[
           {
             name: "applicationVersionId",
-            label: "Versione applicazione",
+            label: t("servers.applicationVersion"),
             type: "select",
             required: true,
             options:
@@ -790,7 +835,7 @@ export function ServerDetailPage() {
           },
           {
             name: "exposedPort",
-            label: "Porta esposta",
+            label: t("servers.exposedPort"),
             type: "number",
             required: true,
           },
@@ -805,7 +850,7 @@ export function ServerDetailPage() {
         onSave={deploy}
         onDelete={removeDeploy}
         rowHref={(row) => `/applications/${row.applicationId}`}
-        createLabel="Deploy applicazione"
+        createLabel={t("servers.deployApplication")}
       />
       {isOperator &&
         deployed.data?.map((deployment) => (
@@ -827,6 +872,7 @@ function DeployActions({
   csrfToken: string;
 }) {
   const queryClient = useQueryClient();
+  const { t } = useI18n();
   const actions = useQuery({
     queryKey: ["server-application-actions", deployment.id],
     queryFn: () => getActionButtons(deployment.id),
@@ -838,7 +884,12 @@ function DeployActions({
   const run = async (button: ApplicationActionButton) => {
     if (
       button.requiresConfirmation &&
-      !window.confirm(`Eseguire "${button.label}" su ${deployment.serverName}?`)
+      !window.confirm(
+        t("servers.runConfirm", {
+          label: button.label,
+          server: deployment.serverName,
+        }),
+      )
     )
       return;
     setError(null);
@@ -848,7 +899,7 @@ function DeployActions({
       await queryClient.invalidateQueries({ queryKey: ["command-executions"] });
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Esecuzione non riuscita",
+        cause instanceof Error ? cause.message : t("servers.executionFailed"),
       );
     }
   };
@@ -858,7 +909,8 @@ function DeployActions({
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-4">
       <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-        Azioni · {deployment.applicationName} {deployment.versionNumber}
+        {t("servers.actionsTitle")} · {deployment.applicationName}{" "}
+        {deployment.versionNumber}
       </h2>
       <div className="mt-2 flex flex-wrap gap-2">
         {actions.data.map((button) => (
@@ -875,7 +927,7 @@ function DeployActions({
       {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
       {result && (
         <pre className="mt-2 max-h-64 overflow-auto rounded bg-slate-900 p-2 text-xs text-slate-100">
-          {result.output || "(nessun output)"}
+          {result.output || t("servers.noOutput")}
           {result.timedOut ? "\n[timeout]" : ""}
         </pre>
       )}

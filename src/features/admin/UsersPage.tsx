@@ -8,6 +8,7 @@ import { SortableTh } from "../../components/SortableTh";
 import type { AdminUser } from "../../lib/admin";
 import { getGroups, getRoles, getUsers } from "../../lib/admin";
 import { columnWidths } from "../../lib/columnWidths";
+import { useI18n } from "../../lib/i18n";
 import { deleteEntity, saveEntity } from "../../lib/inventory";
 import { usePagination } from "../../lib/pagination";
 import { nextSort, useSortedRows } from "../../lib/sort";
@@ -16,33 +17,9 @@ import { useQueryFilter } from "../../lib/useQueryFilter";
 const userSortValue = (user: AdminUser, key: string) =>
   key === "name" ? `${user.name} ${user.surname}` : user.username;
 
-const columns = [
-  {
-    key: "username",
-    label: "Username",
-    render: (user: AdminUser) => user.username,
-  },
-  {
-    key: "name",
-    label: "Nome",
-    render: (user: AdminUser) => `${user.name} ${user.surname}`,
-  },
-  {
-    key: "groups",
-    label: "Gruppi",
-    sortable: false,
-    render: (user: AdminUser) => user.groups.map((x) => x.name).join(", "),
-  },
-  {
-    key: "roles",
-    label: "Ruoli",
-    sortable: false,
-    render: (user: AdminUser) => user.roles.map((x) => x.label).join(", "),
-  },
-];
-
 export function UsersPage() {
   const { session } = useAuth();
+  const { t } = useI18n();
   const csrf = session?.csrfToken ?? "";
   const queryClient = useQueryClient();
   const { search, setSearch, q, setQ } = useQueryFilter();
@@ -51,6 +28,31 @@ export function UsersPage() {
   const [groupIds, setGroupIds] = useState<number[]>([]);
   const [roleIds, setRoleIds] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  const columns = [
+    {
+      key: "username",
+      label: t("common.username"),
+      render: (user: AdminUser) => user.username,
+    },
+    {
+      key: "name",
+      label: t("common.name"),
+      render: (user: AdminUser) => `${user.name} ${user.surname}`,
+    },
+    {
+      key: "groups",
+      label: t("common.groups"),
+      sortable: false,
+      render: (user: AdminUser) => user.groups.map((x) => x.name).join(", "),
+    },
+    {
+      key: "roles",
+      label: t("common.roles"),
+      sortable: false,
+      render: (user: AdminUser) => user.roles.map((x) => x.label).join(", "),
+    },
+  ];
 
   const users = useQuery({
     queryKey: ["users", q],
@@ -102,21 +104,20 @@ export function UsersPage() {
       setEditing(null);
       await queryClient.invalidateQueries({ queryKey: ["users"] });
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "Errore di salvataggio",
-      );
+      setError(cause instanceof Error ? cause.message : t("common.saveError"));
     }
   };
 
   const remove = async (user: AdminUser) => {
-    if (!window.confirm(`Eliminare l'utente ${user.username}?`)) return;
+    if (!window.confirm(t("users.deleteConfirm", { username: user.username })))
+      return;
     setError(null);
     try {
       await deleteEntity(`/api/users/${user.id}`, csrf);
       await queryClient.invalidateQueries({ queryKey: ["users"] });
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Errore di eliminazione",
+        cause instanceof Error ? cause.message : t("common.deleteError"),
       );
     }
   };
@@ -127,8 +128,8 @@ export function UsersPage() {
   return (
     <section className="space-y-4">
       <PageHeader
-        title="Utenti"
-        description="Utenti provisionati da Keycloak e ruoli assegnati."
+        title={t("users.title")}
+        description={t("users.description")}
       />
       <SearchForm
         value={search}
@@ -147,14 +148,14 @@ export function UsersPage() {
       <div className="rounded-lg border border-slate-200 bg-white">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Utenti
+            {t("users.title")}
           </h2>
           <button
             type="button"
             onClick={() => start("new")}
             className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
           >
-            Nuovo utente
+            {t("users.create")}
           </button>
         </div>
         <div className="overflow-x-auto">
@@ -180,7 +181,7 @@ export function UsersPage() {
                   />
                 ))}
                 <th className="px-4 py-2">
-                  <span className="sr-only">Azioni</span>
+                  <span className="sr-only">{t("common.actions")}</span>
                 </th>
               </tr>
             </thead>
@@ -198,14 +199,14 @@ export function UsersPage() {
                       onClick={() => start(user)}
                       className="text-sm underline"
                     >
-                      Modifica
+                      {t("common.edit")}
                     </button>
                     <button
                       type="button"
                       onClick={() => void remove(user)}
                       className="text-sm text-red-700 underline"
                     >
-                      Elimina
+                      {t("common.delete")}
                     </button>
                   </td>
                 </tr>
@@ -228,22 +229,22 @@ export function UsersPage() {
           <form
             role="dialog"
             aria-modal="true"
-            aria-label={editing === "new" ? "Nuovo utente" : "Modifica utente"}
+            aria-label={editing === "new" ? t("users.create") : t("users.edit")}
             onSubmit={(event) => void submit(event)}
             className="max-h-[85vh] w-full max-w-2xl overflow-auto rounded-lg bg-white p-5 shadow-xl"
           >
             <h2 className="text-lg font-semibold">
-              {editing === "new" ? "Nuovo utente" : "Modifica utente"}
+              {editing === "new" ? t("users.create") : t("users.edit")}
             </h2>
             <div className="mt-4 grid grid-cols-2 gap-3">
               {(["username", "name", "surname"] as const).map((field) => (
                 <label key={field} className="flex flex-col gap-1 text-sm">
                   <span className="font-medium">
                     {field === "username"
-                      ? "Username"
+                      ? t("common.username")
                       : field === "name"
-                        ? "Nome"
-                        : "Cognome"}
+                        ? t("common.name")
+                        : t("common.surname")}
                   </span>
                   <input
                     value={form[field]}
@@ -259,7 +260,9 @@ export function UsersPage() {
 
             <div className="mt-4 grid grid-cols-2 gap-4">
               <fieldset>
-                <legend className="text-sm font-medium">Gruppi</legend>
+                <legend className="text-sm font-medium">
+                  {t("common.groups")}
+                </legend>
                 <div className="mt-1 max-h-48 space-y-1 overflow-auto text-sm">
                   {groups.data?.items.map((group) => (
                     <label key={group.id} className="flex items-center gap-2">
@@ -274,7 +277,9 @@ export function UsersPage() {
                 </div>
               </fieldset>
               <fieldset>
-                <legend className="text-sm font-medium">Ruoli</legend>
+                <legend className="text-sm font-medium">
+                  {t("common.roles")}
+                </legend>
                 <div className="mt-1 max-h-48 space-y-1 overflow-auto text-sm">
                   {roles.data?.items.map((role) => (
                     <label key={role.id} className="flex items-center gap-2">
@@ -301,13 +306,13 @@ export function UsersPage() {
                 onClick={() => setEditing(null)}
                 className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
               >
-                Annulla
+                {t("common.cancel")}
               </button>
               <button
                 type="submit"
                 className="rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white"
               >
-                Salva
+                {t("common.save")}
               </button>
             </div>
           </form>
