@@ -70,6 +70,30 @@ describe("ConsoleModal", () => {
     ]);
   });
 
+  it("lascia copiare con Cmd+C e invia Ctrl+C come interruzione", () => {
+    renderConsole();
+    const socket = FakeSocket.instances[0];
+    const terminal = screen.getByLabelText("Terminale SSH");
+
+    fireEvent.keyDown(terminal, { key: "c", metaKey: true });
+    expect(socket.sent).toEqual([]);
+
+    fireEvent.keyDown(terminal, { key: "c", ctrlKey: true });
+    expect(socket.sent).toEqual([new TextEncoder().encode("\u0003")]);
+  });
+
+  it("incolla il testo degli appunti nel terminale", () => {
+    renderConsole();
+    const socket = FakeSocket.instances[0];
+    const terminal = screen.getByLabelText("Terminale SSH");
+
+    fireEvent.paste(terminal, {
+      clipboardData: { getData: () => "ls -la\npwd" },
+    });
+
+    expect(socket.sent).toEqual([new TextEncoder().encode("ls -la\rpwd")]);
+  });
+
   it("renderizza l'output con i colori e senza sequenze di controllo", () => {
     const { container } = renderConsole();
     const socket = FakeSocket.instances[0];

@@ -39,6 +39,7 @@ export function ConsoleModal({
   const closeCallback = useRef(onClose);
   closeCallback.current = onClose;
   const closed = useRef(false);
+  const follow = useRef(true);
   const initialResume = useRef(resumeId);
   const screen = useMemo(() => parseAnsi(output), [output]);
 
@@ -46,16 +47,14 @@ export function ConsoleModal({
     if (!active) return;
     const element = terminal.current;
     element?.focus();
+    follow.current = true;
     if (element) element.scrollTop = element.scrollHeight;
   }, [active]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: deve riallineare dopo ogni chunk di output
   useEffect(() => {
     const element = terminal.current;
-    if (!element) return;
-    const atBottom =
-      element.scrollHeight - element.scrollTop - element.clientHeight < 40;
-    if (atBottom) element.scrollTop = element.scrollHeight;
+    if (element && follow.current) element.scrollTop = element.scrollHeight;
   }, [output]);
 
   useEffect(() => {
@@ -105,8 +104,22 @@ export function ConsoleModal({
   };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === "Enter") send("\r");
-    else if (event.key === "Backspace") send("\u007f");
+    // macOS: Cmd+C/V/A stay with the browser (copy, paste, select all).
+    if (event.metaKey) return;
+    // Windows/Linux: Ctrl+Shift+C/V are copy/paste.
+    if (event.ctrlKey && event.shiftKey) return;
+    // Ctrl+V pastes through the paste event.
+    if (event.ctrlKey && event.key.toLowerCase() === "v") return;
+    if (event.ctrlKey && /^[a-z]$/i.test(event.key)) {
+      send(String.fromCharCode(event.key.toUpperCase().charCodeAt(0) - 64));
+      event.preventDefault();
+      return;
+    }
+
+    if (event.key === "Enter") {
+      follow.current = true;
+      send("\r");
+    } else if (event.key === "Backspace") send("\u007f");
     else if (event.key === "Delete") send("\u001b[3~");
     else if (event.key === "Tab") send("\t");
     else if (event.key === "ArrowUp") send("\u001b[A");
@@ -118,6 +131,13 @@ export function ConsoleModal({
     else if (event.key.length === 1) send(event.key);
     else return;
     event.preventDefault();
+  };
+
+  const onPaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
+    const text = event.clipboardData.getData("text");
+    if (!text) return;
+    event.preventDefault();
+    send(text.replace(/\r?\n/g, "\r"));
   };
 
   if (!visible) return null;
@@ -158,6 +178,14 @@ export function ConsoleModal({
         tabIndex={0}
         ref={terminal}
         onKeyDown={onKeyDown}
+        onPaste={onPaste}
+        onScroll={() => {
+          const element = terminal.current;
+          if (!element) return;
+          follow.current =
+            element.scrollHeight - element.scrollTop - element.clientHeight <
+            40;
+        }}
         onFocus={() => {
           setFocused(true);
           onActivate?.();
