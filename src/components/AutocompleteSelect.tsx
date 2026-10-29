@@ -1,13 +1,35 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { createPortal } from "react-dom";
 
 export interface AutocompleteOption {
   value: string;
   label: string;
 }
 
+const GAP = 4;
+const MARGIN = 8;
+const MIN_HEIGHT = 120;
+
+interface ListboxPosition {
+  left: number;
+  width: number;
+  maxHeight: number;
+  top?: number;
+  bottom?: number;
+}
+
 /**
  * Searchable single select: an input with a filtered listbox.
  * The stored value is the option `value`; the input shows the option `label`.
+ * The listbox is portaled to the body and fixed-anchored to the input so it
+ * escapes overflow-clipping ancestors (modals) and flips above when needed.
  */
 export function AutocompleteSelect({
   id,
@@ -30,7 +52,26 @@ export function AutocompleteSelect({
   const [query, setQuery] = useState(selected?.label ?? "");
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
+  const [position, setPosition] = useState<ListboxPosition>();
   const root = useRef<HTMLDivElement>(null);
+  const input = useRef<HTMLInputElement>(null);
+  const listbox = useRef<HTMLDivElement>(null);
+
+  const updatePosition = useCallback(() => {
+    const rect = input.current?.getBoundingClientRect();
+    if (!rect) return;
+    const spaceBelow = window.innerHeight - rect.bottom - GAP - MARGIN;
+    const spaceAbove = rect.top - GAP - MARGIN;
+    const flip = spaceBelow < MIN_HEIGHT && spaceAbove > spaceBelow;
+    setPosition({
+      left: rect.left,
+      width: rect.width,
+      maxHeight: Math.max(MIN_HEIGHT, flip ? spaceAbove : spaceBelow),
+      ...(flip
+        ? { bottom: window.innerHeight - rect.top + GAP }
+        : { top: rect.bottom + GAP }),
+    });
+  }, []);
 
   useEffect(() => {
     setQuery(selected?.label ?? "");
@@ -39,11 +80,32 @@ export function AutocompleteSelect({
   useEffect(() => {
     if (!open) return;
     const onDocument = (event: MouseEvent) => {
-      if (!root.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (root.current?.contains(target) || listbox.current?.contains(target)) {
+        return;
+      }
+      setOpen(false);
     };
     document.addEventListener("mousedown", onDocument);
     return () => document.removeEventListener("mousedown", onDocument);
   }, [open]);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    updatePosition();
+    const onScrollOrResize = (event: Event) => {
+      // Scrolling the listbox itself must not move it.
+      const target = event.target;
+      if (target instanceof Node && listbox.current?.contains(target)) return;
+      updatePosition();
+    };
+    window.addEventListener("resize", onScrollOrResize);
+    window.addEventListener("scroll", onScrollOrResize, true);
+    return () => {
+      window.removeEventListener("resize", onScrollOrResize);
+      window.removeEventListener("scroll", onScrollOrResize, true);
+    };
+  }, [open, updatePosition]);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -62,6 +124,7 @@ export function AutocompleteSelect({
   return (
     <div ref={root} className="relative">
       <input
+        ref={input}
         id={id}
         role="combobox"
         aria-expanded={open}
@@ -101,32 +164,45 @@ export function AutocompleteSelect({
         }}
         className={className}
       />
-      {open && filtered.length > 0 && (
-        <div
-          id={`${id}-listbox`}
-          role="listbox"
-          className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border border-slate-300 bg-white text-sm shadow-lg"
-        >
-          {filtered.map((option, index) => (
-            <div
-              key={option.value}
-              id={`${id}-option-${index}`}
-              role="option"
-              tabIndex={-1}
-              aria-selected={option.value === value}
-              onMouseDown={(event) => {
-                event.preventDefault();
-                choose(option);
-              }}
-              className={`cursor-pointer px-3 py-1.5 ${
-                index === highlight ? "bg-slate-100" : ""
-              }`}
-            >
-              {option.label}
-            </div>
-          ))}
-        </div>
-      )}
+      {open &&
+        filtered.length > 0 &&
+        position &&
+        createPortal(
+          <div
+            ref={listbox}
+            id={`${id}-listbox`}
+            role="listbox"
+            style={{
+              position: "fixed",
+              left: position.left,
+              width: position.width,
+              maxHeight: position.maxHeight,
+              top: position.top,
+              bottom: position.bottom,
+            }}
+            className="z-[70] overflow-auto rounded-md border border-slate-300 bg-white text-sm shadow-lg"
+          >
+            {filtered.map((option, index) => (
+              <div
+                key={option.value}
+                id={`${id}-option-${index}`}
+                role="option"
+                tabIndex={-1}
+                aria-selected={option.value === value}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  choose(option);
+                }}
+                className={`cursor-pointer px-3 py-1.5 ${
+                  index === highlight ? "bg-slate-100" : ""
+                }`}
+              >
+                {option.label}
+              </div>
+            ))}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
