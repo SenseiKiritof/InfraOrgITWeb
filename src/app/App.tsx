@@ -9,6 +9,7 @@ import {
   Routes,
   useLocation,
   useNavigate,
+  useSearchParams,
 } from "react-router-dom";
 import { GroupsPage } from "../features/admin/GroupsPage";
 import { MenusPage } from "../features/admin/MenusPage";
@@ -360,6 +361,8 @@ function PlaceholderPage() {
 }
 
 function LoginErrorPage() {
+  const [params] = useSearchParams();
+  const code = params.get("code");
   return (
     <Centered>
       <div className="max-w-md rounded-lg border border-slate-200 bg-white p-6 text-center">
@@ -367,6 +370,9 @@ function LoginErrorPage() {
         <p className="mt-2 text-sm text-slate-600">
           Il login non è stato completato. Riprova o contatta un amministratore.
         </p>
+        {code && (
+          <p className="mt-1 font-mono text-xs text-slate-400">{code}</p>
+        )}
         <a
           href="/auth/login"
           className="mt-4 inline-block rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
