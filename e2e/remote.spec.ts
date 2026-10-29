@@ -66,4 +66,9 @@ test("remoto: credenziali, comandi e test di rete", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Registro esecuzioni" }),
   ).toBeVisible();
+
+  await page.goto("/reachability");
+  const reachRow = page.getByRole("row", { name: reachability });
+  await reachRow.getByRole("button", { name: "Elimina" }).click();
+  await expect(reachRow).toBeHidden();
 });
