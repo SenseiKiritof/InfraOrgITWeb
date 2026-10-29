@@ -147,6 +147,8 @@ const it = {
   "servers.saveFailed": "Salvataggio non riuscito",
   "servers.sshSaved": "Configurazione SSH salvata.",
   "servers.sshSaveFailed": "Salvataggio SSH non riuscito",
+  "servers.consoleWillClose":
+    "Le informazioni di connessione sono cambiate: la console SSH aperta verrà chiusa. Continuare?",
   "servers.clearHostKeyConfirm":
     "Azzerare la host key salvata? Verrà riappresa alla prossima connessione.",
   "servers.hostKeyCleared": "Host key azzerata.",
@@ -576,6 +578,8 @@ const en: Record<TranslationKey, string> = {
   "servers.saveFailed": "Save failed",
   "servers.sshSaved": "SSH configuration saved.",
   "servers.sshSaveFailed": "SSH save failed",
+  "servers.consoleWillClose":
+    "Connection details changed: the open SSH console will be closed. Continue?",
   "servers.clearHostKeyConfirm":
     "Clear the saved host key? It will be learned again on the next connection.",
   "servers.hostKeyCleared": "Host key cleared.",

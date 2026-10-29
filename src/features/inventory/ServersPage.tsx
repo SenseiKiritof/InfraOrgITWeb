@@ -37,6 +37,7 @@ import {
 import { useQueryFilter } from "../../lib/useQueryFilter";
 import { useServerAccess } from "../../lib/useServerAccess";
 import { useConsole } from "../remote/ConsoleProvider";
+import { connectionChanged } from "./serverConnection";
 
 export function ServersPage() {
   const { session } = useAuth();
@@ -44,6 +45,7 @@ export function ServersPage() {
   const csrf = session?.csrfToken ?? "";
   const access = useServerAccess();
   const adminEnvironmentIds = access.data?.adminEnvironmentIds ?? [];
+  const console = useConsole();
   const queryClient = useQueryClient();
   const { search, setSearch, q, setQ } = useQueryFilter();
 
@@ -69,6 +71,16 @@ export function ServersPage() {
   });
 
   const save = async (row: Server | null, values: FormValues) => {
+    const after = {
+      ipAddress: values.ipAddress,
+      sshPort: Number(values.sshPort || 22),
+      jumpServerId: values.jumpServerId ? Number(values.jumpServerId) : null,
+    };
+    const changes = row ? connectionChanged(row, after) : false;
+    if (row && changes && console.hasSession(row.id)) {
+      if (!window.confirm(t("servers.consoleWillClose"))) return;
+    }
+
     const saved = (await saveEntity(
       "/api/servers",
       row?.id ?? null,
@@ -82,6 +94,8 @@ export function ServersPage() {
       },
       csrf,
     )) as Server | undefined;
+
+    if (row && changes) console.closeServer(row.id);
 
     const serverId = row?.id ?? saved?.id;
     const credentialId = values.credentialId
@@ -327,6 +341,15 @@ export function ServerDetailPage() {
   const saveServer = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!server.data) return;
+    const after = {
+      ipAddress: edit.ipAddress,
+      sshPort: Number(edit.sshPort || 22),
+      jumpServerId: edit.jumpServerId ? Number(edit.jumpServerId) : null,
+    };
+    const changes = connectionChanged(server.data, after);
+    if (changes && console.hasSession(serverId)) {
+      if (!window.confirm(t("servers.consoleWillClose"))) return;
+    }
     setEditMessage(null);
     try {
       await saveEntity(
@@ -342,6 +365,7 @@ export function ServerDetailPage() {
         },
         csrf,
       );
+      if (changes) console.closeServer(serverId);
       await queryClient.invalidateQueries({ queryKey: ["servers"] });
       setEditMessage(t("servers.updated"));
     } catch (cause) {
@@ -353,6 +377,10 @@ export function ServerDetailPage() {
 
   const saveSsh = async (event: React.FormEvent) => {
     event.preventDefault();
+    const portChanged = Number(sshPort) !== server.data?.sshPort;
+    if (portChanged && console.hasSession(serverId)) {
+      if (!window.confirm(t("servers.consoleWillClose"))) return;
+    }
     setSshMessage(null);
     try {
       await assignServerSsh(
@@ -361,6 +389,7 @@ export function ServerDetailPage() {
         Number(sshPort),
         csrf,
       );
+      if (portChanged) console.closeServer(serverId);
       await queryClient.invalidateQueries({ queryKey: ["servers"] });
       setSshMessage(t("servers.sshSaved"));
     } catch (cause) {

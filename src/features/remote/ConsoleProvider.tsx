@@ -25,6 +25,8 @@ type Activity = "idle" | "receiving" | "unread";
 
 type ConsoleApi = {
   open: (serverId: number, serverName: string) => void;
+  hasSession: (serverId: number) => boolean;
+  closeServer: (serverId: number) => void;
 };
 
 const STORAGE_KEY = "ds-console-sessions";
@@ -236,7 +238,22 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
-  const api = useMemo(() => ({ open }), [open]);
+  const hasSession = useCallback(
+    (serverId: number) =>
+      sessionsRef.current.some((session) => session.serverId === serverId),
+    [],
+  );
+
+  const closeServer = useCallback((serverId: number) => {
+    setSessions((current) =>
+      current.filter((session) => session.serverId !== serverId),
+    );
+  }, []);
+
+  const api = useMemo(
+    () => ({ open, hasSession, closeServer }),
+    [open, hasSession, closeServer],
+  );
   const openSessions = sessions.filter((session) => session.visible);
   const shown = split
     ? openSessions
