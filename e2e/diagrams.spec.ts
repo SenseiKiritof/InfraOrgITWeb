@@ -13,6 +13,8 @@ test("diagramma: crea, salva layout e riapre", async ({ page }) => {
   await page.getByRole("button", { name: "Nuovo provider" }).click();
   await page.getByLabel("Nome").fill(provider);
   await page.getByRole("button", { name: "Salva" }).click();
+  await page.getByLabel("Cerca").fill(provider);
+  await page.getByRole("button", { name: "Cerca" }).click();
   await expect(page.getByRole("cell", { name: provider })).toBeVisible();
 
   await page.goto("/diagrams");
@@ -36,4 +38,13 @@ test("diagramma: crea, salva layout e riapre", async ({ page }) => {
   page.on("dialog", (dialog) => void dialog.accept());
   await row.getByRole("button", { name: "Elimina" }).click();
   await expect(page.getByRole("row", { name: diagram })).toHaveCount(0);
+
+  await page.goto("/providers");
+  await page.getByLabel("Cerca").fill(provider);
+  await page.getByRole("button", { name: "Cerca" }).click();
+  await page
+    .getByRole("row", { name: provider })
+    .getByRole("button", { name: "Elimina" })
+    .click();
+  await expect(page.getByRole("row", { name: provider })).toHaveCount(0);
 });

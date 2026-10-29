@@ -17,6 +17,8 @@ test("inventario: provider, ambiente, applicazione e progetto", async ({
   await page.getByRole("button", { name: "Nuovo provider" }).click();
   await page.getByLabel("Nome").fill(provider);
   await page.getByRole("button", { name: "Salva" }).click();
+  await page.getByLabel("Cerca").fill(provider);
+  await page.getByRole("button", { name: "Cerca" }).click();
   await expect(page.getByRole("cell", { name: provider })).toBeVisible();
 
   await page
@@ -26,6 +28,8 @@ test("inventario: provider, ambiente, applicazione e progetto", async ({
   provider = `${provider} (mod)`;
   await page.getByLabel("Nome").fill(provider);
   await page.getByRole("button", { name: "Salva" }).click();
+  await page.getByLabel("Cerca").fill(provider);
+  await page.getByRole("button", { name: "Cerca" }).click();
   await expect(page.getByRole("cell", { name: provider })).toBeVisible();
 
   await page.goto("/environments");
@@ -33,6 +37,8 @@ test("inventario: provider, ambiente, applicazione e progetto", async ({
   await page.getByLabel("Nome").fill(environment);
   await page.getByLabel("Descrizione").fill("Ambiente creato dal test");
   await page.getByRole("button", { name: "Salva" }).click();
+  await page.getByLabel("Cerca").fill(environment);
+  await page.getByRole("button", { name: "Cerca" }).click();
   await page
     .getByRole("row", { name: environment })
     .getByRole("link", { name: "Apri" })
