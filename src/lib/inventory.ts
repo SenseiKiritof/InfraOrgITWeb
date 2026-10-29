@@ -63,6 +63,7 @@ export interface Application {
   description: string;
   basePath: string;
   listeningOnPort: number;
+  isFrontend: boolean;
   versionCount: number;
 }
 

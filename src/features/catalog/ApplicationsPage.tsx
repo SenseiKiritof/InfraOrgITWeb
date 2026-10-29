@@ -68,6 +68,7 @@ export function ApplicationsPage() {
         description: values.description,
         basePath: values.basePath,
         listeningOnPort: Number(values.listeningOnPort),
+        isFrontend: values.isFrontend === "true",
       },
       csrf,
     );
@@ -105,6 +106,11 @@ export function ApplicationsPage() {
             render: (row) => row.listeningOnPort,
           },
           {
+            key: "isFrontend",
+            label: "Tipo",
+            render: (row) => (row.isFrontend ? "FE" : "BE"),
+          },
+          {
             key: "versionCount",
             label: "Versioni",
             render: (row) => row.versionCount,
@@ -120,18 +126,25 @@ export function ApplicationsPage() {
             type: "number",
             required: true,
           },
+          {
+            name: "isFrontend",
+            label: "Applicazione frontend (senza API)",
+            type: "checkbox",
+          },
         ]}
         empty={{
           name: "",
           description: "",
           basePath: "",
           listeningOnPort: "",
+          isFrontend: "false",
         }}
         toForm={(row) => ({
           name: row.name,
           description: row.description,
           basePath: row.basePath,
           listeningOnPort: String(row.listeningOnPort),
+          isFrontend: String(row.isFrontend),
         })}
         canWrite={isAdmin}
         onSave={save}
@@ -189,6 +202,7 @@ export function ApplicationDetailPage() {
     enabled: Number.isInteger(applicationId),
   });
   const [openCall, setOpenCall] = useState<ApplicationApiCall | null>(null);
+  const isFrontend = application.data?.isFrontend ?? false;
 
   const versions = useQuery({
     queryKey: ["application-versions", "application", applicationId],
@@ -363,6 +377,7 @@ export function ApplicationDetailPage() {
         description: values.description,
         basePath: values.basePath,
         listeningOnPort: Number(values.listeningOnPort),
+        isFrontend: values.isFrontend === "true",
       },
       csrf,
     );
@@ -444,6 +459,11 @@ export function ApplicationDetailPage() {
             label: "Porta",
             render: (row) => row.listeningOnPort,
           },
+          {
+            key: "isFrontend",
+            label: "Tipo",
+            render: (row) => (row.isFrontend ? "FE" : "BE"),
+          },
         ]}
         fields={[
           { name: "name", label: "Nome", required: true },
@@ -455,18 +475,25 @@ export function ApplicationDetailPage() {
             type: "number",
             required: true,
           },
+          {
+            name: "isFrontend",
+            label: "Applicazione frontend (senza API)",
+            type: "checkbox",
+          },
         ]}
         empty={{
           name: "",
           description: "",
           basePath: "",
           listeningOnPort: "",
+          isFrontend: "false",
         }}
         toForm={(row) => ({
           name: row.name,
           description: row.description,
           basePath: row.basePath,
           listeningOnPort: String(row.listeningOnPort),
+          isFrontend: String(row.isFrontend),
         })}
         canWrite={isAdmin}
         canCreate={false}
@@ -493,19 +520,20 @@ export function ApplicationDetailPage() {
         onDelete={removeVersion}
         createLabel="Nuova versione"
       />
-      {versions.data?.items.map((version) => (
-        <NestedSection
-          key={version.id}
-          title={`API della versione ${version.versionNumber}`}
-        >
-          <ApiSection
-            version={version}
-            applicationId={applicationId}
-            canWrite={isAdmin}
-            csrfToken={csrf}
-          />
-        </NestedSection>
-      ))}
+      {!isFrontend &&
+        versions.data?.items.map((version) => (
+          <NestedSection
+            key={version.id}
+            title={`API della versione ${version.versionNumber}`}
+          >
+            <ApiSection
+              version={version}
+              applicationId={applicationId}
+              canWrite={isAdmin}
+              csrfToken={csrf}
+            />
+          </NestedSection>
+        ))}
       <EntitySection
         title="Server"
         rows={deployments.data?.items}
@@ -624,139 +652,145 @@ export function ApplicationDetailPage() {
         canCreate={false}
         onSave={saveEnvironment}
       />
-      <EntitySection
-        title="API key"
-        rows={apiKeys.data}
-        columns={[
-          { key: "name", label: "Nome", render: (row) => row.name },
-          {
-            key: "environmentId",
-            label: "Ambiente",
-            render: (row) =>
-              row.environmentId === null
-                ? "Tutti"
-                : (environments.data?.find(
-                    (environment) =>
-                      environment.environmentId === row.environmentId,
-                  )?.name ?? `#${row.environmentId}`),
-          },
-          {
-            key: "location",
-            label: "Posizione",
-            render: (row) => row.location,
-          },
-          {
-            key: "hasValue",
-            label: "Valore",
-            render: (row) => (row.hasValue ? "configurato" : "mancante"),
-          },
-        ]}
-        fields={[
-          { name: "name", label: "Nome (header o query)", required: true },
-          {
-            name: "environmentId",
-            label: "Ambiente",
-            type: "select",
-            options: [
-              { value: "", label: "Tutti gli ambienti" },
-              ...(environments.data ?? []).map((environment) => ({
-                value: String(environment.environmentId),
-                label: environment.name,
-              })),
-            ],
-          },
-          {
-            name: "location",
-            label: "Posizione",
-            type: "select",
-            required: true,
-            options: [
-              { value: "Header", label: "Header" },
-              { value: "Query", label: "Query" },
-            ],
-          },
-          {
-            name: "value",
-            label: "Valore (vuoto = mantieni)",
-          },
-        ]}
-        empty={{ name: "", environmentId: "", location: "Header", value: "" }}
-        toForm={(row) => ({
-          name: row.name,
-          environmentId:
-            row.environmentId === null ? "" : String(row.environmentId),
-          location: row.location,
-          value: "",
-        })}
-        canWrite={isAdmin}
-        onSave={saveApiKey}
-        onDelete={removeApiKey}
-        createLabel="Nuova API key"
-      />
-      <EntitySection
-        title="Chiamate"
-        rows={calls.data?.items}
-        columns={[
-          {
-            key: "createdAt",
-            label: "Data/ora",
-            render: (row) => formatDateTime(row.createdAt),
-          },
-          {
-            key: "environmentName",
-            label: "Ambiente",
-            render: (row) => row.environmentName,
-          },
-          { key: "method", label: "Metodo", render: (row) => row.method },
-          { key: "url", label: "URL", render: (row) => row.url },
-          {
-            key: "status",
-            label: "Stato",
-            render: (row) => row.status ?? "",
-          },
-          {
-            key: "durationMs",
-            label: "Durata ms",
-            render: (row) => row.durationMs,
-          },
-          {
-            key: "sizeBytes",
-            label: "Dimensione",
-            render: (row) => formatBytes(row.sizeBytes),
-          },
-        ]}
-        fields={[]}
-        empty={{}}
-        toForm={() => ({})}
-        canWrite
-        canCreate={false}
-        canEditRow={() => false}
-        onSave={async () => undefined}
-        onDelete={removeCall}
-        rowLabel={(row) => `${row.method} ${row.url}`}
-        rowActions={(row) => (
-          <button
-            type="button"
-            onClick={() => setOpenCall(row)}
-            className="text-sm text-slate-700 underline"
-          >
-            Apri
-          </button>
-        )}
-      />
-      {calls.data && calls.data.total > calls.data.items.length && (
-        <p className="text-xs text-slate-500">
-          Mostrate le ultime {calls.data.items.length} di {calls.data.total}{" "}
-          chiamate.
-        </p>
-      )}
-      {openCall && (
-        <SavedCallModal
-          callId={openCall.id}
-          applicationId={applicationId}
-          csrfToken={csrf}
-          onClose={() => setOpenCall(null)}
+      {!isFrontend && (
+        <EntitySection
+          title="API key"
+          rows={apiKeys.data}
+          columns={[
+            { key: "name", label: "Nome", render: (row) => row.name },
+            {
+              key: "environmentId",
+              label: "Ambiente",
+              render: (row) =>
+                row.environmentId === null
+                  ? "Tutti"
+                  : (environments.data?.find(
+                      (environment) =>
+                        environment.environmentId === row.environmentId,
+                    )?.name ?? `#${row.environmentId}`),
+            },
+            {
+              key: "location",
+              label: "Posizione",
+              render: (row) => row.location,
+            },
+            {
+              key: "hasValue",
+              label: "Valore",
+              render: (row) => (row.hasValue ? "configurato" : "mancante"),
+            },
+          ]}
+          fields={[
+            { name: "name", label: "Nome (header o query)", required: true },
+            {
+              name: "environmentId",
+              label: "Ambiente",
+              type: "select",
+              options: [
+                { value: "", label: "Tutti gli ambienti" },
+                ...(environments.data ?? []).map((environment) => ({
+                  value: String(environment.environmentId),
+                  label: environment.name,
+                })),
+              ],
+            },
+            {
+              name: "location",
+              label: "Posizione",
+              type: "select",
+              required: true,
+              options: [
+                { value: "Header", label: "Header" },
+                { value: "Query", label: "Query" },
+              ],
+            },
+            {
+              name: "value",
+              label: "Valore (vuoto = mantieni)",
+            },
+          ]}
+          empty={{ name: "", environmentId: "", location: "Header", value: "" }}
+          toForm={(row) => ({
+            name: row.name,
+            environmentId:
+              row.environmentId === null ? "" : String(row.environmentId),
+            location: row.location,
+            value: "",
+          })}
+          canWrite={isAdmin}
+          onSave={saveApiKey}
+          onDelete={removeApiKey}
+          createLabel="Nuova API key"
         />
+      )}
+      {!isFrontend && (
+        <>
+          <EntitySection
+            title="Chiamate"
+            rows={calls.data?.items}
+            columns={[
+              {
+                key: "createdAt",
+                label: "Data/ora",
+                render: (row) => formatDateTime(row.createdAt),
+              },
+              {
+                key: "environmentName",
+                label: "Ambiente",
+                render: (row) => row.environmentName,
+              },
+              { key: "method", label: "Metodo", render: (row) => row.method },
+              { key: "url", label: "URL", render: (row) => row.url },
+              {
+                key: "status",
+                label: "Stato",
+                render: (row) => row.status ?? "",
+              },
+              {
+                key: "durationMs",
+                label: "Durata ms",
+                render: (row) => row.durationMs,
+              },
+              {
+                key: "sizeBytes",
+                label: "Dimensione",
+                render: (row) => formatBytes(row.sizeBytes),
+              },
+            ]}
+            fields={[]}
+            empty={{}}
+            toForm={() => ({})}
+            canWrite
+            canCreate={false}
+            canEditRow={() => false}
+            onSave={async () => undefined}
+            onDelete={removeCall}
+            rowLabel={(row) => `${row.method} ${row.url}`}
+            rowActions={(row) => (
+              <button
+                type="button"
+                onClick={() => setOpenCall(row)}
+                className="text-sm text-slate-700 underline"
+              >
+                Apri
+              </button>
+            )}
+          />
+          {calls.data && calls.data.total > calls.data.items.length && (
+            <p className="text-xs text-slate-500">
+              Mostrate le ultime {calls.data.items.length} di {calls.data.total}{" "}
+              chiamate.
+            </p>
+          )}
+          {openCall && (
+            <SavedCallModal
+              callId={openCall.id}
+              applicationId={applicationId}
+              csrfToken={csrf}
+              onClose={() => setOpenCall(null)}
+            />
+          )}
+        </>
       )}
       <EntitySection
         title="Progetti collegati"
