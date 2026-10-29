@@ -50,14 +50,19 @@ function Projects({ projects }: { projects: TopologyProject[] }) {
   if (projects.length === 0) return null;
   const shown = projects.slice(0, 3);
   const extra = projects.length - shown.length;
+  // Una sola riga: buildGraph riserva l'altezza di una riga di tag (HEADER, APP_H).
   return (
-    <div className="flex flex-wrap gap-1 px-2 py-1">
+    <div className="flex gap-1 overflow-hidden px-2 py-1">
       {shown.map((project) => (
-        <span key={project.id} className="graph-project" title={project.name}>
+        <span
+          key={project.id}
+          className="graph-project min-w-0 truncate"
+          title={project.name}
+        >
           {project.name}
         </span>
       ))}
-      {extra > 0 && <span className="graph-project">+{extra}</span>}
+      {extra > 0 && <span className="graph-project shrink-0">+{extra}</span>}
     </div>
   );
 }
@@ -94,7 +99,7 @@ export function ApplicationNode({ data }: { data: GraphNodeData }) {
   return (
     <div className="graph-node graph-node-application">
       <Anchors target />
-      <p className="truncate text-xs font-semibold" title={data.label}>
+      <p className="shrink-0 truncate text-xs font-semibold" title={data.label}>
         {data.label}
       </p>
       {data.exposedPort != null && (
