@@ -59,6 +59,7 @@ describe("ConsoleModal", () => {
     fireEvent.keyDown(terminal, { key: "s" });
     fireEvent.keyDown(terminal, { key: "Delete" });
     fireEvent.keyDown(terminal, { key: "ArrowLeft" });
+    fireEvent.keyDown(terminal, { key: "Escape" });
     fireEvent.keyDown(terminal, { key: "Enter" });
 
     expect(socket.sent).toEqual([
@@ -66,6 +67,7 @@ describe("ConsoleModal", () => {
       new TextEncoder().encode("s"),
       new TextEncoder().encode("\u001b[3~"),
       new TextEncoder().encode("\u001b[D"),
+      new TextEncoder().encode("\u001b"),
       new TextEncoder().encode("\r"),
     ]);
   });

@@ -128,6 +128,7 @@ export function ConsoleModal({
     else if (event.key === "ArrowLeft") send("\u001b[D");
     else if (event.key === "Home") send("\u0001");
     else if (event.key === "End") send("\u0005");
+    else if (event.key === "Escape") send("\u001b");
     else if (event.key.length === 1) send(event.key);
     else return;
     event.preventDefault();
