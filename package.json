@@ -15,6 +15,8 @@
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@tanstack/react-query": "^5.104.5",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
     "@xyflow/react": "^12",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

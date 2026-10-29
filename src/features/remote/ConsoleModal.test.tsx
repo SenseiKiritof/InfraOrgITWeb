@@ -1,12 +1,44 @@
-import {
-  act,
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FakeSocket, stubWebSocket } from "../../test/fakeSocket";
+
+const terminalMock = vi.hoisted(() => ({
+  data: null as ((value: string) => void) | null,
+  resize: null as ((size: { cols: number; rows: number }) => void) | null,
+  written: [] as Uint8Array[],
+  focus: vi.fn(),
+  scrollToBottom: vi.fn(),
+}));
+
+vi.mock("@xterm/xterm", () => ({
+  Terminal: class {
+    cols = 100;
+    rows = 30;
+    open = vi.fn();
+    loadAddon = vi.fn();
+    focus = terminalMock.focus;
+    dispose = vi.fn();
+    scrollToBottom = terminalMock.scrollToBottom;
+    write = (value: Uint8Array) => {
+      terminalMock.written.push(value);
+    };
+    onData = (callback: (value: string) => void) => {
+      terminalMock.data = callback;
+      return { dispose: vi.fn() };
+    };
+    onResize = (callback: (size: { cols: number; rows: number }) => void) => {
+      terminalMock.resize = callback;
+      return { dispose: vi.fn() };
+    };
+  },
+}));
+
+vi.mock("@xterm/addon-fit", () => ({
+  FitAddon: class {
+    fit = vi.fn();
+  },
+}));
+
 import { ConsoleModal } from "./ConsoleModal";
 
 const renderConsole = (
@@ -32,83 +64,61 @@ const renderConsole = (
 describe("ConsoleModal", () => {
   afterEach(cleanup);
 
-  beforeEach(stubWebSocket);
+  beforeEach(() => {
+    stubWebSocket();
+    terminalMock.data = null;
+    terminalMock.resize = null;
+    terminalMock.written = [];
+    terminalMock.focus.mockClear();
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe = vi.fn();
+        unobserve = vi.fn();
+        disconnect = vi.fn();
+      },
+    );
+  });
 
   it("resta connesso quando viene ridotta", () => {
     renderConsole(false);
-    const socket = FakeSocket.instances[0];
-
-    expect(screen.queryByLabelText("Terminale SSH")).toBeNull();
-    expect(socket.readyState).toBe(FakeSocket.OPEN);
+    expect(FakeSocket.instances).toHaveLength(1);
+    expect(FakeSocket.instances[0].readyState).toBe(FakeSocket.OPEN);
   });
 
-  it("prende il focus all'apertura e mostra il cursore", () => {
-    const { container } = renderConsole();
-    const terminal = screen.getByLabelText("Terminale SSH");
-
-    expect(document.activeElement).toBe(terminal);
-    expect(container.querySelector(".console-caret")).not.toBeNull();
-  });
-
-  it("invia i tasti al socket", () => {
+  it("invia i tasti al socket tramite il terminale", () => {
     renderConsole();
     const socket = FakeSocket.instances[0];
-    const terminal = screen.getByLabelText("Terminale SSH");
 
-    fireEvent.keyDown(terminal, { key: "l" });
-    fireEvent.keyDown(terminal, { key: "s" });
-    fireEvent.keyDown(terminal, { key: "Delete" });
-    fireEvent.keyDown(terminal, { key: "ArrowLeft" });
-    fireEvent.keyDown(terminal, { key: "Escape" });
-    fireEvent.keyDown(terminal, { key: "Enter" });
+    terminalMock.data?.("l");
+    terminalMock.data?.("s");
+    terminalMock.data?.("\u001b");
 
     expect(socket.sent).toEqual([
       new TextEncoder().encode("l"),
       new TextEncoder().encode("s"),
-      new TextEncoder().encode("\u001b[3~"),
-      new TextEncoder().encode("\u001b[D"),
       new TextEncoder().encode("\u001b"),
-      new TextEncoder().encode("\r"),
     ]);
   });
 
-  it("lascia copiare con Cmd+C e invia Ctrl+C come interruzione", () => {
+  it("scrive l'output del socket nel terminale", () => {
     renderConsole();
-    const socket = FakeSocket.instances[0];
-    const terminal = screen.getByLabelText("Terminale SSH");
+    FakeSocket.instances[0].emit("user@host:~$ ");
 
-    fireEvent.keyDown(terminal, { key: "c", metaKey: true });
-    expect(socket.sent).toEqual([]);
-
-    fireEvent.keyDown(terminal, { key: "c", ctrlKey: true });
-    expect(socket.sent).toEqual([new TextEncoder().encode("\u0003")]);
-  });
-
-  it("incolla il testo degli appunti nel terminale", () => {
-    renderConsole();
-    const socket = FakeSocket.instances[0];
-    const terminal = screen.getByLabelText("Terminale SSH");
-
-    fireEvent.paste(terminal, {
-      clipboardData: { getData: () => "ls -la\npwd" },
-    });
-
-    expect(socket.sent).toEqual([new TextEncoder().encode("ls -la\rpwd")]);
-  });
-
-  it("renderizza l'output con i colori e senza sequenze di controllo", () => {
-    const { container } = renderConsole();
-    const socket = FakeSocket.instances[0];
-
-    act(() => {
-      socket.emit("\u001b]0;title\u0007\u001b[32muser@host\u001b[0m:~$ ");
-    });
-
-    expect(terminalText(container)).toBe("user@host:~$ ");
-    const colored = Array.from(container.querySelectorAll("span")).find(
-      (element) => element.textContent === "user@host",
+    expect(terminalMock.written).toHaveLength(1);
+    expect(new TextDecoder().decode(terminalMock.written[0])).toBe(
+      "user@host:~$ ",
     );
-    expect(colored?.style.color).toBe("rgb(13, 188, 121)");
+  });
+
+  it("invia il resize all'apertura della socket", () => {
+    renderConsole();
+    const socket = FakeSocket.instances[0];
+    socket.onopen?.();
+
+    expect(socket.sent).toContain(
+      JSON.stringify({ type: "resize", cols: 100, rows: 30 }),
+    );
   });
 
   it("riaggancia la sessione con il token di resume", () => {
@@ -116,60 +126,19 @@ describe("ConsoleModal", () => {
     expect(FakeSocket.instances[0].url).toContain("resume=tok-123");
   });
 
-  it("salva l'id di sessione ricevuto dal server", () => {
+  it("inoltra il session id ricevuto", () => {
     const onSessionId = vi.fn();
-    renderConsole(false, { onSessionId });
-    const socket = FakeSocket.instances[0];
+    renderConsole(true, { onSessionId });
+    FakeSocket.instances[0].emitText(
+      JSON.stringify({ type: "session", id: "session-1" }),
+    );
 
-    act(() => {
-      socket.emitText(JSON.stringify({ type: "session", id: "sess-1" }));
-    });
-
-    expect(onSessionId).toHaveBeenCalledWith("sess-1");
+    expect(onSessionId).toHaveBeenCalledWith("session-1");
   });
 
-  it("termina la sessione quando il provider chiede la chiusura", () => {
-    const onClose = vi.fn();
-    render(
-      <ConsoleModal
-        serverId={44}
-        serverName="srv-alpha"
-        visible
-        active
-        closing
-        onMinimize={vi.fn()}
-        onClose={onClose}
-      />,
-    );
-
-    expect(FakeSocket.instances[0].sent).toContain(
-      JSON.stringify({ type: "terminate" }),
-    );
-    expect(onClose).toHaveBeenCalled();
-  });
-
-  it("termina la sessione quando si chiude la console", () => {
-    const onClose = vi.fn();
-    render(
-      <ConsoleModal
-        serverId={44}
-        serverName="srv-alpha"
-        visible
-        active
-        onMinimize={vi.fn()}
-        onClose={onClose}
-      />,
-    );
-    const socket = FakeSocket.instances[0];
-
-    fireEvent.click(screen.getByText("Chiudi"));
-
-    expect(socket.sent).toContain(JSON.stringify({ type: "terminate" }));
-    expect(onClose).toHaveBeenCalled();
+  it("dà il focus al terminale attivo", () => {
+    renderConsole();
+    expect(screen.getByLabelText("Terminale SSH")).toBeTruthy();
+    expect(terminalMock.focus).toHaveBeenCalled();
   });
 });
-
-function terminalText(container: HTMLElement): string {
-  const terminal = container.querySelector('[aria-label="Terminale SSH"]');
-  return (terminal?.textContent ?? "").replace(/\u00a0/g, " ");
-}

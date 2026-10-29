@@ -7,6 +7,32 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FakeSocket, stubWebSocket } from "../../test/fakeSocket";
+
+vi.mock("@xterm/xterm", () => ({
+  Terminal: class {
+    cols = 100;
+    rows = 30;
+    open = vi.fn();
+    loadAddon = vi.fn();
+    focus = vi.fn();
+    dispose = vi.fn();
+    write = vi.fn();
+    onData = () => ({ dispose: vi.fn() });
+    onResize = () => ({ dispose: vi.fn() });
+  },
+}));
+
+vi.mock("@xterm/addon-fit", () => ({
+  FitAddon: class {
+    fit = vi.fn();
+  },
+}));
+
+const terminalHidden = () => {
+  const node = screen.queryByLabelText("Terminale SSH") as HTMLElement | null;
+  return node === null || node.closest("[hidden]") !== null;
+};
+
 import {
   ConsoleProvider,
   clearConsoleSessions,
@@ -44,6 +70,14 @@ describe("ConsoleProvider", () => {
   beforeEach(() => {
     sessionStorage.clear();
     stubWebSocket();
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe = vi.fn();
+        unobserve = vi.fn();
+        disconnect = vi.fn();
+      },
+    );
   });
 
   it("riduce la console nella barra senza chiudere la sessione", () => {
@@ -51,11 +85,11 @@ describe("ConsoleProvider", () => {
     fireEvent.click(screen.getByText("Apri console"));
 
     const socket = FakeSocket.instances[0];
-    expect(screen.getByLabelText("Terminale SSH")).toBeTruthy();
+    expect(terminalHidden()).toBe(false);
 
     fireEvent.click(screen.getByText("Riduci"));
 
-    expect(screen.queryByLabelText("Terminale SSH")).toBeNull();
+    expect(terminalHidden()).toBe(true);
     expect(socket.readyState).toBe(FakeSocket.OPEN);
     expect(screen.getByText("srv-alpha")).toBeTruthy();
   });
@@ -66,7 +100,7 @@ describe("ConsoleProvider", () => {
     fireEvent.click(screen.getByText("Riduci"));
     fireEvent.click(screen.getByText("srv-alpha"));
 
-    expect(screen.getByLabelText("Terminale SSH")).toBeTruthy();
+    expect(terminalHidden()).toBe(false);
     expect(FakeSocket.instances).toHaveLength(1);
   });
 
@@ -198,7 +232,7 @@ describe("ConsoleProvider", () => {
     first.unmount();
     renderWithProvider();
 
-    expect(screen.getByLabelText("Terminale SSH")).toBeTruthy();
+    expect(terminalHidden()).toBe(false);
     expect(FakeSocket.instances).toHaveLength(2);
     expect(FakeSocket.instances[1].url).toContain("resume=tok-9");
   });

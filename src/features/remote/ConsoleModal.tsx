@@ -1,6 +1,7 @@
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { type AnsiSegment, parseAnsi } from "../../lib/ansi";
-import { appendOutput } from "../../lib/terminalBuffer";
+import { FitAddon } from "@xterm/addon-fit";
+import { Terminal } from "@xterm/xterm";
+import { useCallback, useEffect, useRef, useState } from "react";
+import "@xterm/xterm/css/xterm.css";
 
 export function ConsoleModal({
   serverId,
@@ -27,11 +28,11 @@ export function ConsoleModal({
   onMinimize: () => void;
   onClose: () => void;
 }) {
-  const [output, setOutput] = useState("");
   const [status, setStatus] = useState("Connessione…");
-  const [focused, setFocused] = useState(false);
+  const container = useRef<HTMLDivElement | null>(null);
+  const terminal = useRef<Terminal | null>(null);
+  const fit = useRef<FitAddon | null>(null);
   const socket = useRef<WebSocket | null>(null);
-  const terminal = useRef<HTMLDivElement | null>(null);
   const sessionCallback = useRef(onSessionId);
   sessionCallback.current = onSessionId;
   const dataCallback = useRef(onData);
@@ -39,23 +40,74 @@ export function ConsoleModal({
   const closeCallback = useRef(onClose);
   closeCallback.current = onClose;
   const closed = useRef(false);
-  const follow = useRef(true);
+  const visibleRef = useRef(visible);
   const initialResume = useRef(resumeId);
-  const screen = useMemo(() => parseAnsi(output), [output]);
+
+  const send = useCallback((value: string) => {
+    if (socket.current?.readyState === WebSocket.OPEN)
+      socket.current.send(new TextEncoder().encode(value));
+  }, []);
+
+  const sendResize = useCallback((cols: number, rows: number) => {
+    if (socket.current?.readyState === WebSocket.OPEN)
+      socket.current.send(JSON.stringify({ type: "resize", cols, rows }));
+  }, []);
 
   useEffect(() => {
-    if (!active) return;
-    const element = terminal.current;
-    element?.focus();
-    follow.current = true;
-    if (element) element.scrollTop = element.scrollHeight;
-  }, [active]);
+    const element = container.current;
+    if (!element) return;
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: deve riallineare dopo ogni chunk di output
+    const term = new Terminal({
+      convertEol: false,
+      cursorBlink: true,
+      fontFamily:
+        'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
+      fontSize: 12,
+      scrollback: 5000,
+      theme: {
+        background: "#020617",
+        foreground: "#e2e8f0",
+        cursor: "#34d399",
+        selectionBackground: "#334155",
+      },
+    });
+    const fitAddon = new FitAddon();
+    term.loadAddon(fitAddon);
+    term.open(element);
+    terminal.current = term;
+    fit.current = fitAddon;
+
+    const dataSubscription = term.onData((data) => send(data));
+    const resizeSubscription = term.onResize(({ cols, rows }) =>
+      sendResize(cols, rows),
+    );
+    const observer = new ResizeObserver(() => {
+      if (visibleRef.current) fitAddon.fit();
+    });
+    observer.observe(element);
+
+    return () => {
+      dataSubscription.dispose();
+      resizeSubscription.dispose();
+      observer.disconnect();
+      term.dispose();
+      terminal.current = null;
+      fit.current = null;
+    };
+  }, [send, sendResize]);
+
   useEffect(() => {
-    const element = terminal.current;
-    if (element && follow.current) element.scrollTop = element.scrollHeight;
-  }, [output]);
+    visibleRef.current = visible;
+    if (!visible) return;
+    requestAnimationFrame(() => {
+      try {
+        fit.current?.fit();
+      } catch {
+        // il pannello non è ancora dimensionato
+      }
+    });
+    if (active) terminal.current?.focus();
+  }, [visible, active]);
 
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
@@ -65,12 +117,12 @@ export function ConsoleModal({
       `${protocol}://${window.location.host}/api/socket/servers/${serverId}/console?${query}`,
     );
     ws.binaryType = "arraybuffer";
-    const decoder = new TextDecoder();
     socket.current = ws;
 
     ws.onopen = () => {
       setStatus("Connesso");
-      ws.send(JSON.stringify({ type: "resize", cols: 100, rows: 30 }));
+      const term = terminal.current;
+      if (term) sendResize(term.cols, term.rows);
     };
     ws.onmessage = (event) => {
       if (typeof event.data === "string") {
@@ -78,8 +130,7 @@ export function ConsoleModal({
         return;
       }
 
-      const text = decoder.decode(event.data as ArrayBuffer, { stream: true });
-      setOutput((current) => appendOutput(current, text));
+      terminal.current?.write(new Uint8Array(event.data as ArrayBuffer));
       dataCallback.current?.();
     };
     ws.onerror = () => setStatus("Errore di connessione");
@@ -89,7 +140,7 @@ export function ConsoleModal({
       ws.close();
       socket.current = null;
     };
-  }, [serverId]);
+  }, [serverId, sendResize]);
 
   useEffect(() => {
     if (!closing || closed.current) return;
@@ -98,53 +149,11 @@ export function ConsoleModal({
     closeCallback.current();
   }, [closing]);
 
-  const send = (value: string) => {
-    if (socket.current?.readyState === WebSocket.OPEN)
-      socket.current.send(new TextEncoder().encode(value));
-  };
-
-  const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    // macOS: Cmd+C/V/A stay with the browser (copy, paste, select all).
-    if (event.metaKey) return;
-    // Windows/Linux: Ctrl+Shift+C/V are copy/paste.
-    if (event.ctrlKey && event.shiftKey) return;
-    // Ctrl+V pastes through the paste event.
-    if (event.ctrlKey && event.key.toLowerCase() === "v") return;
-    if (event.ctrlKey && /^[a-z]$/i.test(event.key)) {
-      send(String.fromCharCode(event.key.toUpperCase().charCodeAt(0) - 64));
-      event.preventDefault();
-      return;
-    }
-
-    if (event.key === "Enter") {
-      follow.current = true;
-      send("\r");
-    } else if (event.key === "Backspace") send("\u007f");
-    else if (event.key === "Delete") send("\u001b[3~");
-    else if (event.key === "Tab") send("\t");
-    else if (event.key === "ArrowUp") send("\u001b[A");
-    else if (event.key === "ArrowDown") send("\u001b[B");
-    else if (event.key === "ArrowRight") send("\u001b[C");
-    else if (event.key === "ArrowLeft") send("\u001b[D");
-    else if (event.key === "Home") send("\u0001");
-    else if (event.key === "End") send("\u0005");
-    else if (event.key === "Escape") send("\u001b");
-    else if (event.key.length === 1) send(event.key);
-    else return;
-    event.preventDefault();
-  };
-
-  const onPaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
-    const text = event.clipboardData.getData("text");
-    if (!text) return;
-    event.preventDefault();
-    send(text.replace(/\r?\n/g, "\r"));
-  };
-
-  if (!visible) return null;
-
   return (
-    <div className="pointer-events-auto flex h-full min-h-0 w-full flex-col rounded-lg border border-slate-700 bg-slate-950 p-3 shadow-xl">
+    <div
+      hidden={!visible}
+      className="pointer-events-auto flex h-full min-h-0 w-full flex-col rounded-lg border border-slate-700 bg-slate-950 p-3 shadow-xl"
+    >
       <div className="mb-2 flex items-center justify-between gap-2 text-sm text-slate-200">
         <p className="min-w-0 truncate">
           Console SSH · {serverName}{" "}
@@ -173,52 +182,12 @@ export function ConsoleModal({
         </div>
       </div>
       <div
+        ref={container}
+        role="application"
         aria-label="Terminale SSH"
-        role="log"
-        // biome-ignore lint/a11y/noNoninteractiveTabindex: il terminale deve ricevere la tastiera; textarea non può colorare l'output
-        tabIndex={0}
-        ref={terminal}
-        onKeyDown={onKeyDown}
-        onPaste={onPaste}
-        onScroll={() => {
-          const element = terminal.current;
-          if (!element) return;
-          follow.current =
-            element.scrollHeight - element.scrollTop - element.clientHeight <
-            40;
-        }}
-        onFocus={() => {
-          setFocused(true);
-          onActivate?.();
-        }}
-        onBlur={() => setFocused(false)}
-        className="min-h-0 flex-1 cursor-text overflow-auto whitespace-pre rounded bg-black p-3 font-mono text-xs text-slate-100 outline-none ring-emerald-400/70 focus:ring-2"
-      >
-        {output ? (
-          screen.rows.map((row, index) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: righe posizionali del terminale
-            <div key={index} className="min-h-[1.2em]">
-              <TerminalRow
-                segments={row}
-                caret={index === screen.cursor.row ? screen.cursor.col : null}
-                focused={focused}
-              />
-            </div>
-          ))
-        ) : (
-          <span className="text-slate-400">
-            Clicca qui e premi Invio per iniziare.
-          </span>
-        )}
-        {!output && (
-          <span
-            aria-hidden="true"
-            className={
-              focused ? "console-caret" : "console-caret console-caret-idle"
-            }
-          />
-        )}
-      </div>
+        onFocus={() => onActivate?.()}
+        className="min-h-0 flex-1 overflow-hidden rounded bg-black p-2"
+      />
     </div>
   );
 }
@@ -235,75 +204,4 @@ function handleControl(message: string, onSessionId?: (id: string) => void) {
   } catch {
     // frame di controllo malformato: ignorato
   }
-}
-
-function Caret({ focused }: { focused: boolean }) {
-  return (
-    <span
-      aria-hidden="true"
-      className={focused ? "console-caret" : "console-caret console-caret-idle"}
-    />
-  );
-}
-
-function TerminalRow({
-  segments,
-  caret,
-  focused,
-}: {
-  segments: AnsiSegment[];
-  caret: number | null;
-  focused: boolean;
-}) {
-  const nodes: ReactNode[] = [];
-  let offset = 0;
-  let placed = caret === null;
-
-  segments.forEach((segment) => {
-    const style = {
-      color: segment.fg,
-      backgroundColor: segment.bg,
-      fontWeight: segment.bold ? 600 : undefined,
-      opacity: segment.dim ? 0.75 : undefined,
-      textDecoration: segment.underline ? "underline" : undefined,
-    };
-    const start = offset;
-    const end = offset + segment.text.length;
-
-    if (!placed && caret !== null && caret > start && caret < end) {
-      const cut = caret - start;
-      nodes.push(
-        <span key={`s${start}a`} style={style}>
-          {segment.text.slice(0, cut)}
-        </span>,
-      );
-      nodes.push(<Caret key={`c${start}`} focused={focused} />);
-      nodes.push(
-        <span key={`s${start}b`} style={style}>
-          {segment.text.slice(cut)}
-        </span>,
-      );
-      placed = true;
-    } else {
-      if (!placed && caret !== null && caret === start) {
-        nodes.push(<Caret key={`c${start}`} focused={focused} />);
-        placed = true;
-      }
-      nodes.push(
-        <span key={`s${start}`} style={style}>
-          {segment.text}
-        </span>,
-      );
-    }
-
-    offset = end;
-  });
-
-  if (!placed && caret !== null) {
-    const padding = caret - offset;
-    if (padding > 0) nodes.push(<span key="pad">{" ".repeat(padding)}</span>);
-    nodes.push(<Caret key="caret" focused={focused} />);
-  }
-
-  return <>{nodes}</>;
 }
