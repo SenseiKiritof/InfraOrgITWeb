@@ -39,6 +39,21 @@ import { ApiCallModal } from "./ApiCallModal";
 import { ApiSpecImport } from "./ApiSpecImport";
 import { SavedCallModal } from "./SavedCallModal";
 
+const applicationTypes = [
+  { value: "Backend", label: "Backend" },
+  { value: "Frontend", label: "Frontend" },
+  { value: "Sftp", label: "SFTP" },
+  { value: "RabbitMq", label: "RabbitMQ" },
+  { value: "Nginx", label: "NGINX" },
+  { value: "Elastic", label: "Elastic" },
+  { value: "Kibana", label: "Kibana" },
+  { value: "Kafka", label: "Kafka" },
+] as const;
+
+function applicationTypeLabel(value: string): string {
+  return applicationTypes.find((type) => type.value === value)?.label ?? value;
+}
+
 const requestTypes = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
 const paramTypes = [
   "Int",
@@ -71,7 +86,7 @@ export function ApplicationsPage() {
         description: values.description,
         basePath: values.basePath,
         listeningOnPort: Number(values.listeningOnPort),
-        isFrontend: values.isFrontend === "true",
+        type: values.type,
       },
       csrf,
     );
@@ -109,9 +124,9 @@ export function ApplicationsPage() {
             render: (row) => row.listeningOnPort,
           },
           {
-            key: "isFrontend",
+            key: "type",
             label: t("common.type"),
-            render: (row) => (row.isFrontend ? "FE" : "BE"),
+            render: (row) => applicationTypeLabel(row.type),
           },
           {
             key: "versionCount",
@@ -134,9 +149,11 @@ export function ApplicationsPage() {
             required: true,
           },
           {
-            name: "isFrontend",
-            label: t("applications.isFrontend"),
-            type: "checkbox",
+            name: "type",
+            label: t("applications.type"),
+            type: "select",
+            required: true,
+            options: applicationTypes.map((type) => ({ ...type })),
           },
         ]}
         empty={{
@@ -144,14 +161,14 @@ export function ApplicationsPage() {
           description: "",
           basePath: "",
           listeningOnPort: "",
-          isFrontend: "false",
+          type: "Backend",
         }}
         toForm={(row) => ({
           name: row.name,
           description: row.description,
           basePath: row.basePath,
           listeningOnPort: String(row.listeningOnPort),
-          isFrontend: String(row.isFrontend),
+          type: row.type,
         })}
         canWrite={isAdmin}
         onSave={save}
@@ -210,7 +227,7 @@ export function ApplicationDetailPage() {
     enabled: Number.isInteger(applicationId),
   });
   const [openCall, setOpenCall] = useState<ApplicationApiCall | null>(null);
-  const isFrontend = application.data?.isFrontend ?? false;
+  const isFrontend = application.data?.type === "Frontend";
 
   const versions = useQuery({
     queryKey: ["application-versions", "application", applicationId],
@@ -385,7 +402,7 @@ export function ApplicationDetailPage() {
         description: values.description,
         basePath: values.basePath,
         listeningOnPort: Number(values.listeningOnPort),
-        isFrontend: values.isFrontend === "true",
+        type: values.type,
       },
       csrf,
     );
@@ -470,9 +487,9 @@ export function ApplicationDetailPage() {
             render: (row) => row.listeningOnPort,
           },
           {
-            key: "isFrontend",
+            key: "type",
             label: t("common.type"),
-            render: (row) => (row.isFrontend ? "FE" : "BE"),
+            render: (row) => applicationTypeLabel(row.type),
           },
         ]}
         fields={[
@@ -490,9 +507,11 @@ export function ApplicationDetailPage() {
             required: true,
           },
           {
-            name: "isFrontend",
-            label: t("applications.isFrontend"),
-            type: "checkbox",
+            name: "type",
+            label: t("applications.type"),
+            type: "select",
+            required: true,
+            options: applicationTypes.map((type) => ({ ...type })),
           },
         ]}
         empty={{
@@ -500,14 +519,14 @@ export function ApplicationDetailPage() {
           description: "",
           basePath: "",
           listeningOnPort: "",
-          isFrontend: "false",
+          type: "Backend",
         }}
         toForm={(row) => ({
           name: row.name,
           description: row.description,
           basePath: row.basePath,
           listeningOnPort: String(row.listeningOnPort),
-          isFrontend: String(row.isFrontend),
+          type: row.type,
         })}
         canWrite={isAdmin}
         canCreate={false}
