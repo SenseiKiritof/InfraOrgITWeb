@@ -123,6 +123,7 @@ const it = {
   "providers.create": "Nuovo provider",
   "providers.detail": "Provider",
   "providers.environments": "Ambienti del provider",
+  "providers.updated": "Provider aggiornato.",
 
   // Environments
   "environments.title": "Ambienti",
@@ -131,6 +132,7 @@ const it = {
   "environments.create": "Nuovo ambiente",
   "environments.detail": "Ambiente",
   "environments.linkedProviders": "Provider collegati",
+  "environments.updated": "Ambiente aggiornato.",
   "environments.linkProvider": "Collega provider",
   "environments.roles": "Ruoli per ambiente",
   "environments.assignRole": "Assegna ruolo",
@@ -203,6 +205,7 @@ const it = {
   "applications.detail": "Applicazione",
   "applications.listeningPort": "Porta in ascolto",
   "applications.type": "Tipo applicazione",
+  "applications.updated": "Applicazione aggiornata.",
   "applications.versionNumber": "Numero versione",
   "applications.createVersion": "Nuova versione",
   "applications.versionApis": "API della versione {version}",
@@ -577,6 +580,7 @@ const en: Record<TranslationKey, string> = {
   "providers.create": "New provider",
   "providers.detail": "Provider",
   "providers.environments": "Provider environments",
+  "providers.updated": "Provider updated.",
 
   // Environments
   "environments.title": "Environments",
@@ -584,6 +588,7 @@ const en: Record<TranslationKey, string> = {
   "environments.create": "New environment",
   "environments.detail": "Environment",
   "environments.linkedProviders": "Linked providers",
+  "environments.updated": "Environment updated.",
   "environments.linkProvider": "Link provider",
   "environments.roles": "Environment roles",
   "environments.assignRole": "Assign role",
@@ -656,6 +661,7 @@ const en: Record<TranslationKey, string> = {
   "applications.detail": "Application",
   "applications.listeningPort": "Listening port",
   "applications.type": "Application type",
+  "applications.updated": "Application updated.",
   "applications.versionNumber": "Version number",
   "applications.createVersion": "New version",
   "applications.versionApis": "APIs of version {version}",

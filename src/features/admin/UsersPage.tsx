@@ -150,13 +150,11 @@ export function UsersPage() {
 
       <div className="rounded-lg border border-slate-200 bg-white">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-            {t("users.title")}
-          </h2>
+          <span />
           <button
             type="button"
             onClick={() => start("new")}
-            className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
+            className="rounded-md border border-transparent bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
           >
             {t("users.create")}
           </button>
@@ -313,7 +311,7 @@ export function UsersPage() {
               </button>
               <button
                 type="submit"
-                className="rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white"
+                className="rounded-md border border-transparent bg-slate-900 px-3 py-1.5 text-sm text-white"
               >
                 {t("common.save")}
               </button>

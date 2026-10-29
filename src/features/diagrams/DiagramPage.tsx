@@ -287,7 +287,7 @@ export function DiagramPage() {
           <button
             type="button"
             onClick={() => void createDefault()}
-            className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white"
+            className="rounded-md border border-transparent bg-slate-900 px-3 py-1.5 text-sm font-medium text-white"
           >
             {t("diagrams.createGlobal")}
           </button>
@@ -329,7 +329,7 @@ export function DiagramPage() {
           <button
             type="button"
             onClick={() => void save()}
-            className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white"
+            className="rounded-md border border-transparent bg-slate-900 px-3 py-1.5 text-sm font-medium text-white"
           >
             {t("common.save")}
           </button>

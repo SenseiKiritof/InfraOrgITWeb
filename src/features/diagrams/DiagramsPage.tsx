@@ -243,14 +243,12 @@ export function DiagramsPage() {
 
       <div className="rounded-lg border border-slate-200 bg-white">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-            {t("diagrams.title")}
-          </h2>
+          <span />
           {canCreate && (
             <button
               type="button"
               onClick={startCreate}
-              className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
+              className="rounded-md border border-transparent bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
             >
               {t("diagrams.create")}
             </button>
@@ -486,7 +484,7 @@ export function DiagramsPage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+                className="rounded-md border border-transparent bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
               >
                 {t("common.save")}
               </button>

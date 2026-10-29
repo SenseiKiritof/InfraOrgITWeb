@@ -6,6 +6,7 @@ import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
 import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import { PageHeader, SearchForm } from "../../components/page";
+import { RecordCard } from "../../components/RecordCard";
 import { apiFetch } from "../../lib/api";
 import type { Topology } from "../../lib/diagrams";
 import { useI18n } from "../../lib/i18n";
@@ -174,8 +175,7 @@ export function ProjectDetailPage() {
     });
   }, [project.data]);
 
-  const saveProject = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const saveProject = async () => {
     if (!project.data) return;
     setMessage(null);
     try {
@@ -218,64 +218,22 @@ export function ProjectDetailPage() {
   return (
     <section className="space-y-4">
       <PageHeaderSlot title={project.data?.name ?? t("projects.detail")} />
-      <section className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-          {t("common.record")}
-        </h2>
-        {!project.data ? (
-          <p className="mt-2 text-slate-500">{t("common.loading")}</p>
-        ) : isAdmin ? (
-          <form
-            onSubmit={(event) => void saveProject(event)}
-            className="mt-3 space-y-3"
-          >
-            <label className="flex flex-col gap-1">
-              <span className="text-xs text-slate-500">{t("common.name")}</span>
-              <input
-                value={edit.name}
-                onChange={(event) =>
-                  setEdit({ ...edit, name: event.target.value })
-                }
-                required
-                className="rounded-md border border-slate-300 px-3 py-1.5"
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-xs text-slate-500">
-                {t("common.description")}
-              </span>
-              <textarea
-                value={edit.description}
-                onChange={(event) =>
-                  setEdit({ ...edit, description: event.target.value })
-                }
-                rows={3}
-                className="rounded-md border border-slate-300 px-3 py-1.5"
-              />
-            </label>
-            <div className="flex items-center gap-3">
-              <button
-                type="submit"
-                className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
-              >
-                {t("common.save")}
-              </button>
-              {message && (
-                <p role="status" className="text-sm text-slate-600">
-                  {message}
-                </p>
-              )}
-            </div>
-          </form>
-        ) : (
-          <dl className="mt-3 grid gap-2 sm:grid-cols-2">
-            <dt className="text-slate-500">{t("common.name")}</dt>
-            <dd>{project.data.name}</dd>
-            <dt className="text-slate-500">{t("common.description")}</dt>
-            <dd>{project.data.description ?? "—"}</dd>
-          </dl>
-        )}
-      </section>
+      <RecordCard
+        title={t("common.record")}
+        fields={[
+          { name: "name", label: t("common.name"), required: true },
+          {
+            name: "description",
+            label: t("common.description"),
+            type: "textarea",
+          },
+        ]}
+        values={edit}
+        onChange={setEdit}
+        canWrite={isAdmin}
+        onSubmit={() => void saveProject()}
+        message={message}
+      />
       <EntitySection
         title={t("projects.linkedApplications")}
         rows={applications.data}

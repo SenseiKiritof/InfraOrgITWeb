@@ -1,10 +1,12 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useAuth } from "../../app/AuthProvider";
 import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
 import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import { PageHeader, SearchForm } from "../../components/page";
+import { RecordCard } from "../../components/RecordCard";
 import type {
   AdminGroup,
   AdminRole,
@@ -136,18 +138,34 @@ export function EnvironmentDetailPage() {
     enabled: Number.isInteger(environmentId),
   });
 
-  const saveEnvironment = async (
-    row: Environment | null,
-    values: FormValues,
-  ) => {
-    if (!row) return;
-    await saveEntity(
-      "/api/environments",
-      row.id,
-      { name: values.name, description: values.description },
-      csrf,
-    );
-    await queryClient.invalidateQueries({ queryKey: ["environments"] });
+  const [edit, setEdit] = useState({ name: "", description: "" });
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!environment.data) return;
+    setEdit({
+      name: environment.data.name,
+      description: environment.data.description,
+    });
+  }, [environment.data]);
+
+  const saveEnvironment = async () => {
+    if (!environment.data) return;
+    setMessage(null);
+    try {
+      await saveEntity(
+        "/api/environments",
+        environment.data.id,
+        { name: edit.name, description: edit.description },
+        csrf,
+      );
+      await queryClient.invalidateQueries({ queryKey: ["environments"] });
+      setMessage(t("environments.updated"));
+    } catch (cause) {
+      setMessage(
+        cause instanceof Error ? cause.message : t("common.saveError"),
+      );
+    }
   };
 
   const saveLink = async (
@@ -205,17 +223,8 @@ export function EnvironmentDetailPage() {
       <PageHeaderSlot
         title={environment.data?.name ?? t("environments.detail")}
       />
-      <EntitySection
+      <RecordCard
         title={t("common.record")}
-        rows={environment.data ? [environment.data] : undefined}
-        columns={[
-          { key: "name", label: t("common.name"), render: (row) => row.name },
-          {
-            key: "description",
-            label: t("common.description"),
-            render: (row) => row.description,
-          },
-        ]}
         fields={[
           { name: "name", label: t("common.name"), required: true },
           {
@@ -224,11 +233,11 @@ export function EnvironmentDetailPage() {
             type: "textarea",
           },
         ]}
-        empty={{ name: "", description: "" }}
-        toForm={(row) => ({ name: row.name, description: row.description })}
+        values={edit}
+        onChange={setEdit}
         canWrite={isAdmin}
-        canCreate={false}
-        onSave={saveEnvironment}
+        onSubmit={() => void saveEnvironment()}
+        message={message}
       />
       <EntitySection
         title={t("environments.linkedProviders")}

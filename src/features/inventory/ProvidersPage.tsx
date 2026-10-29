@@ -1,10 +1,12 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useAuth } from "../../app/AuthProvider";
 import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
 import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import { PageHeader, SearchForm } from "../../components/page";
+import { RecordCard } from "../../components/RecordCard";
 import { apiFetch } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import type { Paged, Provider, ProviderEnvironment } from "../../lib/inventory";
@@ -98,27 +100,50 @@ export function ProviderDetailPage() {
     enabled: Number.isInteger(providerId),
   });
 
-  const save = async (row: Provider | null, values: FormValues) => {
-    if (!row) return;
-    await saveEntity("/api/providers", row.id, { name: values.name }, csrf);
-    await queryClient.invalidateQueries({ queryKey: ["providers"] });
+  const [edit, setEdit] = useState({ name: "" });
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (provider.data) setEdit({ name: provider.data.name });
+  }, [provider.data]);
+
+  const save = async () => {
+    if (!provider.data) return;
+    setMessage(null);
+    try {
+      await saveEntity(
+        "/api/providers",
+        provider.data.id,
+        { name: edit.name },
+        csrf,
+      );
+      await queryClient.invalidateQueries({ queryKey: ["providers"] });
+      setMessage(t("providers.updated"));
+    } catch (cause) {
+      setMessage(
+        cause instanceof Error ? cause.message : t("common.saveError"),
+      );
+    }
   };
 
   return (
     <section className="space-y-4">
       <PageHeaderSlot title={provider.data?.name ?? t("providers.detail")} />
-      <EntitySection
+      <RecordCard
         title={t("common.record")}
-        rows={provider.data ? [provider.data] : undefined}
-        columns={[
-          { key: "name", label: t("common.name"), render: (row) => row.name },
+        fields={[
+          {
+            name: "name",
+            label: t("common.name"),
+            required: true,
+            wide: true,
+          },
         ]}
-        fields={[{ name: "name", label: t("common.name"), required: true }]}
-        empty={{ name: "" }}
-        toForm={(row) => ({ name: row.name })}
+        values={edit}
+        onChange={setEdit}
         canWrite={isAdmin}
-        canCreate={false}
-        onSave={save}
+        onSubmit={() => void save()}
+        message={message}
       />
       <EntitySection
         title={t("providers.environments")}

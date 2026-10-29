@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Fragment, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useAuth } from "../../app/AuthProvider";
 import { AutocompleteSelect } from "../../components/AutocompleteSelect";
@@ -7,6 +7,7 @@ import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
 import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import { PageHeader, SearchForm } from "../../components/page";
+import { RecordCard, type RecordField } from "../../components/RecordCard";
 import { apiFetch } from "../../lib/api";
 import { type TranslationKey, useI18n } from "../../lib/i18n";
 import type {
@@ -397,8 +398,7 @@ export function ServerDetailPage() {
     retry: false,
   });
 
-  const saveServer = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const saveServer = async () => {
     if (!server.data) return;
     const after = {
       ipAddress: edit.ipAddress,
@@ -596,104 +596,54 @@ export function ServerDetailPage() {
           ) : undefined
         }
       />
-      <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
-        {!server.data ? (
-          <p className="text-slate-500">{t("common.loading")}</p>
-        ) : isAdmin ? (
-          <form
-            onSubmit={(event) => void saveServer(event)}
-            className="space-y-3"
-          >
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-              {t("servers.details")}
-            </h2>
-            <dl className="grid gap-2 sm:grid-cols-2">
-              <dt className="text-slate-500">{t("common.environment")}</dt>
-              <dd>{server.data.providerEnvironmentLabel}</dd>
-              <dt className="text-slate-500">{t("servers.hostKey")}</dt>
-              <dd>
-                {server.data.hasHostKey
-                  ? t("servers.hostKeyRegistered")
-                  : t("servers.hostKeyMissing")}
-              </dd>
-            </dl>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {serverFieldDefs.map((field) => (
-                <EditField
-                  key={field.name}
-                  label={t(field.label)}
-                  type={field.type}
-                  value={edit[field.name]}
-                  onChange={(value) =>
-                    setEdit({ ...edit, [field.name]: value })
-                  }
-                />
-              ))}
-              <label
-                htmlFor="server-jump"
-                className="flex flex-col gap-1 sm:col-span-2"
-              >
-                <span className="text-xs text-slate-500">
-                  {t("servers.jumpServer")}
-                </span>
-                <AutocompleteSelect
-                  id="server-jump"
-                  value={edit.jumpServerId}
-                  options={[
-                    { value: "", label: "—" },
-                    ...(serverOptions.data?.items
-                      .filter((item) => item.id !== serverId)
-                      .map((item) => ({
-                        value: String(item.id),
-                        label: `${item.name} (${item.ipAddress})`,
-                      })) ?? []),
-                  ]}
-                  onChange={(value) =>
-                    setEdit({ ...edit, jumpServerId: value })
-                  }
-                  className="w-full rounded-md border border-slate-300 px-3 py-1.5"
-                />
-              </label>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                type="submit"
-                className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
-              >
-                {t("common.save")}
-              </button>
-              {editMessage && (
-                <p role="status" className="text-sm text-slate-600">
-                  {editMessage}
-                </p>
-              )}
-            </div>
-          </form>
-        ) : (
-          <dl className="grid gap-2 sm:grid-cols-2">
-            <dt className="text-slate-500">{t("common.environment")}</dt>
-            <dd>{server.data.providerEnvironmentLabel}</dd>
-            {serverFieldDefs.map((field) => (
-              <Fragment key={field.name}>
-                <dt className="text-slate-500">{t(field.label)}</dt>
-                <dd>{server.data[field.name] ?? "—"}</dd>
-              </Fragment>
-            ))}
-            <dt className="text-slate-500">{t("servers.proxy")}</dt>
-            <dd>
-              {server.data.jumpServerName
-                ? `${server.data.jumpServerName} (${server.data.jumpServerIpAddress ?? "—"})`
-                : "—"}
-            </dd>
-            <dt className="text-slate-500">{t("servers.hostKey")}</dt>
-            <dd>
-              {server.data.hasHostKey
-                ? t("servers.hostKeyRegistered")
-                : t("servers.hostKeyMissing")}
-            </dd>
-          </dl>
-        )}
-      </div>
+      <RecordCard
+        title={t("servers.details")}
+        fields={
+          [
+            {
+              name: "environment",
+              label: t("common.environment"),
+              readOnly: true,
+            },
+            {
+              name: "hostKey",
+              label: t("servers.hostKey"),
+              readOnly: true,
+            },
+            ...serverFieldDefs.map((field) => ({
+              name: field.name,
+              label: t(field.label),
+              type: field.type,
+              required: field.required,
+            })),
+            {
+              name: "jumpServerId",
+              label: t("servers.jumpServer"),
+              type: "select",
+              options: [
+                { value: "", label: "—" },
+                ...(serverOptions.data?.items
+                  .filter((item) => item.id !== serverId)
+                  .map((item) => ({
+                    value: String(item.id),
+                    label: `${item.name} (${item.ipAddress})`,
+                  })) ?? []),
+              ],
+            },
+          ] satisfies RecordField[]
+        }
+        values={{
+          ...edit,
+          environment: server.data?.providerEnvironmentLabel ?? "",
+          hostKey: server.data?.hasHostKey
+            ? t("servers.hostKeyRegistered")
+            : t("servers.hostKeyMissing"),
+        }}
+        onChange={(values) => setEdit(values as ServerFormState)}
+        canWrite={isAdmin}
+        onSubmit={() => void saveServer()}
+        message={editMessage}
+      />
 
       {isSystemAdmin && (
         <form
@@ -739,7 +689,7 @@ export function ServerDetailPage() {
             </label>
             <button
               type="submit"
-              className="rounded-md bg-slate-900 px-3 py-1.5 font-medium text-white"
+              className="rounded-md border border-transparent bg-slate-900 px-3 py-1.5 font-medium text-white"
             >
               {t("servers.saveSsh")}
             </button>
@@ -1057,7 +1007,7 @@ function DeployActions({
             key={button.id}
             type="button"
             onClick={() => void run(button)}
-            className="rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white"
+            className="rounded-md border border-transparent bg-slate-900 px-3 py-1.5 text-sm text-white"
           >
             {button.label}
           </button>
@@ -1071,30 +1021,6 @@ function DeployActions({
         </pre>
       )}
     </section>
-  );
-}
-
-function EditField({
-  label,
-  value,
-  onChange,
-  type = "text",
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  type?: "text" | "number";
-}) {
-  return (
-    <label className="flex flex-col gap-1">
-      <span className="text-xs text-slate-500">{label}</span>
-      <input
-        type={type}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="rounded-md border border-slate-300 px-3 py-1.5"
-      />
-    </label>
   );
 }
 

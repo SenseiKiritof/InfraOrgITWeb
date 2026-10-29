@@ -16,7 +16,7 @@ test("inventario: provider, ambiente, applicazione e progetto", async ({
   await page.goto("/providers");
   await page.getByRole("button", { name: "Nuovo provider" }).click();
   await page.getByLabel("Nome").fill(provider);
-  await page.getByRole("button", { name: "Salva" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Salva" }).click();
   await page.getByLabel("Cerca").fill(provider);
   await page.getByRole("button", { name: "Cerca" }).click();
   await expect(page.getByRole("cell", { name: provider })).toBeVisible();
@@ -27,7 +27,7 @@ test("inventario: provider, ambiente, applicazione e progetto", async ({
     .click();
   provider = `${provider} (mod)`;
   await page.getByLabel("Nome").fill(provider);
-  await page.getByRole("button", { name: "Salva" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Salva" }).click();
   await page.getByLabel("Cerca").fill(provider);
   await page.getByRole("button", { name: "Cerca" }).click();
   await expect(page.getByRole("cell", { name: provider })).toBeVisible();
@@ -36,7 +36,7 @@ test("inventario: provider, ambiente, applicazione e progetto", async ({
   await page.getByRole("button", { name: "Nuovo ambiente" }).click();
   await page.getByLabel("Nome").fill(environment);
   await page.getByLabel("Descrizione").fill("Ambiente creato dal test");
-  await page.getByRole("button", { name: "Salva" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Salva" }).click();
   await page.getByLabel("Cerca").fill(environment);
   await page.getByRole("button", { name: "Cerca" }).click();
   await page
@@ -46,7 +46,7 @@ test("inventario: provider, ambiente, applicazione e progetto", async ({
   await page.getByRole("button", { name: "Collega provider" }).click();
   await page.getByLabel("Provider", { exact: true }).fill(provider);
   await page.getByRole("option", { name: provider, exact: true }).click();
-  await page.getByRole("button", { name: "Salva" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Salva" }).click();
   await expect(page.getByRole("cell", { name: provider })).toBeVisible();
 
   await page.goto("/applications");
@@ -55,7 +55,7 @@ test("inventario: provider, ambiente, applicazione e progetto", async ({
   await page.getByLabel("Descrizione").fill("Applicazione creata dal test");
   await page.getByLabel("Base path").fill("/e2e");
   await page.getByLabel("Porta in ascolto").fill("8080");
-  await page.getByRole("button", { name: "Salva" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Salva" }).click();
   await page.getByLabel("Cerca").fill(application);
   await page.getByRole("button", { name: "Cerca" }).click();
   await page
@@ -64,7 +64,7 @@ test("inventario: provider, ambiente, applicazione e progetto", async ({
     .click();
   await page.getByRole("button", { name: "Nuova versione" }).click();
   await page.getByLabel("Numero versione").fill("1.0.0");
-  await page.getByRole("button", { name: "Salva" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Salva" }).click();
   await expect(page.getByRole("cell", { name: "1.0.0" })).toBeVisible();
 
   await page
@@ -72,13 +72,13 @@ test("inventario: provider, ambiente, applicazione e progetto", async ({
     .getByRole("button", { name: "Modifica" })
     .click();
   await page.getByLabel("Numero versione").fill("1.0.1");
-  await page.getByRole("button", { name: "Salva" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Salva" }).click();
   await expect(page.getByRole("cell", { name: "1.0.1" })).toBeVisible();
 
   await page.getByRole("button", { name: "API della versione 1.0.1" }).click();
   await page.getByRole("button", { name: "Nuova API", exact: true }).click();
   await page.getByLabel("URL").fill("/health");
-  await page.getByRole("button", { name: "Salva" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Salva" }).click();
   await expect(page.getByRole("cell", { name: "/health" })).toBeVisible();
 
   await page
@@ -86,29 +86,29 @@ test("inventario: provider, ambiente, applicazione e progetto", async ({
     .getByRole("button", { name: "Modifica" })
     .click();
   await page.getByLabel("URL").fill("/healthz");
-  await page.getByRole("button", { name: "Salva" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Salva" }).click();
   await expect(page.getByRole("cell", { name: "/healthz" })).toBeVisible();
 
   await page
     .getByRole("button", { name: "Query param di GET /healthz" })
     .click();
   await page.getByRole("button", { name: "Nuovo query param" }).click();
-  await page.getByLabel("Nome").fill("verbose");
-  await page.getByRole("button", { name: "Salva" }).click();
+  await page.getByRole("dialog").getByLabel("Nome").fill("verbose");
+  await page.getByRole("dialog").getByRole("button", { name: "Salva" }).click();
   await expect(page.getByRole("cell", { name: "verbose" })).toBeVisible();
 
   await page
     .getByRole("row", { name: "verbose" })
     .getByRole("button", { name: "Modifica" })
     .click();
-  await page.getByLabel("Nome").fill("debug");
-  await page.getByRole("button", { name: "Salva" }).click();
+  await page.getByRole("dialog").getByLabel("Nome").fill("debug");
+  await page.getByRole("dialog").getByRole("button", { name: "Salva" }).click();
   await expect(page.getByRole("cell", { name: "debug" })).toBeVisible();
 
   await page.goto("/projects");
   await page.getByRole("button", { name: "Nuovo progetto" }).click();
   await page.getByLabel("Nome").fill(project);
-  await page.getByRole("button", { name: "Salva" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Salva" }).click();
   await page
     .getByRole("row", { name: project })
     .getByRole("link", { name: "Apri" })

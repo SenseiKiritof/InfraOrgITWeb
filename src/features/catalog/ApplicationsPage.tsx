@@ -1,12 +1,13 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useAuth } from "../../app/AuthProvider";
 import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
 import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import { PageHeader, SearchForm } from "../../components/page";
+import { RecordCard } from "../../components/RecordCard";
 import { apiFetch } from "../../lib/api";
 import { formatBytes, formatDateTime } from "../../lib/format";
 import { useI18n } from "../../lib/i18n";
@@ -398,24 +399,49 @@ export function ApplicationDetailPage() {
     });
   };
 
-  const saveApplication = async (
-    row: Application | null,
-    values: FormValues,
-  ) => {
-    if (!row) return;
-    await saveEntity(
-      "/api/applications",
-      row.id,
-      {
-        name: values.name,
-        description: values.description,
-        basePath: values.basePath,
-        listeningOnPort: Number(values.listeningOnPort),
-        type: values.type,
-      },
-      csrf,
-    );
-    await queryClient.invalidateQueries({ queryKey: ["applications"] });
+  const [edit, setEdit] = useState({
+    name: "",
+    description: "",
+    basePath: "",
+    listeningOnPort: "",
+    type: "Backend",
+  });
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!application.data) return;
+    setEdit({
+      name: application.data.name,
+      description: application.data.description,
+      basePath: application.data.basePath,
+      listeningOnPort: String(application.data.listeningOnPort),
+      type: application.data.type,
+    });
+  }, [application.data]);
+
+  const saveApplication = async () => {
+    if (!application.data) return;
+    setMessage(null);
+    try {
+      await saveEntity(
+        "/api/applications",
+        application.data.id,
+        {
+          name: edit.name,
+          description: edit.description,
+          basePath: edit.basePath,
+          listeningOnPort: Number(edit.listeningOnPort),
+          type: edit.type,
+        },
+        csrf,
+      );
+      await queryClient.invalidateQueries({ queryKey: ["applications"] });
+      setMessage(t("applications.updated"));
+    } catch (cause) {
+      setMessage(
+        cause instanceof Error ? cause.message : t("common.saveError"),
+      );
+    }
   };
 
   const saveApiKey = async (
@@ -475,32 +501,8 @@ export function ApplicationDetailPage() {
       <PageHeaderSlot
         title={application.data?.name ?? t("applications.detail")}
       />
-      <EntitySection
+      <RecordCard
         title={t("common.record")}
-        rows={application.data ? [application.data] : undefined}
-        columns={[
-          { key: "name", label: t("common.name"), render: (row) => row.name },
-          {
-            key: "description",
-            label: t("common.description"),
-            render: (row) => row.description,
-          },
-          {
-            key: "basePath",
-            label: t("common.basePath"),
-            render: (row) => row.basePath,
-          },
-          {
-            key: "listeningOnPort",
-            label: t("common.port"),
-            render: (row) => row.listeningOnPort,
-          },
-          {
-            key: "type",
-            label: t("common.type"),
-            render: (row) => applicationTypeLabel(row.type),
-          },
-        ]}
         fields={[
           { name: "name", label: t("common.name"), required: true },
           {
@@ -523,23 +525,11 @@ export function ApplicationDetailPage() {
             options: applicationTypes.map((type) => ({ ...type })),
           },
         ]}
-        empty={{
-          name: "",
-          description: "",
-          basePath: "",
-          listeningOnPort: "",
-          type: "Backend",
-        }}
-        toForm={(row) => ({
-          name: row.name,
-          description: row.description,
-          basePath: row.basePath,
-          listeningOnPort: String(row.listeningOnPort),
-          type: row.type,
-        })}
+        values={edit}
+        onChange={setEdit}
         canWrite={isAdmin}
-        canCreate={false}
-        onSave={saveApplication}
+        onSubmit={() => void saveApplication()}
+        message={message}
       />
       <EntitySection
         title={t("common.versions")}

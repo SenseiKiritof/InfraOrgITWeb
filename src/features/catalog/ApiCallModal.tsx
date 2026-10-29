@@ -208,7 +208,7 @@ export function ApiCallModal({
             type="button"
             onClick={() => void send()}
             disabled={busy}
-            className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+            className="rounded-md border border-transparent bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
           >
             {busy ? t("apiCall.calling") : t("applications.call")}
           </button>
