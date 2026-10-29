@@ -301,6 +301,11 @@ const it = {
   "projects.detail": "Progetto",
   "projects.linkedApplications": "Applicazioni collegate",
   "projects.linkApplication": "Collega applicazione",
+  "projects.updated": "Progetto aggiornato.",
+  "projects.applicationServers": "Server delle applicazioni",
+  "projects.integrated": "Integrato",
+  "projects.production": "Produzione",
+  "projects.noServers": "Nessun server.",
 
   // Admin
   "menus.title": "Menu",
@@ -749,6 +754,11 @@ const en: Record<TranslationKey, string> = {
   "projects.detail": "Project",
   "projects.linkedApplications": "Linked applications",
   "projects.linkApplication": "Link application",
+  "projects.updated": "Project updated.",
+  "projects.applicationServers": "Application servers",
+  "projects.integrated": "Integrated",
+  "projects.production": "Production",
+  "projects.noServers": "No servers.",
 
   // Admin
   "menus.title": "Menu",

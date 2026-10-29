@@ -116,6 +116,9 @@ test("inventario: provider, ambiente, applicazione e progetto", async ({
   await page.getByRole("button", { name: "Collega applicazione" }).click();
   await page.getByLabel("Applicazione", { exact: true }).fill(application);
   await page.getByRole("option", { name: application, exact: true }).click();
-  await page.getByRole("button", { name: "Salva" }).click();
+  await page
+    .getByRole("dialog", { name: "Collega applicazione" })
+    .getByRole("button", { name: "Salva" })
+    .click();
   await expect(page.getByRole("cell", { name: application })).toBeVisible();
 });

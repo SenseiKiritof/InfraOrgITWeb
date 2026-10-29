@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useAuth } from "../../app/AuthProvider";
 import type { FormValues } from "../../components/EntitySection";
@@ -6,12 +7,9 @@ import { EntitySection } from "../../components/EntitySection";
 import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import { PageHeader, SearchForm } from "../../components/page";
 import { apiFetch } from "../../lib/api";
+import type { Topology } from "../../lib/diagrams";
 import { useI18n } from "../../lib/i18n";
-import type {
-  Application,
-  Project,
-  ServerApplication,
-} from "../../lib/inventory";
+import type { Application, Project } from "../../lib/inventory";
 import { deleteEntity, listOf, paged, saveEntity } from "../../lib/inventory";
 import { useQueryFilter } from "../../lib/useQueryFilter";
 import { useIsSystemAdmin } from "../../lib/useServerAccess";
@@ -115,33 +113,85 @@ export function ProjectDetailPage() {
     enabled: Number.isInteger(projectId),
   });
 
-  const deployments = useQuery({
-    queryKey: ["server-applications", "all"],
-    queryFn: () => paged<ServerApplication>("/api/server-applications"),
+  const topology = useQuery({
+    queryKey: ["topology", "project", projectId],
+    queryFn: () => apiFetch<Topology>(`/api/topology?projectId=${projectId}`),
+    enabled: Number.isInteger(projectId),
   });
 
-  const serversByApplication = new Map<number, string[]>();
-  for (const deployment of deployments.data?.items ?? []) {
-    const names = serversByApplication.get(deployment.applicationId) ?? [];
-    if (!names.includes(deployment.serverName))
-      names.push(deployment.serverName);
-    serversByApplication.set(deployment.applicationId, names);
-  }
+  const serversByApplication = new Map<string, string[]>();
+  for (const provider of topology.data?.providers ?? [])
+    for (const environment of provider.environments)
+      for (const server of environment.servers)
+        for (const application of server.applications) {
+          const names =
+            serversByApplication.get(application.applicationName) ?? [];
+          if (!names.includes(server.name)) names.push(server.name);
+          serversByApplication.set(application.applicationName, names);
+        }
+
+  const serverGroups = (topology.data?.providers ?? []).flatMap((provider) =>
+    provider.environments.flatMap((environment) =>
+      environment.servers.flatMap((server) => {
+        const applications = server.applications.filter((application) =>
+          application.projects.some((project) => project.id === projectId),
+        );
+        if (applications.length === 0) return [];
+        return [
+          {
+            key: String(server.id),
+            environment: environment.environmentName,
+            serverName: server.name,
+            ipAddress: server.ipAddress,
+            hostname: server.hostname,
+            applications: applications.map((application) => ({
+              key: String(application.id),
+              applicationName: application.applicationName,
+              versionNumber: application.versionNumber,
+              exposedPort: application.exposedPort,
+            })),
+          },
+        ];
+      }),
+    ),
+  );
+  const isProduction = (name: string) =>
+    name.trim().toLowerCase().startsWith("prod");
 
   const applicationOptions = useQuery({
     queryKey: ["applications", "options"],
     queryFn: () => paged<Application>("/api/applications"),
   });
 
-  const saveProject = async (row: Project | null, values: FormValues) => {
-    if (!row) return;
-    await saveEntity(
-      "/api/projects",
-      row.id,
-      { name: values.name, description: values.description || null },
-      csrf,
-    );
-    await queryClient.invalidateQueries({ queryKey: ["projects"] });
+  const [edit, setEdit] = useState({ name: "", description: "" });
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!project.data) return;
+    setEdit({
+      name: project.data.name,
+      description: project.data.description ?? "",
+    });
+  }, [project.data]);
+
+  const saveProject = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!project.data) return;
+    setMessage(null);
+    try {
+      await saveEntity(
+        "/api/projects",
+        project.data.id,
+        { name: edit.name, description: edit.description || null },
+        csrf,
+      );
+      await queryClient.invalidateQueries({ queryKey: ["projects"] });
+      setMessage(t("projects.updated"));
+    } catch (cause) {
+      setMessage(
+        cause instanceof Error ? cause.message : t("common.saveError"),
+      );
+    }
   };
 
   const linkApplication = async (
@@ -168,34 +218,64 @@ export function ProjectDetailPage() {
   return (
     <section className="space-y-4">
       <PageHeaderSlot title={project.data?.name ?? t("projects.detail")} />
-      <EntitySection
-        title={t("common.record")}
-        rows={project.data ? [project.data] : undefined}
-        columns={[
-          { key: "name", label: t("common.name"), render: (row) => row.name },
-          {
-            key: "description",
-            label: t("common.description"),
-            render: (row) => row.description ?? "",
-          },
-        ]}
-        fields={[
-          { name: "name", label: t("common.name"), required: true },
-          {
-            name: "description",
-            label: t("common.description"),
-            type: "textarea",
-          },
-        ]}
-        empty={{ name: "", description: "" }}
-        toForm={(row) => ({
-          name: row.name,
-          description: row.description ?? "",
-        })}
-        canWrite={isAdmin}
-        canCreate={false}
-        onSave={saveProject}
-      />
+      <section className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+          {t("common.record")}
+        </h2>
+        {!project.data ? (
+          <p className="mt-2 text-slate-500">{t("common.loading")}</p>
+        ) : isAdmin ? (
+          <form
+            onSubmit={(event) => void saveProject(event)}
+            className="mt-3 space-y-3"
+          >
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-slate-500">{t("common.name")}</span>
+              <input
+                value={edit.name}
+                onChange={(event) =>
+                  setEdit({ ...edit, name: event.target.value })
+                }
+                required
+                className="rounded-md border border-slate-300 px-3 py-1.5"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-slate-500">
+                {t("common.description")}
+              </span>
+              <textarea
+                value={edit.description}
+                onChange={(event) =>
+                  setEdit({ ...edit, description: event.target.value })
+                }
+                rows={3}
+                className="rounded-md border border-slate-300 px-3 py-1.5"
+              />
+            </label>
+            <div className="flex items-center gap-3">
+              <button
+                type="submit"
+                className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
+              >
+                {t("common.save")}
+              </button>
+              {message && (
+                <p role="status" className="text-sm text-slate-600">
+                  {message}
+                </p>
+              )}
+            </div>
+          </form>
+        ) : (
+          <dl className="mt-3 grid gap-2 sm:grid-cols-2">
+            <dt className="text-slate-500">{t("common.name")}</dt>
+            <dd>{project.data.name}</dd>
+            <dt className="text-slate-500">{t("common.description")}</dt>
+            <dd>{project.data.description ?? "—"}</dd>
+          </dl>
+        )}
+      </section>
       <EntitySection
         title={t("projects.linkedApplications")}
         rows={applications.data}
@@ -219,7 +299,7 @@ export function ProjectDetailPage() {
             key: "servers",
             label: t("common.server"),
             render: (row) =>
-              (serversByApplication.get(row.id) ?? []).join(", ") || "—",
+              (serversByApplication.get(row.name) ?? []).join(", ") || "—",
           },
         ]}
         fields={[
@@ -244,6 +324,83 @@ export function ProjectDetailPage() {
         rowHref={(row) => `/applications/${row.id}`}
         createLabel={t("projects.linkApplication")}
       />
+      <section className="space-y-2">
+        <h2 className="px-1 text-sm font-semibold uppercase tracking-wide text-slate-500">
+          {t("projects.applicationServers")}
+        </h2>
+        <ProjectServerList
+          title={t("projects.integrated")}
+          servers={serverGroups.filter((row) => !isProduction(row.environment))}
+        />
+        <ProjectServerList
+          title={t("projects.production")}
+          servers={serverGroups.filter((row) => isProduction(row.environment))}
+        />
+      </section>
+    </section>
+  );
+}
+
+type ProjectServerGroup = {
+  key: string;
+  environment: string;
+  serverName: string;
+  ipAddress: string;
+  hostname: string;
+  applications: {
+    key: string;
+    applicationName: string;
+    versionNumber: string;
+    exposedPort: number;
+  }[];
+};
+
+function ProjectServerList({
+  title,
+  servers,
+}: {
+  title: string;
+  servers: ProjectServerGroup[];
+}) {
+  const { t } = useI18n();
+  return (
+    <section className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
+      <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+        {title}
+      </h3>
+      {servers.length === 0 ? (
+        <p className="mt-2 text-slate-500">{t("projects.noServers")}</p>
+      ) : (
+        <table className="mt-2 w-full text-left text-sm">
+          <thead>
+            <tr className="text-xs uppercase tracking-wide text-slate-500">
+              <th className="px-2 py-2">{t("common.server")}</th>
+              <th className="px-2 py-2">{t("common.ip")}</th>
+              <th className="px-2 py-2">{t("common.hostname")}</th>
+              <th className="px-2 py-2">{t("common.applications")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {servers.map((server) => (
+              <tr key={server.key} className="border-t border-slate-100">
+                <td className="px-2 py-2">{server.serverName}</td>
+                <td className="px-2 py-2">{server.ipAddress}</td>
+                <td className="px-2 py-2">{server.hostname}</td>
+                <td className="px-2 py-2">
+                  <ul>
+                    {server.applications.map((application) => (
+                      <li key={application.key}>
+                        {application.applicationName}{" "}
+                        {application.versionNumber} · :{application.exposedPort}
+                      </li>
+                    ))}
+                  </ul>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </section>
   );
 }
