@@ -26,6 +26,7 @@ import {
   assignServerSsh,
   getActionButtons,
   getCredentials,
+  getGlobalReachability,
   getServerReachability,
   resetHostKey,
   runAction,
@@ -275,7 +276,10 @@ export function ServerDetailPage() {
   const [reachabilityResults, setReachabilityResults] = useState<
     ReachabilityResult[]
   >([]);
-  const [runningReachability, setRunningReachability] = useState(false);
+  const [runningReachability, setRunningReachability] = useState<
+    "all" | "selected" | null
+  >(null);
+  const [selectedTests, setSelectedTests] = useState<number[]>([]);
 
   useEffect(() => {
     if (!server.data) return;
@@ -398,11 +402,26 @@ export function ServerDetailPage() {
     await queryClient.invalidateQueries({ queryKey: ["reachability-tests"] });
   };
 
-  const runReachability = async () => {
+  const globalReachability = useQuery({
+    queryKey: ["reachability-tests", "global"],
+    queryFn: getGlobalReachability,
+    retry: false,
+  });
+  const reachabilityRows: ReachabilityTest[] = [
+    ...(globalReachability.data ?? []),
+    ...(reachability.data ?? []),
+  ];
+  const reachabilityIdsKey = reachabilityRows.map((row) => row.id).join(",");
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset when the available tests change
+  useEffect(() => {
+    setSelectedTests([]);
+  }, [reachabilityIdsKey]);
+
+  const runReachability = async (ids: number[], mode: "all" | "selected") => {
     setReachabilityResults([]);
-    setRunningReachability(true);
+    setRunningReachability(mode);
     try {
-      const results = await runServerReachability(serverId, csrf);
+      const results = await runServerReachability(serverId, csrf, ids);
       setReachabilityResults(results);
       await queryClient.invalidateQueries({ queryKey: ["command-executions"] });
     } catch (cause) {
@@ -417,7 +436,7 @@ export function ServerDetailPage() {
         },
       ]);
     } finally {
-      setRunningReachability(false);
+      setRunningReachability(null);
     }
   };
 
@@ -637,7 +656,7 @@ export function ServerDetailPage() {
       <section className="space-y-2">
         <EntitySection
           title="Test di raggiungibilità"
-          rows={reachability.data}
+          rows={reachabilityRows}
           columns={[
             { key: "hostname", label: "Host", render: (row) => row.hostname },
             { key: "port", label: "Porta", render: (row) => row.port },
@@ -645,6 +664,11 @@ export function ServerDetailPage() {
               key: "description",
               label: "Descrizione",
               render: (row) => row.description,
+            },
+            {
+              key: "scope",
+              label: "Tipo",
+              render: (row) => (row.serverId === null ? "Globale" : "Server"),
             },
           ]}
           fields={[
@@ -661,25 +685,55 @@ export function ServerDetailPage() {
           canWrite={isAdmin}
           onSave={saveReachability}
           onDelete={removeReachability}
+          canEditRow={(row) => row.serverId !== null}
+          canDeleteRow={(row) => row.serverId !== null}
+          selection={{
+            selectedIds: selectedTests,
+            onChange: setSelectedTests,
+          }}
+          headerActions={
+            isOperator ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-500">
+                  {selectedTests.length} selezionati
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    void runReachability(selectedTests, "selected")
+                  }
+                  disabled={
+                    selectedTests.length === 0 || runningReachability !== null
+                  }
+                  className="rounded-md border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-50"
+                >
+                  {runningReachability === "selected"
+                    ? "Test in corso…"
+                    : "Effettua selezionati"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    void runReachability(
+                      reachabilityRows.map((row) => row.id),
+                      "all",
+                    )
+                  }
+                  disabled={
+                    reachabilityRows.length === 0 ||
+                    runningReachability !== null
+                  }
+                  className="rounded-md border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-50"
+                >
+                  {runningReachability === "all"
+                    ? "Test in corso…"
+                    : "Effettua tutti i test"}
+                </button>
+              </div>
+            ) : undefined
+          }
           createLabel="Nuovo test"
         />
-        {isOperator && (
-          <button
-            type="button"
-            onClick={() => void runReachability()}
-            disabled={runningReachability}
-            aria-busy={runningReachability}
-            className="flex items-center gap-2 rounded-md border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-60"
-          >
-            {runningReachability && (
-              <span
-                aria-hidden="true"
-                className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-400 border-t-transparent"
-              />
-            )}
-            {runningReachability ? "Test in corso…" : "Esegui test di rete"}
-          </button>
-        )}
         {reachabilityResults.length > 0 && (
           <ul className="rounded-lg border border-slate-200 bg-white p-3 text-sm">
             {reachabilityResults.map((result) => (

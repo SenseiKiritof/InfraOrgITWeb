@@ -41,6 +41,11 @@ interface EntitySectionProps<T extends { id: number }> {
   rowHref?: (row: T) => string;
   rowActions?: (row: T) => ReactNode;
   rowLabel?: (row: T) => string;
+  selection?: {
+    selectedIds: number[];
+    onChange: (ids: number[]) => void;
+  };
+  headerActions?: ReactNode;
   createLabel?: string;
 }
 
@@ -60,6 +65,8 @@ export function EntitySection<T extends { id: number }>({
   rowHref,
   rowActions,
   rowLabel,
+  selection,
+  headerActions,
   createLabel = "Nuovo",
 }: EntitySectionProps<T>) {
   const [editing, setEditing] = useState<T | "new" | null>(null);
@@ -140,15 +147,18 @@ export function EntitySection<T extends { id: number }>({
         ) : (
           <span />
         )}
-        {canWrite && canCreate && (
-          <button
-            type="button"
-            onClick={startCreate}
-            className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
-          >
-            {createLabel}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {headerActions}
+          {canWrite && canCreate && (
+            <button
+              type="button"
+              onClick={startCreate}
+              className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
+            >
+              {createLabel}
+            </button>
+          )}
+        </div>
       </div>
 
       {error && (
@@ -168,6 +178,7 @@ export function EntitySection<T extends { id: number }>({
         <div className="max-h-[60vh] overflow-auto">
           <table className="w-full text-left text-sm">
             <colgroup>
+              {selection && <col style={{ width: "2.5rem" }} />}
               {widths.map((width, index) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: columns are positional
                 <col key={index} style={{ width }} />
@@ -175,6 +186,31 @@ export function EntitySection<T extends { id: number }>({
             </colgroup>
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
+                {selection && (
+                  <th
+                    scope="col"
+                    className="sticky top-0 z-10 bg-slate-50 px-3 py-2"
+                  >
+                    <input
+                      type="checkbox"
+                      aria-label="Seleziona tutti"
+                      checked={
+                        rows !== undefined &&
+                        rows.length > 0 &&
+                        rows.every((row) =>
+                          selection.selectedIds.includes(row.id),
+                        )
+                      }
+                      onChange={(event) =>
+                        selection.onChange(
+                          event.target.checked
+                            ? (rows ?? []).map((row) => row.id)
+                            : [],
+                        )
+                      }
+                    />
+                  </th>
+                )}
                 {columns.map((column) => (
                   <SortableTh
                     key={column.key}
@@ -202,6 +238,24 @@ export function EntitySection<T extends { id: number }>({
                 const deletable = canWrite && (canDeleteRow?.(row) ?? true);
                 return (
                   <tr key={row.id} className="border-t border-slate-100">
+                    {selection && (
+                      <td className="px-3 py-2">
+                        <input
+                          type="checkbox"
+                          aria-label={`Seleziona ${labelOf(row)}`}
+                          checked={selection.selectedIds.includes(row.id)}
+                          onChange={(event) =>
+                            selection.onChange(
+                              event.target.checked
+                                ? [...selection.selectedIds, row.id]
+                                : selection.selectedIds.filter(
+                                    (id) => id !== row.id,
+                                  ),
+                            )
+                          }
+                        />
+                      </td>
+                    )}
                     {columns.map((column) => (
                       <td key={column.key} className="px-4 py-2">
                         {column.render(row)}

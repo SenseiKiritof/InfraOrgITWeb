@@ -171,10 +171,11 @@ export function getServerReachability(
 export function runServerReachability(
   serverId: number,
   csrfToken: string,
+  testIds?: number[],
 ): Promise<ReachabilityResult[]> {
   return apiFetch<ReachabilityResult[]>(
     `/api/servers/${serverId}/reachability-tests/run`,
-    { method: "POST" },
+    { method: "POST", body: JSON.stringify({ testIds }) },
     csrfToken,
   );
 }
