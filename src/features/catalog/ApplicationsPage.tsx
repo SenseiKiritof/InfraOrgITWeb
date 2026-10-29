@@ -568,12 +568,12 @@ export function ApplicationDetailPage() {
         fields={[
           {
             name: "serverId",
-            label: "Server",
+            label: "Server (nome, IP o ambiente)",
             type: "select",
             required: true,
             options: adminServers.map((server) => ({
               value: String(server.id),
-              label: server.name,
+              label: `${server.name} · ${server.ipAddress} · ${server.providerEnvironmentLabel}`,
             })),
           },
           {
