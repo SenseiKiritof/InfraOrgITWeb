@@ -275,6 +275,7 @@ export function ServerDetailPage() {
   const [reachabilityResults, setReachabilityResults] = useState<
     ReachabilityResult[]
   >([]);
+  const [runningReachability, setRunningReachability] = useState(false);
 
   useEffect(() => {
     if (!server.data) return;
@@ -399,6 +400,7 @@ export function ServerDetailPage() {
 
   const runReachability = async () => {
     setReachabilityResults([]);
+    setRunningReachability(true);
     try {
       const results = await runServerReachability(serverId, csrf);
       setReachabilityResults(results);
@@ -414,6 +416,8 @@ export function ServerDetailPage() {
           error: cause instanceof Error ? cause.message : "Test non riuscito",
         },
       ]);
+    } finally {
+      setRunningReachability(false);
     }
   };
 
@@ -657,9 +661,17 @@ export function ServerDetailPage() {
           <button
             type="button"
             onClick={() => void runReachability()}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+            disabled={runningReachability}
+            aria-busy={runningReachability}
+            className="flex items-center gap-2 rounded-md border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-60"
           >
-            Esegui test di rete
+            {runningReachability && (
+              <span
+                aria-hidden="true"
+                className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-400 border-t-transparent"
+              />
+            )}
+            {runningReachability ? "Test in corso…" : "Esegui test di rete"}
           </button>
         )}
         {reachabilityResults.length > 0 && (
