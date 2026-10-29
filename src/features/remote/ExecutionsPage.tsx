@@ -50,7 +50,9 @@ export function ExecutionsPage() {
       key: "label",
       label: t("common.label"),
       weight: 27,
-      render: (row) => row.label,
+      // Le righe Reachability hanno un'etichetta di sistema (anche le vecchie, in italiano).
+      render: (row) =>
+        row.kind === "Reachability" ? t("servers.reachability") : row.label,
     },
     {
       key: "exitCode",
