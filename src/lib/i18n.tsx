@@ -373,7 +373,6 @@ const it = {
   "console.terminal": "Terminale SSH",
   "console.storageError": "Impossibile salvare le console nel browser.",
   "console.label": "Console",
-  "console.count": "Console ({count})",
   "console.newOutput": "{count} {label}",
   "console.new": "nuovo",
   "console.newPlural": "nuovi",
@@ -381,7 +380,6 @@ const it = {
   "console.closeSession": "Chiudi la console di {name}",
   "console.merge": "Unisci le console",
   "console.split": "Dividi le console",
-  "console.minimizeBar": "Riduci la barra delle console",
   "console.receiving": "In ricezione",
   "console.unread": "Output non visto",
 
@@ -804,7 +802,6 @@ const en: Record<TranslationKey, string> = {
   "console.terminal": "SSH terminal",
   "console.storageError": "Cannot save consoles in the browser.",
   "console.label": "Console",
-  "console.count": "Console ({count})",
   "console.newOutput": "{count} {label}",
   "console.new": "new",
   "console.newPlural": "new",
@@ -812,7 +809,6 @@ const en: Record<TranslationKey, string> = {
   "console.closeSession": "Close the console for {name}",
   "console.merge": "Merge consoles",
   "console.split": "Split consoles",
-  "console.minimizeBar": "Minimize the console bar",
   "console.receiving": "Receiving",
   "console.unread": "Unread output",
 

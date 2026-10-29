@@ -1,9 +1,4 @@
-import {
-  ChevronDownIcon,
-  ChevronUpIcon,
-  CommandLineIcon,
-  ViewColumnsIcon,
-} from "@heroicons/react/24/outline";
+import { ChevronDownIcon, ViewColumnsIcon } from "@heroicons/react/24/outline";
 import {
   createContext,
   type ReactNode,
@@ -105,10 +100,8 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
     () => sessions.find((session) => session.visible)?.id ?? null,
   );
   const [split, setSplit] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
   const [activity, setActivity] = useState<Record<string, Activity>>({});
   const sessionsRef = useRef(sessions);
-  const collapsedRef = useRef(collapsed);
   const splitRef = useRef(split);
   const activeRef = useRef(activeId);
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
@@ -125,10 +118,8 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     sessionsRef.current = sessions;
-    collapsedRef.current = collapsed;
     splitRef.current = split;
     activeRef.current = activeId;
-    if (collapsed) return;
     setActivity((current) => {
       let next = current;
       for (const session of sessions) {
@@ -140,7 +131,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
       }
       return next;
     });
-  }, [sessions, collapsed, split, activeId]);
+  }, [sessions, split, activeId]);
 
   useEffect(() => {
     const current = sessions.find((session) => session.id === activeId);
@@ -166,7 +157,6 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
       setTimeout(() => {
         timers.current.delete(id);
         const visible =
-          !collapsedRef.current &&
           sessionsRef.current.some(
             (session) => session.id === id && session.visible,
           ) &&
@@ -180,7 +170,6 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const open = useCallback((serverId: number, serverName: string) => {
-    setCollapsed(false);
     const existing = sessionsRef.current.find(
       (session) => session.serverId === serverId,
     );
@@ -202,7 +191,6 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const select = useCallback((id: string) => {
-    setCollapsed(false);
     setSessions((current) =>
       current.map((session) =>
         session.id === id ? { ...session, visible: true } : session,
@@ -253,14 +241,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
   const shown = split
     ? openSessions
     : openSessions.filter((session) => session.id === activeId);
-  const dockHeight =
-    sessions.length === 0
-      ? "0px"
-      : collapsed
-        ? "2.25rem"
-        : shown.length === 0
-          ? "2.75rem"
-          : "calc(45vh + 2.75rem)";
+  const dockHeight = shown.length === 0 ? "2.75rem" : "calc(45vh + 2.75rem)";
 
   useEffect(() => {
     document.documentElement.style.setProperty(
@@ -272,20 +253,13 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
     };
   }, [dockHeight]);
 
-  const unread = sessions.filter(
-    (session) => activity[session.id] === "unread",
-  ).length;
-  const receiving = sessions.some(
-    (session) => activity[session.id] === "receiving",
-  );
-
   return (
     <ConsoleContext.Provider value={api}>
       {children}
 
       <div
         className={
-          collapsed || shown.length === 0
+          shown.length === 0
             ? "hidden"
             : "pointer-events-none fixed inset-x-0 bottom-11 z-30 flex h-[45vh] gap-2 overflow-x-auto px-2"
         }
@@ -321,99 +295,77 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
         })}
       </div>
 
-      {sessions.length > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-700 bg-slate-900 text-slate-100">
-          {collapsed ? (
-            <button
-              type="button"
-              onClick={() => setCollapsed(false)}
-              className="flex h-9 w-full items-center gap-2 px-3 text-xs"
-            >
-              <CommandLineIcon className="h-4 w-4" aria-hidden="true" />
-              <span>{t("console.count", { count: sessions.length })}</span>
-              <ActivityDot state={receiving ? "receiving" : "idle"} />
-              {unread > 0 && (
-                <>
-                  <ActivityDot state="unread" />
-                  <span>
-                    {t("console.newOutput", {
-                      count: unread,
-                      label: t(
-                        unread === 1 ? "console.new" : "console.newPlural",
-                      ),
-                    })}
+      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-700 bg-slate-900 text-slate-100">
+        <div className="flex h-11 items-center gap-1 px-2">
+          <span className="shrink-0 px-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+            {t("console.label")}
+          </span>
+          <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+            {sessions.map((session) => (
+              <div
+                key={session.id}
+                className={`flex shrink-0 items-center rounded ${
+                  session.id === activeId ? "bg-slate-800" : ""
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => select(session.id)}
+                  title={t("console.openSession", {
+                    name: session.serverName,
+                  })}
+                  className="flex items-center gap-1.5 py-1.5 pr-1 pl-2 text-xs"
+                >
+                  <ActivityDot state={activity[session.id] ?? "idle"} />
+                  <span className="max-w-[12rem] truncate">
+                    {session.serverName}
                   </span>
-                </>
-              )}
-              <ChevronUpIcon className="ml-auto h-4 w-4" aria-hidden="true" />
-            </button>
-          ) : (
-            <div className="flex h-11 items-center gap-1 px-2">
-              <span className="shrink-0 px-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                {t("console.label")}
-              </span>
-              <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-                {sessions.map((session) => (
-                  <div
-                    key={session.id}
-                    className={`flex shrink-0 items-center rounded ${
-                      session.id === activeId ? "bg-slate-800" : ""
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => select(session.id)}
-                      title={t("console.openSession", {
-                        name: session.serverName,
-                      })}
-                      className="flex items-center gap-1.5 py-1.5 pr-1 pl-2 text-xs"
-                    >
-                      <ActivityDot state={activity[session.id] ?? "idle"} />
-                      <span className="max-w-[12rem] truncate">
-                        {session.serverName}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={t("console.closeSession", {
-                        name: session.serverName,
-                      })}
-                      onClick={() => close(session.id)}
-                      className="px-1.5 py-1 text-slate-400 hover:text-slate-100"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <div className="flex shrink-0 items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setSplit((value) => !value)}
-                  aria-label={split ? t("console.merge") : t("console.split")}
-                  aria-pressed={split}
-                  title={split ? t("console.merge") : t("console.split")}
-                  className={`rounded p-1 ${
-                    split
-                      ? "bg-slate-700 text-slate-100"
-                      : "text-slate-400 hover:text-slate-100"
-                  }`}
-                >
-                  <ViewColumnsIcon className="h-4 w-4" aria-hidden="true" />
                 </button>
                 <button
                   type="button"
-                  aria-label={t("console.minimizeBar")}
-                  onClick={() => setCollapsed(true)}
-                  className="rounded p-1 text-slate-400 hover:text-slate-100"
+                  aria-label={t("console.closeSession", {
+                    name: session.serverName,
+                  })}
+                  onClick={() => close(session.id)}
+                  className="px-1.5 py-1 text-slate-400 hover:text-slate-100"
                 >
-                  <ChevronDownIcon className="h-4 w-4" aria-hidden="true" />
+                  ×
                 </button>
               </div>
+            ))}
+          </div>
+          {sessions.length > 0 && (
+            <div className="flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setSplit((value) => !value)}
+                aria-label={split ? t("console.merge") : t("console.split")}
+                aria-pressed={split}
+                title={split ? t("console.merge") : t("console.split")}
+                className={`rounded p-1 ${
+                  split
+                    ? "bg-slate-700 text-slate-100"
+                    : "text-slate-400 hover:text-slate-100"
+                }`}
+              >
+                <ViewColumnsIcon className="h-4 w-4" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                aria-label={t("console.minimize")}
+                title={t("console.minimize")}
+                onClick={() => {
+                  for (const session of openSessions) minimize(session.id);
+                }}
+                disabled={openSessions.length === 0}
+                className="rounded p-1 text-slate-400 hover:text-slate-100 disabled:opacity-40"
+              >
+                <ChevronDownIcon className="h-4 w-4" aria-hidden="true" />
+              </button>
             </div>
           )}
         </div>
-      )}
+      </div>
       {storageError && (
         <p className="fixed right-3 bottom-14 z-50 rounded bg-amber-100 px-3 py-1 text-xs text-amber-900 shadow">
           {t("console.storageError")}

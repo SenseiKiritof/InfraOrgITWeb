@@ -148,28 +148,36 @@ describe("ConsoleProvider", () => {
     expect(FakeSocket.instances).toHaveLength(2);
   });
 
-  it("riserva solo la barra quando il pannello è ridotto", () => {
+  it("mantiene la barra anche senza console", () => {
+    renderWithProvider();
+    expect(screen.getByText("Console", { exact: true })).toBeTruthy();
+    expect(
+      document.documentElement.style.getPropertyValue("--console-dock-height"),
+    ).toBe("2.75rem");
+  });
+
+  it("minimizza i pannelli dalla barra, come Riduci", () => {
     renderWithProvider();
     fireEvent.click(screen.getByText("Apri console"));
     expect(
       document.documentElement.style.getPropertyValue("--console-dock-height"),
     ).toBe("calc(45vh + 2.75rem)");
 
-    fireEvent.click(screen.getByLabelText("Riduci la barra delle console"));
+    fireEvent.click(screen.getByLabelText("Riduci"));
     expect(
       document.documentElement.style.getPropertyValue("--console-dock-height"),
-    ).toBe("2.25rem");
+    ).toBe("2.75rem");
+    expect(terminalHidden()).toBe(true);
   });
 
-  it("riduce la barra a una riga e la riapre", () => {
+  it("minimizza il pannello e lo riapre dalla barra", () => {
     renderWithProvider();
     fireEvent.click(screen.getByText("Apri console"));
     fireEvent.click(screen.getByText("Riduci"));
-    fireEvent.click(screen.getByLabelText("Riduci la barra delle console"));
 
-    expect(screen.queryByText("srv-alpha")).toBeNull();
-    fireEvent.click(screen.getByText("Console (1)"));
-    expect(screen.getByText("srv-alpha")).toBeTruthy();
+    expect(terminalHidden()).toBe(true);
+    fireEvent.click(screen.getByTitle("Apri la console di srv-alpha"));
+    expect(terminalHidden()).toBe(false);
   });
 
   it("segnala l'output non visto e lo azzera quando apri la console", () => {
@@ -191,11 +199,11 @@ describe("ConsoleProvider", () => {
     expect(screen.queryByLabelText("Output non visto")).toBeNull();
   });
 
-  it("segnala l'output non visto anche con la barra ridotta", () => {
+  it("segnala l'output non visto anche con il pannello minimizzato", () => {
     vi.useFakeTimers();
     renderWithProvider();
     fireEvent.click(screen.getByText("Apri console"));
-    fireEvent.click(screen.getByLabelText("Riduci la barra delle console"));
+    fireEvent.click(screen.getByText("Riduci"));
     const socket = FakeSocket.instances[0];
 
     act(() => {
@@ -205,7 +213,7 @@ describe("ConsoleProvider", () => {
 
     expect(screen.getByLabelText("Output non visto")).toBeTruthy();
 
-    fireEvent.click(screen.getByText("Console (1)"));
+    fireEvent.click(screen.getByTitle("Apri la console di srv-alpha"));
 
     expect(screen.queryByLabelText("Output non visto")).toBeNull();
   });
