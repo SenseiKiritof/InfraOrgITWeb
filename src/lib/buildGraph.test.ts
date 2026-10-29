@@ -58,12 +58,16 @@ const topology: Topology = {
           route: "/api",
           mappedTo: "/mapped",
           targetServerApplicationId: 30,
+          virtualHost: null,
+          listenPort: null,
         },
         {
           id: 51,
           route: "/health",
           mappedTo: null,
           targetServerApplicationId: null,
+          virtualHost: null,
+          listenPort: null,
         },
       ],
     },
@@ -91,6 +95,26 @@ describe("buildGraph", () => {
     ).toBe(true);
     expect(graph.edges[0].label).toBe("/api → /mapped");
     expect(graph.edges[1].label).toBe("/health");
+  });
+
+  it("mostra host e porta nella label della route", () => {
+    const [connection] = topology.proxyConnections;
+    const graph = buildGraph({
+      ...topology,
+      proxyConnections: [
+        {
+          ...connection,
+          routes: [
+            {
+              ...connection.routes[0],
+              virtualHost: "shop.acme.example",
+              listenPort: 443,
+            },
+          ],
+        },
+      ],
+    });
+    expect(graph.edges[0].label).toBe("shop.acme.example:443/api → /mapped");
   });
 
   it("rispetta il layout salvato annidato", () => {

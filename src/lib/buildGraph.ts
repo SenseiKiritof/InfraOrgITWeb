@@ -355,6 +355,8 @@ export function buildGraph(
               route: "",
               mappedTo: null,
               targetServerApplicationId: null,
+              virtualHost: null,
+              listenPort: null,
             },
           ];
 
@@ -375,10 +377,15 @@ export function buildGraph(
         targetEntityId,
         labels: [],
       };
-      if (route.route)
+      if (route.route) {
+        const address = `${route.virtualHost ?? ""}${
+          route.listenPort === null ? "" : `:${route.listenPort}`
+        }`;
+        const label = `${address}${route.route}`;
         current.labels.push(
-          route.mappedTo ? `${route.route} → ${route.mappedTo}` : route.route,
+          route.mappedTo ? `${label} → ${route.mappedTo}` : label,
         );
+      }
       groups.set(key, current);
     }
   }

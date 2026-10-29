@@ -48,6 +48,9 @@ const applicationTypes = [
   { value: "Elastic", label: "Elastic" },
   { value: "Kibana", label: "Kibana" },
   { value: "Kafka", label: "Kafka" },
+  { value: "MySql", label: "MySQL/MariaDB" },
+  { value: "MongoDb", label: "MongoDB" },
+  { value: "Redis", label: "Redis" },
 ] as const;
 
 function applicationTypeLabel(value: string): string {
@@ -372,6 +375,12 @@ export function ApplicationDetailPage() {
         applicationVersionId: Number(values.applicationVersionId),
         exposedPort: Number(values.exposedPort),
         proxyRouteId: row?.proxyRouteId ?? null,
+        runtime: values.runtime || null,
+        containerImage: values.containerImage || null,
+        containerName: values.containerName || null,
+        composeDirectory: values.composeDirectory || null,
+        hostPort: values.hostPort?.trim() ? Number(values.hostPort) : null,
+        haRole: values.haRole || null,
       },
       csrf,
     );
@@ -603,6 +612,31 @@ export function ApplicationDetailPage() {
             label: t("common.port"),
             render: (row) => row.exposedPort,
           },
+          {
+            key: "runtime",
+            label: t("servers.runtime"),
+            render: (row) =>
+              row.runtime === "Container"
+                ? t("servers.runtimeContainer")
+                : row.runtime === "Native"
+                  ? t("servers.runtimeNative")
+                  : "—",
+          },
+          {
+            key: "hostPort",
+            label: t("servers.hostPort"),
+            render: (row) => row.hostPort ?? "—",
+          },
+          {
+            key: "haRole",
+            label: t("servers.haRole"),
+            render: (row) =>
+              row.haRole === "Primary"
+                ? t("servers.haPrimary")
+                : row.haRole === "Secondary"
+                  ? t("servers.haSecondary")
+                  : "—",
+          },
         ]}
         fields={[
           {
@@ -632,16 +666,52 @@ export function ApplicationDetailPage() {
             type: "number",
             required: true,
           },
+          {
+            name: "runtime",
+            label: t("servers.runtime"),
+            type: "select",
+            options: [
+              { value: "", label: "—" },
+              { value: "Container", label: t("servers.runtimeContainer") },
+              { value: "Native", label: t("servers.runtimeNative") },
+            ],
+          },
+          { name: "containerImage", label: t("servers.containerImage") },
+          { name: "containerName", label: t("servers.containerName") },
+          { name: "composeDirectory", label: t("servers.composeDirectory") },
+          { name: "hostPort", label: t("servers.hostPort"), type: "number" },
+          {
+            name: "haRole",
+            label: t("servers.haRole"),
+            type: "select",
+            options: [
+              { value: "", label: "—" },
+              { value: "Primary", label: t("servers.haPrimary") },
+              { value: "Secondary", label: t("servers.haSecondary") },
+            ],
+          },
         ]}
         empty={{
           serverId: "",
           applicationVersionId: "",
           exposedPort: String(application.data?.listeningOnPort ?? ""),
+          runtime: "",
+          containerImage: "",
+          containerName: "",
+          composeDirectory: "",
+          hostPort: "",
+          haRole: "",
         }}
         toForm={(row) => ({
           serverId: String(row.serverId),
           applicationVersionId: String(row.applicationVersionId),
           exposedPort: String(row.exposedPort),
+          runtime: row.runtime ?? "",
+          containerImage: row.containerImage ?? "",
+          containerName: row.containerName ?? "",
+          composeDirectory: row.composeDirectory ?? "",
+          hostPort: row.hostPort ? String(row.hostPort) : "",
+          haRole: row.haRole ?? "",
         })}
         canWrite={canManageDeployments}
         canEditRow={(row) =>

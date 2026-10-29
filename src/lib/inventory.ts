@@ -43,6 +43,13 @@ export interface Server {
   jumpServerId: number | null;
   jumpServerName: string | null;
   jumpServerIpAddress: string | null;
+  publicIpAddress: string | null;
+  cpuCores: number | null;
+  memoryGb: number | null;
+  diskGb: number | null;
+  operatingSystem: string | null;
+  haNode: string | null;
+  managedBy: string | null;
 }
 
 export interface ServerApplication {
@@ -55,6 +62,12 @@ export interface ServerApplication {
   versionNumber: string;
   exposedPort: number;
   proxyRouteId: number | null;
+  runtime: string | null;
+  containerImage: string | null;
+  containerName: string | null;
+  composeDirectory: string | null;
+  hostPort: number | null;
+  haRole: string | null;
 }
 
 export interface Application {

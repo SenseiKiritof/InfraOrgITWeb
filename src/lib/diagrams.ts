@@ -45,6 +45,8 @@ export interface TopologyProxyRoute {
   route: string;
   mappedTo: string | null;
   targetServerApplicationId: number | null;
+  virtualHost: string | null;
+  listenPort: number | null;
 }
 
 export interface TopologyProxyConnection {

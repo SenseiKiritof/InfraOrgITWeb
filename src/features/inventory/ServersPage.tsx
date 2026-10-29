@@ -91,6 +91,13 @@ export function ServersPage() {
         hostname: values.hostname,
         sshPort: Number(values.sshPort || 22),
         jumpServerId: values.jumpServerId ? Number(values.jumpServerId) : null,
+        publicIpAddress: values.publicIpAddress || null,
+        cpuCores: optionalNumber(values.cpuCores),
+        memoryGb: optionalNumber(values.memoryGb),
+        diskGb: optionalNumber(values.diskGb),
+        operatingSystem: values.operatingSystem || null,
+        haNode: values.haNode || null,
+        managedBy: values.managedBy || null,
       },
       csrf,
     )) as Server | undefined;
@@ -181,6 +188,13 @@ export function ServersPage() {
           { name: "ipAddress", label: t("common.address"), required: true },
           { name: "hostname", label: t("common.hostname"), required: true },
           { name: "sshPort", label: t("common.sshPort"), type: "number" },
+          { name: "publicIpAddress", label: t("servers.publicIp") },
+          { name: "cpuCores", label: t("servers.cpuCores"), type: "number" },
+          { name: "memoryGb", label: t("servers.memoryGb"), type: "number" },
+          { name: "diskGb", label: t("servers.diskGb"), type: "number" },
+          { name: "operatingSystem", label: t("servers.operatingSystem") },
+          { name: "haNode", label: t("servers.haNode") },
+          { name: "managedBy", label: t("servers.managedBy") },
           {
             name: "jumpServerId",
             label: t("servers.jumpServer"),
@@ -214,6 +228,13 @@ export function ServersPage() {
           sshPort: "22",
           jumpServerId: "",
           credentialId: "",
+          publicIpAddress: "",
+          cpuCores: "",
+          memoryGb: "",
+          diskGb: "",
+          operatingSystem: "",
+          haNode: "",
+          managedBy: "",
         }}
         toForm={(row) => ({
           providerEnvironmentId: String(row.providerEnvironmentId),
@@ -223,6 +244,13 @@ export function ServersPage() {
           sshPort: String(row.sshPort),
           jumpServerId: row.jumpServerId ? String(row.jumpServerId) : "",
           credentialId: row.credentialId ? String(row.credentialId) : "",
+          publicIpAddress: row.publicIpAddress ?? "",
+          cpuCores: row.cpuCores ? String(row.cpuCores) : "",
+          memoryGb: row.memoryGb ? String(row.memoryGb) : "",
+          diskGb: row.diskGb ? String(row.diskGb) : "",
+          operatingSystem: row.operatingSystem ?? "",
+          haNode: row.haNode ?? "",
+          managedBy: row.managedBy ?? "",
         })}
         canWrite={adminEnvironmentIds.length > 0}
         canEditRow={(row) =>
@@ -294,6 +322,13 @@ export function ServerDetailPage() {
     hostname: "",
     sshPort: "22",
     jumpServerId: "",
+    publicIpAddress: "",
+    cpuCores: "",
+    memoryGb: "",
+    diskGb: "",
+    operatingSystem: "",
+    haNode: "",
+    managedBy: "",
   });
   const [editMessage, setEditMessage] = useState<string | null>(null);
   const [credentialId, setCredentialId] = useState("");
@@ -317,6 +352,13 @@ export function ServerDetailPage() {
       jumpServerId: server.data.jumpServerId
         ? String(server.data.jumpServerId)
         : "",
+      publicIpAddress: server.data.publicIpAddress ?? "",
+      cpuCores: server.data.cpuCores ? String(server.data.cpuCores) : "",
+      memoryGb: server.data.memoryGb ? String(server.data.memoryGb) : "",
+      diskGb: server.data.diskGb ? String(server.data.diskGb) : "",
+      operatingSystem: server.data.operatingSystem ?? "",
+      haNode: server.data.haNode ?? "",
+      managedBy: server.data.managedBy ?? "",
     });
     setCredentialId(
       server.data.credentialId ? String(server.data.credentialId) : "",
@@ -362,6 +404,13 @@ export function ServerDetailPage() {
           hostname: edit.hostname,
           sshPort: Number(edit.sshPort || 22),
           jumpServerId: edit.jumpServerId ? Number(edit.jumpServerId) : null,
+          publicIpAddress: edit.publicIpAddress || null,
+          cpuCores: optionalNumber(edit.cpuCores),
+          memoryGb: optionalNumber(edit.memoryGb),
+          diskGb: optionalNumber(edit.diskGb),
+          operatingSystem: edit.operatingSystem || null,
+          haNode: edit.haNode || null,
+          managedBy: edit.managedBy || null,
         },
         csrf,
       );
@@ -486,6 +535,12 @@ export function ServerDetailPage() {
       {
         applicationVersionId: Number(values.applicationVersionId),
         exposedPort: Number(values.exposedPort),
+        runtime: values.runtime || null,
+        containerImage: values.containerImage || null,
+        containerName: values.containerName || null,
+        composeDirectory: values.composeDirectory || null,
+        hostPort: optionalNumber(values.hostPort),
+        haRole: values.haRole || null,
       },
       csrf,
     );
@@ -532,6 +587,20 @@ export function ServerDetailPage() {
             <dd>{server.data.hostname}</dd>
             <dt className="text-slate-500">{t("common.sshPort")}</dt>
             <dd>{server.data.sshPort}</dd>
+            <dt className="text-slate-500">{t("servers.publicIp")}</dt>
+            <dd>{server.data.publicIpAddress ?? "—"}</dd>
+            <dt className="text-slate-500">{t("servers.cpuCores")}</dt>
+            <dd>{server.data.cpuCores ?? "—"}</dd>
+            <dt className="text-slate-500">{t("servers.memoryGb")}</dt>
+            <dd>{server.data.memoryGb ?? "—"}</dd>
+            <dt className="text-slate-500">{t("servers.diskGb")}</dt>
+            <dd>{server.data.diskGb ?? "—"}</dd>
+            <dt className="text-slate-500">{t("servers.operatingSystem")}</dt>
+            <dd>{server.data.operatingSystem ?? "—"}</dd>
+            <dt className="text-slate-500">{t("servers.haNode")}</dt>
+            <dd>{server.data.haNode ?? "—"}</dd>
+            <dt className="text-slate-500">{t("servers.managedBy")}</dt>
+            <dd>{server.data.managedBy ?? "—"}</dd>
             <dt className="text-slate-500">{t("servers.proxy")}</dt>
             <dd>
               {server.data.jumpServerName
@@ -609,6 +678,44 @@ export function ServerDetailPage() {
                 className="rounded-md border border-slate-300 px-3 py-1.5"
               />
             </label>
+            <EditField
+              label={t("servers.publicIp")}
+              value={edit.publicIpAddress}
+              onChange={(value) => setEdit({ ...edit, publicIpAddress: value })}
+            />
+            <EditField
+              label={t("servers.cpuCores")}
+              type="number"
+              value={edit.cpuCores}
+              onChange={(value) => setEdit({ ...edit, cpuCores: value })}
+            />
+            <EditField
+              label={t("servers.memoryGb")}
+              type="number"
+              value={edit.memoryGb}
+              onChange={(value) => setEdit({ ...edit, memoryGb: value })}
+            />
+            <EditField
+              label={t("servers.diskGb")}
+              type="number"
+              value={edit.diskGb}
+              onChange={(value) => setEdit({ ...edit, diskGb: value })}
+            />
+            <EditField
+              label={t("servers.operatingSystem")}
+              value={edit.operatingSystem}
+              onChange={(value) => setEdit({ ...edit, operatingSystem: value })}
+            />
+            <EditField
+              label={t("servers.haNode")}
+              value={edit.haNode}
+              onChange={(value) => setEdit({ ...edit, haNode: value })}
+            />
+            <EditField
+              label={t("servers.managedBy")}
+              value={edit.managedBy}
+              onChange={(value) => setEdit({ ...edit, managedBy: value })}
+            />
             <label
               htmlFor="server-jump"
               className="flex flex-col gap-1 sm:col-span-2"
@@ -849,6 +956,31 @@ export function ServerDetailPage() {
             label: t("common.port"),
             render: (row) => row.exposedPort,
           },
+          {
+            key: "runtime",
+            label: t("servers.runtime"),
+            render: (row) =>
+              row.runtime === "Container"
+                ? t("servers.runtimeContainer")
+                : row.runtime === "Native"
+                  ? t("servers.runtimeNative")
+                  : "—",
+          },
+          {
+            key: "hostPort",
+            label: t("servers.hostPort"),
+            render: (row) => row.hostPort ?? "—",
+          },
+          {
+            key: "haRole",
+            label: t("servers.haRole"),
+            render: (row) =>
+              row.haRole === "Primary"
+                ? t("servers.haPrimary")
+                : row.haRole === "Secondary"
+                  ? t("servers.haSecondary")
+                  : "—",
+          },
         ]}
         fields={[
           {
@@ -868,11 +1000,50 @@ export function ServerDetailPage() {
             type: "number",
             required: true,
           },
+          {
+            name: "runtime",
+            label: t("servers.runtime"),
+            type: "select",
+            options: [
+              { value: "", label: "—" },
+              { value: "Container", label: t("servers.runtimeContainer") },
+              { value: "Native", label: t("servers.runtimeNative") },
+            ],
+          },
+          { name: "containerImage", label: t("servers.containerImage") },
+          { name: "containerName", label: t("servers.containerName") },
+          { name: "composeDirectory", label: t("servers.composeDirectory") },
+          { name: "hostPort", label: t("servers.hostPort"), type: "number" },
+          {
+            name: "haRole",
+            label: t("servers.haRole"),
+            type: "select",
+            options: [
+              { value: "", label: "—" },
+              { value: "Primary", label: t("servers.haPrimary") },
+              { value: "Secondary", label: t("servers.haSecondary") },
+            ],
+          },
         ]}
-        empty={{ applicationVersionId: "", exposedPort: "" }}
+        empty={{
+          applicationVersionId: "",
+          exposedPort: "",
+          runtime: "",
+          containerImage: "",
+          containerName: "",
+          composeDirectory: "",
+          hostPort: "",
+          haRole: "",
+        }}
         toForm={(row) => ({
           applicationVersionId: String(row.applicationVersionId),
           exposedPort: String(row.exposedPort),
+          runtime: row.runtime ?? "",
+          containerImage: row.containerImage ?? "",
+          containerName: row.containerName ?? "",
+          composeDirectory: row.composeDirectory ?? "",
+          hostPort: row.hostPort ? String(row.hostPort) : "",
+          haRole: row.haRole ?? "",
         })}
         canWrite={isAdmin}
         canEditRow={() => false}
@@ -962,4 +1133,32 @@ function DeployActions({
       )}
     </section>
   );
+}
+
+function EditField({
+  label,
+  value,
+  onChange,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: "text" | "number";
+}) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-xs text-slate-500">{label}</span>
+      <input
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="rounded-md border border-slate-300 px-3 py-1.5"
+      />
+    </label>
+  );
+}
+
+function optionalNumber(value: string | undefined): number | null {
+  return value?.trim() ? Number(value) : null;
 }
