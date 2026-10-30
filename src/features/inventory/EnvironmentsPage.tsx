@@ -50,8 +50,10 @@ export function EnvironmentsPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeaderSlot title={t("environments.title")} />
-      <p className="text-sm text-slate-600">{t("environments.description")}</p>
+      <PageHeaderSlot
+        title={t("environments.title")}
+        description={t("environments.description")}
+      />
       <SearchForm
         value={search}
         onChange={setSearch}

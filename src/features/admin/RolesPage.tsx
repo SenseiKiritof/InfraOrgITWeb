@@ -36,8 +36,10 @@ export function RolesPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeaderSlot title={t("roles.title")} />
-      <p className="text-sm text-slate-600">{t("roles.description")}</p>
+      <PageHeaderSlot
+        title={t("roles.title")}
+        description={t("roles.description")}
+      />
       <EntitySection
         rows={roles.data?.items}
         columns={[

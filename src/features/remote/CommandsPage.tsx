@@ -41,8 +41,10 @@ export function CommandsPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeaderSlot title={t("commands.title")} />
-      <p className="text-sm text-slate-600">{t("commands.description")}</p>
+      <PageHeaderSlot
+        title={t("commands.title")}
+        description={t("commands.description")}
+      />
       <EntitySection
         rows={templates.data?.items}
         columns={[

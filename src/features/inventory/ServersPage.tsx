@@ -204,8 +204,10 @@ export function ServersPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeaderSlot title={t("servers.title")} />
-      <p className="text-sm text-slate-600">{t("servers.description")}</p>
+      <PageHeaderSlot
+        title={t("servers.title")}
+        description={t("servers.description")}
+      />
       <SearchForm
         value={search}
         onChange={setSearch}

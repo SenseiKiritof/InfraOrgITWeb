@@ -160,8 +160,10 @@ export function CredentialsPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeaderSlot title={t("credentials.title")} />
-      <p className="text-sm text-slate-600">{t("credentials.description")}</p>
+      <PageHeaderSlot
+        title={t("credentials.title")}
+        description={t("credentials.description")}
+      />
       <EntitySection
         rows={credentials.data?.items}
         columns={[

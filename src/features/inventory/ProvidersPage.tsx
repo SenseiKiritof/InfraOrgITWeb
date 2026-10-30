@@ -44,8 +44,10 @@ export function ProvidersPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeaderSlot title={t("providers.title")} />
-      <p className="text-sm text-slate-600">{t("providers.description")}</p>
+      <PageHeaderSlot
+        title={t("providers.title")}
+        description={t("providers.description")}
+      />
       <SearchForm
         value={search}
         onChange={setSearch}

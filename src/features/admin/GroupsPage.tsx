@@ -36,8 +36,10 @@ export function GroupsPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeaderSlot title={t("groups.title")} />
-      <p className="text-sm text-slate-600">{t("groups.description")}</p>
+      <PageHeaderSlot
+        title={t("groups.title")}
+        description={t("groups.description")}
+      />
       <EntitySection
         rows={groups.data?.items}
         columns={[

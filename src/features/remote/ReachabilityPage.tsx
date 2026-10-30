@@ -40,8 +40,10 @@ export function ReachabilityPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeaderSlot title={t("reachability.title")} />
-      <p className="text-sm text-slate-600">{t("reachability.description")}</p>
+      <PageHeaderSlot
+        title={t("reachability.title")}
+        description={t("reachability.description")}
+      />
       <EntitySection
         rows={tests.data}
         columns={[

@@ -37,9 +37,11 @@ export function useHeaderSlotTargets(): HeaderSlotTargets {
 
 export function PageHeaderSlot({
   title,
+  description,
   actions,
 }: {
   title: ReactNode;
+  description?: ReactNode;
   actions?: ReactNode;
 }) {
   const context = useContext(HeaderSlotContext);
@@ -48,7 +50,14 @@ export function PageHeaderSlot({
     <>
       {context.title &&
         createPortal(
-          <h1 className="truncate text-sm font-semibold">{title}</h1>,
+          <div className="flex min-w-0 flex-col items-center">
+            <h1 className="truncate text-sm font-semibold">{title}</h1>
+            {description && (
+              <p className="truncate text-xs font-normal text-slate-500">
+                {description}
+              </p>
+            )}
+          </div>,
           context.title,
         )}
       {context.actions && actions && createPortal(actions, context.actions)}

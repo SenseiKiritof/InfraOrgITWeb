@@ -177,8 +177,10 @@ export function MenusPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeaderSlot title={t("menus.title")} />
-      <p className="text-sm text-slate-600">{t("menus.description")}</p>
+      <PageHeaderSlot
+        title={t("menus.title")}
+        description={t("menus.description")}
+      />
       {error && (
         <p
           role="alert"

@@ -92,8 +92,10 @@ export function ExecutionsPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeaderSlot title={t("executions.title")} />
-      <p className="text-sm text-slate-600">{t("executions.description")}</p>
+      <PageHeaderSlot
+        title={t("executions.title")}
+        description={t("executions.description")}
+      />
       <SearchForm
         value={search}
         onChange={setSearch}

@@ -218,6 +218,7 @@ export function DiagramsPage() {
     <section className="space-y-4">
       <PageHeaderSlot
         title={t("diagrams.title")}
+        description={t("diagrams.description")}
         actions={
           <Link
             to="/diagrams/default"
@@ -227,7 +228,6 @@ export function DiagramsPage() {
           </Link>
         }
       />
-      <p className="text-sm text-slate-600">{t("diagrams.description")}</p>
       <SearchForm
         value={search}
         onChange={setSearch}

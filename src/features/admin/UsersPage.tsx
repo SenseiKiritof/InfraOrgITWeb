@@ -131,8 +131,10 @@ export function UsersPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeaderSlot title={t("users.title")} />
-      <p className="text-sm text-slate-600">{t("users.description")}</p>
+      <PageHeaderSlot
+        title={t("users.title")}
+        description={t("users.description")}
+      />
       <SearchForm
         value={search}
         onChange={setSearch}
