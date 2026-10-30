@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../app/AuthProvider";
 import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
-import { PageHeader } from "../../components/page";
+import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import type { AdminGroup } from "../../lib/admin";
 import { getGroups } from "../../lib/admin";
 import { useI18n } from "../../lib/i18n";
@@ -36,10 +36,8 @@ export function GroupsPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeader
-        title={t("groups.title")}
-        description={t("groups.description")}
-      />
+      <PageHeaderSlot title={t("groups.title")} />
+      <p className="text-sm text-slate-600">{t("groups.description")}</p>
       <EntitySection
         rows={groups.data?.items}
         columns={[

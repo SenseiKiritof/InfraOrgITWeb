@@ -13,6 +13,7 @@ import {
 } from "react-router-dom";
 import {
   HeaderSlotProvider,
+  PageHeaderSlot,
   useHeaderSlotTargets,
 } from "../components/PageHeaderSlot";
 import { UserMenu } from "../components/UserMenu";
@@ -318,8 +319,8 @@ function HomePage() {
 
   return (
     <section className="max-w-5xl">
-      <h1 className="text-2xl font-semibold">InfraOrgIT</h1>
-      <p className="mt-2 text-slate-600">
+      <PageHeaderSlot title="InfraOrgIT" />
+      <p className="text-sm text-slate-600">
         {t("app.welcome", {
           name: `${session?.user.name ?? ""} ${session?.user.surname ?? ""}`,
         })}

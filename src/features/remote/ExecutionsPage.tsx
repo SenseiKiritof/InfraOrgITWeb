@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
+import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import { Pagination } from "../../components/Pagination";
-import { PageHeader, SearchForm } from "../../components/page";
+import { SearchForm } from "../../components/page";
 import { SortableTh } from "../../components/SortableTh";
 import { columnWidths } from "../../lib/columnWidths";
 import { formatDateTime } from "../../lib/format";
@@ -91,10 +92,8 @@ export function ExecutionsPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeader
-        title={t("executions.title")}
-        description={t("executions.description")}
-      />
+      <PageHeaderSlot title={t("executions.title")} />
+      <p className="text-sm text-slate-600">{t("executions.description")}</p>
       <SearchForm
         value={search}
         onChange={setSearch}

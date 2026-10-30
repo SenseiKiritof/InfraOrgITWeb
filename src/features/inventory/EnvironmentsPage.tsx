@@ -5,7 +5,7 @@ import { useAuth } from "../../app/AuthProvider";
 import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
 import { PageHeaderSlot } from "../../components/PageHeaderSlot";
-import { PageHeader, SearchForm } from "../../components/page";
+import { SearchForm } from "../../components/page";
 import { RecordCard } from "../../components/RecordCard";
 import type {
   AdminGroup,
@@ -50,10 +50,8 @@ export function EnvironmentsPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeader
-        title={t("environments.title")}
-        description={t("environments.description")}
-      />
+      <PageHeaderSlot title={t("environments.title")} />
+      <p className="text-sm text-slate-600">{t("environments.description")}</p>
       <SearchForm
         value={search}
         onChange={setSearch}

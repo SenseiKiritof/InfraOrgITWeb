@@ -3,8 +3,8 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 import { useAuth } from "../../app/AuthProvider";
 import { AutocompleteSelect } from "../../components/AutocompleteSelect";
+import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import { Pagination } from "../../components/Pagination";
-import { PageHeader } from "../../components/page";
 import { SortableTh } from "../../components/SortableTh";
 import type { AdminMenu } from "../../lib/admin";
 import { getAdminMenus, getRoles } from "../../lib/admin";
@@ -177,10 +177,8 @@ export function MenusPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeader
-        title={t("menus.title")}
-        description={t("menus.description")}
-      />
+      <PageHeaderSlot title={t("menus.title")} />
+      <p className="text-sm text-slate-600">{t("menus.description")}</p>
       {error && (
         <p
           role="alert"

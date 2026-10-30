@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../app/AuthProvider";
 import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
-import { PageHeader } from "../../components/page";
+import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import { useI18n } from "../../lib/i18n";
 import { deleteEntity, saveEntity } from "../../lib/inventory";
 import type { CommandTemplate } from "../../lib/remote";
@@ -41,10 +41,8 @@ export function CommandsPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeader
-        title={t("commands.title")}
-        description={t("commands.description")}
-      />
+      <PageHeaderSlot title={t("commands.title")} />
+      <p className="text-sm text-slate-600">{t("commands.description")}</p>
       <EntitySection
         rows={templates.data?.items}
         columns={[

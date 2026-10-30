@@ -6,7 +6,7 @@ import { AutocompleteSelect } from "../../components/AutocompleteSelect";
 import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
 import { PageHeaderSlot } from "../../components/PageHeaderSlot";
-import { PageHeader, SearchForm } from "../../components/page";
+import { SearchForm } from "../../components/page";
 import { RecordCard, type RecordField } from "../../components/RecordCard";
 import { apiFetch } from "../../lib/api";
 import { type TranslationKey, useI18n } from "../../lib/i18n";
@@ -204,10 +204,8 @@ export function ServersPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeader
-        title={t("servers.title")}
-        description={t("servers.description")}
-      />
+      <PageHeaderSlot title={t("servers.title")} />
+      <p className="text-sm text-slate-600">{t("servers.description")}</p>
       <SearchForm
         value={search}
         onChange={setSearch}

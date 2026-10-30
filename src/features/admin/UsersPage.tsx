@@ -2,8 +2,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { FormEvent } from "react";
 import { useState } from "react";
 import { useAuth } from "../../app/AuthProvider";
+import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import { Pagination } from "../../components/Pagination";
-import { PageHeader, SearchForm } from "../../components/page";
+import { SearchForm } from "../../components/page";
 import { SortableTh } from "../../components/SortableTh";
 import type { AdminUser } from "../../lib/admin";
 import { getGroups, getRoles, getUsers } from "../../lib/admin";
@@ -130,10 +131,8 @@ export function UsersPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeader
-        title={t("users.title")}
-        description={t("users.description")}
-      />
+      <PageHeaderSlot title={t("users.title")} />
+      <p className="text-sm text-slate-600">{t("users.description")}</p>
       <SearchForm
         value={search}
         onChange={setSearch}

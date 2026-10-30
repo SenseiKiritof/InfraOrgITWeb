@@ -46,7 +46,11 @@ export function PageHeaderSlot({
   if (!context) return null;
   return (
     <>
-      {context.title && createPortal(title, context.title)}
+      {context.title &&
+        createPortal(
+          <h1 className="truncate text-sm font-semibold">{title}</h1>,
+          context.title,
+        )}
       {context.actions && actions && createPortal(actions, context.actions)}
     </>
   );

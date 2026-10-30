@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../app/AuthProvider";
 import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
-import { PageHeader } from "../../components/page";
+import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import { useI18n } from "../../lib/i18n";
 import { deleteEntity, saveEntity } from "../../lib/inventory";
 import type { ReachabilityTest } from "../../lib/remote";
@@ -40,10 +40,8 @@ export function ReachabilityPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeader
-        title={t("reachability.title")}
-        description={t("reachability.description")}
-      />
+      <PageHeaderSlot title={t("reachability.title")} />
+      <p className="text-sm text-slate-600">{t("reachability.description")}</p>
       <EntitySection
         rows={tests.data}
         columns={[

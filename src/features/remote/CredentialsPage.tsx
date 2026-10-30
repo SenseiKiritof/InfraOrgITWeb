@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useAuth } from "../../app/AuthProvider";
 import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
-import { PageHeader } from "../../components/page";
+import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import { useI18n } from "../../lib/i18n";
 import type { Server } from "../../lib/inventory";
 import { deleteEntity, saveEntity } from "../../lib/inventory";
@@ -160,10 +160,8 @@ export function CredentialsPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeader
-        title={t("credentials.title")}
-        description={t("credentials.description")}
-      />
+      <PageHeaderSlot title={t("credentials.title")} />
+      <p className="text-sm text-slate-600">{t("credentials.description")}</p>
       <EntitySection
         rows={credentials.data?.items}
         columns={[

@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../app/AuthProvider";
 import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
-import { PageHeader } from "../../components/page";
+import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import type { AdminRole } from "../../lib/admin";
 import { getRoles } from "../../lib/admin";
 import { useI18n } from "../../lib/i18n";
@@ -36,10 +36,8 @@ export function RolesPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeader
-        title={t("roles.title")}
-        description={t("roles.description")}
-      />
+      <PageHeaderSlot title={t("roles.title")} />
+      <p className="text-sm text-slate-600">{t("roles.description")}</p>
       <EntitySection
         rows={roles.data?.items}
         columns={[

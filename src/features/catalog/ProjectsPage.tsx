@@ -5,7 +5,7 @@ import { useAuth } from "../../app/AuthProvider";
 import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
 import { PageHeaderSlot } from "../../components/PageHeaderSlot";
-import { PageHeader, SearchForm } from "../../components/page";
+import { SearchForm } from "../../components/page";
 import { RecordCard } from "../../components/RecordCard";
 import { apiFetch } from "../../lib/api";
 import type { Topology } from "../../lib/diagrams";
@@ -45,10 +45,8 @@ export function ProjectsPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeader
-        title={t("projects.title")}
-        description={t("projects.description")}
-      />
+      <PageHeaderSlot title={t("projects.title")} />
+      <p className="text-sm text-slate-600">{t("projects.description")}</p>
       <SearchForm
         value={search}
         onChange={setSearch}

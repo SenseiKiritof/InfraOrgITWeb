@@ -4,8 +4,9 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../app/AuthProvider";
 import { AutocompleteSelect } from "../../components/AutocompleteSelect";
+import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import { Pagination } from "../../components/Pagination";
-import { PageHeader, SearchForm } from "../../components/page";
+import { SearchForm } from "../../components/page";
 import { SortableTh } from "../../components/SortableTh";
 import { columnWidths } from "../../lib/columnWidths";
 import type {
@@ -215,17 +216,18 @@ export function DiagramsPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeader
+      <PageHeaderSlot
         title={t("diagrams.title")}
-        description={t("diagrams.description")}
-      >
-        <Link
-          to="/diagrams/default"
-          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
-        >
-          {t("diagrams.globalView")}
-        </Link>
-      </PageHeader>
+        actions={
+          <Link
+            to="/diagrams/default"
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+          >
+            {t("diagrams.globalView")}
+          </Link>
+        }
+      />
+      <p className="text-sm text-slate-600">{t("diagrams.description")}</p>
       <SearchForm
         value={search}
         onChange={setSearch}

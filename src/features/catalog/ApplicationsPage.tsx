@@ -6,7 +6,7 @@ import { useAuth } from "../../app/AuthProvider";
 import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
 import { PageHeaderSlot } from "../../components/PageHeaderSlot";
-import { PageHeader, SearchForm } from "../../components/page";
+import { SearchForm } from "../../components/page";
 import { RecordCard } from "../../components/RecordCard";
 import { apiFetch } from "../../lib/api";
 import { formatBytes, formatDateTime } from "../../lib/format";
@@ -104,10 +104,8 @@ export function ApplicationsPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeader
-        title={t("applications.title")}
-        description={t("applications.description")}
-      />
+      <PageHeaderSlot title={t("applications.title")} />
+      <p className="text-sm text-slate-600">{t("applications.description")}</p>
       <SearchForm
         value={search}
         onChange={setSearch}

@@ -5,7 +5,7 @@ import { useAuth } from "../../app/AuthProvider";
 import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
 import { PageHeaderSlot } from "../../components/PageHeaderSlot";
-import { PageHeader, SearchForm } from "../../components/page";
+import { SearchForm } from "../../components/page";
 import { RecordCard } from "../../components/RecordCard";
 import { apiFetch } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
@@ -44,10 +44,8 @@ export function ProvidersPage() {
 
   return (
     <section className="space-y-4">
-      <PageHeader
-        title={t("providers.title")}
-        description={t("providers.description")}
-      />
+      <PageHeaderSlot title={t("providers.title")} />
+      <p className="text-sm text-slate-600">{t("providers.description")}</p>
       <SearchForm
         value={search}
         onChange={setSearch}
