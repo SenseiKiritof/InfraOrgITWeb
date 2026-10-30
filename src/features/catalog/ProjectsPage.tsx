@@ -10,10 +10,12 @@ import { RecordCard } from "../../components/RecordCard";
 import { apiFetch } from "../../lib/api";
 import type { Topology } from "../../lib/diagrams";
 import { useI18n } from "../../lib/i18n";
-import type { Application, Project } from "../../lib/inventory";
+import type { Application, Project, Server } from "../../lib/inventory";
 import { deleteEntity, listOf, paged, saveEntity } from "../../lib/inventory";
+import type { ReachabilityResult } from "../../lib/remote";
+import { runServerReachability } from "../../lib/remote";
 import { useQueryFilter } from "../../lib/useQueryFilter";
-import { useIsSystemAdmin } from "../../lib/useServerAccess";
+import { useIsSystemAdmin, useServerAccess } from "../../lib/useServerAccess";
 
 export function ProjectsPage() {
   const { session } = useAuth();
@@ -120,6 +122,27 @@ export function ProjectDetailPage() {
     enabled: Number.isInteger(projectId),
   });
 
+  const servers = useQuery({
+    queryKey: ["servers", "options"],
+    queryFn: () => paged<Server>("/api/servers"),
+  });
+  const serversById = new Map(
+    (servers.data?.items ?? []).map((server) => [server.id, server]),
+  );
+  const access = useServerAccess();
+  const canRunOn = (serverId: number) => {
+    const server = serversById.get(serverId);
+    if (!server) return false;
+    return (
+      (access.data?.adminEnvironmentIds ?? []).includes(
+        server.providerEnvironmentId,
+      ) ||
+      (access.data?.operatorEnvironmentIds ?? []).includes(
+        server.providerEnvironmentId,
+      )
+    );
+  };
+
   const serversByApplication = new Map<string, string[]>();
   for (const provider of topology.data?.providers ?? [])
     for (const environment of provider.environments)
@@ -141,6 +164,7 @@ export function ProjectDetailPage() {
         return [
           {
             key: String(server.id),
+            serverId: server.id,
             environment: environment.environmentName,
             serverName: server.name,
             ipAddress: server.ipAddress,
@@ -158,6 +182,37 @@ export function ProjectDetailPage() {
   );
   const isProduction = (name: string) =>
     name.trim().toLowerCase().startsWith("prod");
+
+  const [runningTests, setRunningTests] = useState(false);
+  const [testResults, setTestResults] = useState<ReachabilityResult[]>([]);
+  const runnableServers = serverGroups.filter((group) =>
+    canRunOn(group.serverId),
+  );
+
+  const runTests = async () => {
+    if (runnableServers.length === 0) return;
+    setRunningTests(true);
+    setTestResults([]);
+    const collected: ReachabilityResult[] = [];
+    for (const server of runnableServers) {
+      try {
+        collected.push(...(await runServerReachability(server.serverId, csrf)));
+      } catch (cause) {
+        collected.push({
+          serverId: server.serverId,
+          serverName: server.serverName,
+          hostname: null,
+          port: null,
+          reachable: false,
+          error:
+            cause instanceof Error ? cause.message : t("servers.testFailed"),
+        });
+      }
+      setTestResults([...collected]);
+    }
+    setRunningTests(false);
+    await queryClient.invalidateQueries({ queryKey: ["command-executions"] });
+  };
 
   const applicationOptions = useQuery({
     queryKey: ["applications", "options"],
@@ -283,9 +338,21 @@ export function ProjectDetailPage() {
         createLabel={t("projects.linkApplication")}
       />
       <section className="space-y-2">
-        <h2 className="px-1 text-sm font-semibold uppercase tracking-wide text-slate-500">
-          {t("projects.applicationServers")}
-        </h2>
+        <div className="flex items-center justify-between gap-3 px-1">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+            {t("projects.applicationServers")}
+          </h2>
+          {runnableServers.length > 0 && (
+            <button
+              type="button"
+              onClick={() => void runTests()}
+              disabled={runningTests}
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-50"
+            >
+              {runningTests ? t("servers.testing") : t("servers.runAll")}
+            </button>
+          )}
+        </div>
         <ProjectServerList
           title={t("projects.integrated")}
           servers={serverGroups.filter((row) => !isProduction(row.environment))}
@@ -294,6 +361,26 @@ export function ProjectDetailPage() {
           title={t("projects.production")}
           servers={serverGroups.filter((row) => isProduction(row.environment))}
         />
+        {testResults.length > 0 && (
+          <ul className="rounded-lg border border-slate-200 bg-white p-3 text-sm">
+            {testResults.map((result) => (
+              <li
+                key={`${result.serverId}-${result.hostname}-${result.port}-${result.reachable}-${result.error}`}
+              >
+                {result.serverName} ·{" "}
+                {result.hostname ?? t("servers.connection")}:{result.port ?? ""}{" "}
+                <span
+                  className={
+                    result.reachable ? "text-emerald-700" : "text-red-700"
+                  }
+                >
+                  {result.reachable ? "OK" : "KO"}
+                </span>{" "}
+                {result.error}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </section>
   );
@@ -301,6 +388,7 @@ export function ProjectDetailPage() {
 
 type ProjectServerGroup = {
   key: string;
+  serverId: number;
   environment: string;
   serverName: string;
   ipAddress: string;
