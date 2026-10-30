@@ -1,7 +1,7 @@
 FROM node:24-alpine AS build
 WORKDIR /app
 
-ARG APP_VERSION=0.0.0
+ARG APP_VERSION=0.1.0
 
 COPY package.json yarn.lock ./
 RUN yarn install --frozen-lockfile
@@ -12,7 +12,7 @@ RUN yarn build
 
 FROM caddy:2-alpine
 
-ARG APP_VERSION=0.0.0
+ARG APP_VERSION=0.1.0
 LABEL org.opencontainers.image.title="InfraOrgIT Web" \
       org.opencontainers.image.description="SPA InfraOrgIT servita da Caddy" \
       org.opencontainers.image.version=$APP_VERSION \
