@@ -58,10 +58,12 @@ export {
   ArrowRightOnRectangleIcon,
   ArrowsPointingInIcon,
   ArrowsPointingOutIcon,
+  Bars3Icon,
   HomeIcon,
   MoonIcon,
   ServerStackIcon,
   Squares2X2Icon,
   SunIcon,
   UserCircleIcon,
+  XMarkIcon,
 } from "@heroicons/react/24/outline";

@@ -29,7 +29,7 @@ export function UserMenu({
     <details ref={menu} className="relative">
       <summary className="flex cursor-pointer list-none items-center gap-2 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 [&::-webkit-details-marker]:hidden">
         <UserCircleIcon className="h-5 w-5" aria-hidden="true" />
-        <span className="max-w-[14rem] truncate">{name}</span>
+        <span className="hidden max-w-[14rem] truncate sm:inline">{name}</span>
       </summary>
       <div className="absolute right-0 z-30 mt-2 w-48 rounded-md border border-slate-200 bg-white p-1 shadow-lg">
         <p className="truncate px-3 py-2 text-xs text-slate-500">{username}</p>

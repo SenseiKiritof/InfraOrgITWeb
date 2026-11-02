@@ -11,7 +11,7 @@ export function PageHeader({
   children?: ReactNode;
 }) {
   return (
-    <header className="flex items-start justify-between gap-4">
+    <header className="flex flex-wrap items-start justify-between gap-3">
       <div>
         <h1 className="text-2xl font-semibold">{title}</h1>
         {description && (
@@ -39,7 +39,7 @@ export function SearchForm({
         event.preventDefault();
         onSubmit();
       }}
-      className="flex gap-2"
+      className="flex w-full flex-wrap gap-2"
     >
       <label htmlFor="search" className="sr-only">
         {t("common.search")}
@@ -49,7 +49,7 @@ export function SearchForm({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={t("common.searchEllipsis")}
-        className="w-64 rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+        className="min-w-0 flex-1 rounded-md border border-slate-300 px-3 py-1.5 text-sm sm:w-64 sm:flex-none"
       />
       <button
         type="submit"

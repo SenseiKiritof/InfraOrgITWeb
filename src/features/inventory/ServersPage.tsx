@@ -573,7 +573,7 @@ export function ServerDetailPage() {
               {server.data?.name ?? t("servers.title")}
             </span>
             {server.data && (
-              <span className="truncate font-normal text-slate-500">
+              <span className="hidden truncate font-normal text-slate-500 sm:inline">
                 {server.data.hostname !== server.data.name
                   ? `${server.data.hostname} · `
                   : ""}
@@ -591,7 +591,8 @@ export function ServerDetailPage() {
               }
               className="rounded-md border border-transparent bg-slate-900 px-3 py-1.5 text-sm font-medium text-white"
             >
-              {t("console.title")}
+              <span className="hidden sm:inline">{t("console.title")}</span>
+              <span className="sm:hidden">SSH</span>
             </button>
           ) : undefined
         }
