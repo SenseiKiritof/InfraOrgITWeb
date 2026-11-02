@@ -23,3 +23,15 @@ test("layout mobile: drawer e nessun overflow", async ({ page }) => {
     expect(overflow).toBe(0);
   }
 });
+
+test("home: le tile occupano lo spazio disponibile", async ({ page }) => {
+  await page.setViewportSize({ width: 2000, height: 900 });
+  await login(page);
+  const columns = await page.evaluate(() => {
+    const grid = document.querySelector("main div.grid");
+    return grid
+      ? getComputedStyle(grid).gridTemplateColumns.split(" ").length
+      : 0;
+  });
+  expect(columns).toBeGreaterThan(3);
+});
