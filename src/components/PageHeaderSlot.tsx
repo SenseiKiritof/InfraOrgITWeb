@@ -53,7 +53,7 @@ export function PageHeaderSlot({
           <div className="flex min-w-0 flex-col items-center">
             <h1 className="truncate text-sm font-semibold">{title}</h1>
             {description && (
-              <p className="truncate text-xs font-normal text-slate-500">
+              <p className="hidden truncate text-xs font-normal text-slate-500 sm:block">
                 {description}
               </p>
             )}

@@ -28,6 +28,8 @@ const it = {
   "app.logoutError":
     "Logout non riuscito. La sessione è ancora attiva: riprova.",
   "app.mainMenu": "Menu principale",
+  "app.openMenu": "Apri menu",
+  "app.closeMenu": "Chiudi menu",
   "app.menuLoading": "Caricamento menu…",
   "app.back": "Indietro",
   "app.themeLight": "Tema chiaro",
@@ -485,6 +487,8 @@ const en: Record<TranslationKey, string> = {
   "app.sessionUnavailable": "Session unavailable",
   "app.logoutError": "Logout failed. The session is still active: try again.",
   "app.mainMenu": "Main menu",
+  "app.openMenu": "Open menu",
+  "app.closeMenu": "Close menu",
   "app.menuLoading": "Loading menu…",
   "app.back": "Back",
   "app.themeLight": "Light theme",
