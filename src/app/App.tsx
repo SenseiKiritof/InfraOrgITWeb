@@ -361,7 +361,7 @@ function HomePage() {
   const tiles = homeMenus(menus.data ?? []);
 
   return (
-    <section className="max-w-5xl">
+    <section className="space-y-4">
       <PageHeaderSlot title="InfraOrgIT" />
       <p className="text-sm text-slate-600">
         {t("app.welcome", {
@@ -375,7 +375,7 @@ function HomePage() {
         <p className="mt-6 text-sm text-red-600">{menus.error.message}</p>
       )}
       {!menus.isLoading && !menus.error && (
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-3">
           {tiles.map((menu) => {
             const Icon = iconForPath(menu.path);
             return (
