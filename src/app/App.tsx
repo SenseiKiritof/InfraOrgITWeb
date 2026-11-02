@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import {
   Link,
   NavLink,
@@ -54,7 +54,14 @@ import { getMenus } from "../lib/api";
 import { backAction } from "../lib/back";
 import { homeMenus } from "../lib/home";
 import { LanguageProvider, useI18n } from "../lib/i18n";
-import { ArrowLeftIcon, iconForPath, MoonIcon, SunIcon } from "../lib/icons";
+import {
+  ArrowLeftIcon,
+  Bars3Icon,
+  iconForPath,
+  MoonIcon,
+  SunIcon,
+  XMarkIcon,
+} from "../lib/icons";
 import { AuthProvider, useAuth } from "./AuthProvider";
 
 const DiagramPage = lazy(() =>
@@ -155,12 +162,17 @@ function ShellLayout() {
     queryFn: () => getMenus(language),
   });
   const [logoutError, setLogoutError] = useState<string | null>(null);
+  const [navOpen, setNavOpen] = useState(false);
   const [dark, setDark] = useState(() =>
     document.documentElement.classList.contains("dark"),
   );
   const location = useLocation();
   const navigate = useNavigate();
   const detailParent = DETAIL_ROUTE.exec(location.pathname)?.[1];
+
+  useEffect(() => {
+    if (location.pathname) setNavOpen(false);
+  }, [location.pathname]);
 
   const goBack = () => {
     if (!detailParent) return;
@@ -191,13 +203,34 @@ function ShellLayout() {
       className="flex h-full overflow-hidden bg-slate-50 text-slate-900"
       style={{ paddingBottom: "var(--console-dock-height, 0px)" }}
     >
-      <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white">
-        <div className="flex h-16 shrink-0 flex-col justify-center border-b border-slate-200 px-4">
+      {navOpen && (
+        <button
+          type="button"
+          aria-label={t("app.closeMenu")}
+          onClick={() => setNavOpen(false)}
+          className="fixed inset-0 z-30 bg-slate-900/50 lg:hidden"
+        />
+      )}
+      <aside
+        id="main-menu"
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white transition-transform lg:static lg:z-auto lg:translate-x-0 ${
+          navOpen ? "translate-x-0" : "-translate-x-full invisible lg:visible"
+        }`}
+      >
+        <div className="relative flex h-16 shrink-0 flex-col justify-center border-b border-slate-200 px-4">
           <p className="text-lg leading-tight font-semibold">InfraOrgIT</p>
           <p className="text-xs text-slate-500">
             Infrastructure organizer ·{" "}
             {import.meta.env.VITE_APP_VERSION ?? "dev"}
           </p>
+          <button
+            type="button"
+            onClick={() => setNavOpen(false)}
+            aria-label={t("app.closeMenu")}
+            className="absolute top-1/2 right-2 -translate-y-1/2 rounded-md border border-slate-300 p-1.5 text-slate-700 hover:bg-slate-100 lg:hidden"
+          >
+            <XMarkIcon className="h-5 w-5" aria-hidden="true" />
+          </button>
         </div>
         <nav
           aria-label={t("app.mainMenu")}
@@ -216,8 +249,18 @@ function ShellLayout() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-slate-200 bg-white px-6">
-          <div className="flex min-w-0 shrink-0 items-center gap-3">
+        <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 sm:gap-4 sm:px-6">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={() => setNavOpen(true)}
+              aria-label={t("app.openMenu")}
+              aria-controls="main-menu"
+              aria-expanded={navOpen}
+              className="rounded-md border border-slate-300 p-1.5 text-slate-700 hover:bg-slate-100 lg:hidden"
+            >
+              <Bars3Icon className="h-5 w-5" aria-hidden="true" />
+            </button>
             {detailParent && (
               <Link
                 to={`/${detailParent}`}
@@ -229,15 +272,15 @@ function ShellLayout() {
                 className="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
               >
                 <ArrowLeftIcon className="h-4 w-4" aria-hidden="true" />
-                {t("app.back")}
+                <span className="hidden sm:inline">{t("app.back")}</span>
               </Link>
             )}
           </div>
           <div
             ref={setTitle}
-            className="flex min-w-0 flex-1 items-center justify-center px-4 text-sm font-semibold text-slate-700"
+            className="flex min-w-0 flex-1 items-center justify-center px-1 text-sm font-semibold text-slate-700 sm:px-4"
           />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <div ref={setActions} className="flex items-center gap-2" />
             <button
               type="button"
@@ -267,7 +310,7 @@ function ShellLayout() {
             {logoutError}
           </p>
         )}
-        <main className="min-h-0 flex-1 overflow-auto p-6">
+        <main className="min-h-0 flex-1 overflow-auto p-3 sm:p-6">
           <Outlet />
         </main>
       </div>

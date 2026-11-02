@@ -145,7 +145,7 @@ export function EntitySection<T extends { id: number }>({
 
   return (
     <section className="rounded-lg border border-slate-200 bg-white">
-      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
         {title ? (
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
             {title}
@@ -153,7 +153,7 @@ export function EntitySection<T extends { id: number }>({
         ) : (
           <span />
         )}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {headerActions}
           {canWrite && canCreate && (
             <button

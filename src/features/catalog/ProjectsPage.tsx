@@ -338,7 +338,7 @@ export function ProjectDetailPage() {
         createLabel={t("projects.linkApplication")}
       />
       <section className="space-y-2">
-        <div className="flex items-center justify-between gap-3 px-1">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-1">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
             {t("projects.applicationServers")}
           </h2>
@@ -417,35 +417,38 @@ function ProjectServerList({
       {servers.length === 0 ? (
         <p className="mt-2 text-slate-500">{t("projects.noServers")}</p>
       ) : (
-        <table className="mt-2 w-full text-left text-sm">
-          <thead>
-            <tr className="text-xs uppercase tracking-wide text-slate-500">
-              <th className="px-2 py-2">{t("common.server")}</th>
-              <th className="px-2 py-2">{t("common.ip")}</th>
-              <th className="px-2 py-2">{t("common.hostname")}</th>
-              <th className="px-2 py-2">{t("common.applications")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {servers.map((server) => (
-              <tr key={server.key} className="border-t border-slate-100">
-                <td className="px-2 py-2">{server.serverName}</td>
-                <td className="px-2 py-2">{server.ipAddress}</td>
-                <td className="px-2 py-2">{server.hostname}</td>
-                <td className="px-2 py-2">
-                  <ul>
-                    {server.applications.map((application) => (
-                      <li key={application.key}>
-                        {application.applicationName}{" "}
-                        {application.versionNumber} · :{application.exposedPort}
-                      </li>
-                    ))}
-                  </ul>
-                </td>
+        <div className="mt-2 overflow-x-auto">
+          <table className="w-full min-w-[40rem] text-left text-sm">
+            <thead>
+              <tr className="text-xs uppercase tracking-wide text-slate-500">
+                <th className="px-2 py-2">{t("common.server")}</th>
+                <th className="px-2 py-2">{t("common.ip")}</th>
+                <th className="px-2 py-2">{t("common.hostname")}</th>
+                <th className="px-2 py-2">{t("common.applications")}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {servers.map((server) => (
+                <tr key={server.key} className="border-t border-slate-100">
+                  <td className="px-2 py-2">{server.serverName}</td>
+                  <td className="px-2 py-2">{server.ipAddress}</td>
+                  <td className="px-2 py-2">{server.hostname}</td>
+                  <td className="px-2 py-2">
+                    <ul>
+                      {server.applications.map((application) => (
+                        <li key={application.key}>
+                          {application.applicationName}{" "}
+                          {application.versionNumber} · :
+                          {application.exposedPort}
+                        </li>
+                      ))}
+                    </ul>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   );
