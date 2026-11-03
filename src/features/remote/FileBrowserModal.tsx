@@ -43,7 +43,8 @@ export function FileBrowserModal({
   const [path, setPath] = useState("/");
   const [filter, setFilter] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [servers, setServers] = useState<Server[]>([]);
   const [adminIds, setAdminIds] = useState<number[]>([]);
   const [loadingServers, setLoadingServers] = useState(false);
@@ -60,7 +61,8 @@ export function FileBrowserModal({
   useEffect(() => {
     setPath("/");
     setFilter("");
-    setError(null);
+    setLoadError(null);
+    setActionError(null);
   }, [selectedId]);
 
   useEffect(() => {
@@ -101,7 +103,7 @@ export function FileBrowserModal({
     if (!open || selectedId === null || !server?.fileTransferProtocol) return;
     let cancelled = false;
     setLoadingFiles(true);
-    setError(null);
+    setLoadError(null);
     listServerFiles(selectedId, path)
       .then((listing) => {
         if (cancelled) return;
@@ -111,7 +113,9 @@ export function FileBrowserModal({
       .catch((cause: unknown) => {
         if (cancelled) return;
         setEntries([]);
-        setError(cause instanceof Error ? cause.message : t("files.failed"));
+        setLoadError(
+          cause instanceof Error ? cause.message : t("files.failed"),
+        );
       })
       .finally(() => {
         if (!cancelled) setLoadingFiles(false);
@@ -133,12 +137,14 @@ export function FileBrowserModal({
 
   const run = async (action: () => Promise<unknown>) => {
     setBusy(true);
-    setError(null);
+    setActionError(null);
     try {
       await action();
       await refresh();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t("files.failed"));
+      setActionError(
+        cause instanceof Error ? cause.message : t("files.failed"),
+      );
     } finally {
       setBusy(false);
     }
@@ -330,7 +336,9 @@ export function FileBrowserModal({
         <div className="min-h-0 flex-1 overflow-auto">
           {selectedId === null && (
             <p className="p-6 text-sm text-slate-500">
-              {t("files.chooseServerHint")}
+              {!loadingServers && available.length === 0
+                ? t("console.noServers")
+                : t("files.chooseServerHint")}
             </p>
           )}
           {selectedId !== null && !server?.fileTransferProtocol && (
@@ -340,6 +348,9 @@ export function FileBrowserModal({
           )}
           {loadingFiles && (
             <p className="p-6 text-sm text-slate-500">{t("common.loading")}</p>
+          )}
+          {!loadingFiles && loadError && (
+            <p className="p-6 text-sm text-red-700">{loadError}</p>
           )}
           {server?.fileTransferProtocol &&
             selectedId !== null &&
@@ -456,9 +467,9 @@ export function FileBrowserModal({
             )}
         </div>
 
-        {error && (
+        {actionError && (
           <p className="border-t border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
-            {error}
+            {actionError}
           </p>
         )}
       </div>
