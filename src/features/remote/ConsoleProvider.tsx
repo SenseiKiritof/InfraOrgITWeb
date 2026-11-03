@@ -1,4 +1,10 @@
-import { ChevronDownIcon, ViewColumnsIcon } from "@heroicons/react/24/outline";
+import {
+  ChevronDownIcon,
+  FolderArrowDownIcon,
+  MagnifyingGlassIcon,
+  PlusIcon,
+  ViewColumnsIcon,
+} from "@heroicons/react/24/outline";
 import {
   createContext,
   type ReactNode,
@@ -10,7 +16,11 @@ import {
   useState,
 } from "react";
 import { useI18n } from "../../lib/i18n";
+import type { Server } from "../../lib/inventory";
+import { paged } from "../../lib/inventory";
+import { fetchServerAccess } from "../../lib/useServerAccess";
 import { ConsoleModal } from "./ConsoleModal";
+import { FileBrowserModal } from "./FileBrowserModal";
 
 type Session = {
   id: string;
@@ -27,6 +37,8 @@ type ConsoleApi = {
   open: (serverId: number, serverName: string) => void;
   hasSession: (serverId: number) => boolean;
   closeServer: (serverId: number) => void;
+  /** Apre l'esploratore file; null mostra la scelta del server. */
+  openFiles: (serverId: number | null) => void;
 };
 
 const STORAGE_KEY = "ds-console-sessions";
@@ -103,11 +115,55 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
   );
   const [split, setSplit] = useState(false);
   const [activity, setActivity] = useState<Record<string, Activity>>({});
+  const [launcherOpen, setLauncherOpen] = useState(false);
+  const [launcherQuery, setLauncherQuery] = useState("");
+  const [filesOpen, setFilesOpen] = useState(false);
+  const [fileServerId, setFileServerId] = useState<number | null>(null);
   const sessionsRef = useRef(sessions);
   const splitRef = useRef(split);
   const activeRef = useRef(activeId);
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const [storageError, setStorageError] = useState(false);
+
+  const [serverList, setServerList] = useState<Server[]>([]);
+  const [serversLoading, setServersLoading] = useState(false);
+  const [adminEnvironmentIds, setAdminEnvironmentIds] = useState<number[]>([]);
+
+  useEffect(() => {
+    if (!launcherOpen && !filesOpen) return;
+    let cancelled = false;
+    setServersLoading(true);
+    Promise.all([paged<Server>("/api/servers"), fetchServerAccess()])
+      .then(([page, serverAccess]) => {
+        if (cancelled) return;
+        setServerList(page.items);
+        setAdminEnvironmentIds(serverAccess.adminEnvironmentIds);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setServerList([]);
+          setAdminEnvironmentIds([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setServersLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [launcherOpen, filesOpen]);
+  const availableServers = useMemo(
+    () =>
+      serverList
+        .filter((server) =>
+          adminEnvironmentIds.includes(server.providerEnvironmentId),
+        )
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [serverList, adminEnvironmentIds],
+  );
+  const filteredServers = availableServers.filter((server) =>
+    server.name.toLocaleLowerCase().includes(launcherQuery.toLocaleLowerCase()),
+  );
 
   useEffect(() => {
     try {
@@ -250,9 +306,14 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
+  const openFiles = useCallback((serverId: number | null) => {
+    setFileServerId(serverId);
+    setFilesOpen(true);
+  }, []);
+
   const api = useMemo(
-    () => ({ open, hasSession, closeServer }),
-    [open, hasSession, closeServer],
+    () => ({ open, hasSession, closeServer, openFiles }),
+    [open, hasSession, closeServer, openFiles],
   );
   const openSessions = sessions.filter((session) => session.visible);
   const shown = split
@@ -313,10 +374,82 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-700 bg-slate-900 text-slate-100">
-        <div className="flex h-11 items-center gap-1 px-2">
+        <div className="relative flex h-11 items-center gap-1 px-2">
           <span className="shrink-0 px-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
             {t("console.label")}
           </span>
+          <button
+            type="button"
+            onClick={() => {
+              setLauncherQuery("");
+              setLauncherOpen((value) => !value);
+            }}
+            aria-label={t("console.add")}
+            aria-expanded={launcherOpen}
+            title={t("console.add")}
+            className={`rounded p-1 ${
+              launcherOpen
+                ? "bg-slate-700 text-slate-100"
+                : "text-slate-400 hover:text-slate-100"
+            }`}
+          >
+            <PlusIcon className="h-4 w-4" aria-hidden="true" />
+          </button>
+          {launcherOpen && (
+            <>
+              <button
+                type="button"
+                aria-label={t("common.close")}
+                onClick={() => setLauncherOpen(false)}
+                className="fixed inset-0 z-40 cursor-default"
+              />
+              <div className="absolute bottom-full left-2 z-50 mb-1 w-80 rounded-lg border border-slate-200 bg-white p-2 text-slate-900 shadow-xl">
+                <label className="flex items-center gap-2 rounded-md border border-slate-300 px-2 py-1.5">
+                  <MagnifyingGlassIcon
+                    className="h-4 w-4 shrink-0 text-slate-400"
+                    aria-hidden="true"
+                  />
+                  <input
+                    // biome-ignore lint/a11y/noAutofocus: la ricerca è il primo campo del pannello appena aperto
+                    autoFocus
+                    value={launcherQuery}
+                    onChange={(event) => setLauncherQuery(event.target.value)}
+                    placeholder={t("console.searchServer")}
+                    className="min-w-0 flex-1 text-sm outline-none"
+                  />
+                </label>
+                <div className="mt-1 max-h-72 overflow-y-auto">
+                  {serversLoading && (
+                    <p className="px-2 py-3 text-sm text-slate-500">
+                      {t("common.loading")}
+                    </p>
+                  )}
+                  {!serversLoading && filteredServers.length === 0 && (
+                    <p className="px-2 py-3 text-sm text-slate-500">
+                      {t("console.noServers")}
+                    </p>
+                  )}
+                  {filteredServers.map((server) => (
+                    <button
+                      key={server.id}
+                      type="button"
+                      onClick={() => {
+                        open(server.id, server.name);
+                        setLauncherOpen(false);
+                        setLauncherQuery("");
+                      }}
+                      className="flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-slate-100"
+                    >
+                      <span className="truncate">{server.name}</span>
+                      <span className="shrink-0 font-mono text-xs text-slate-500">
+                        {server.ipAddress}:{server.sshPort}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
           <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
             {sessions.map((session) => (
               <div
@@ -351,38 +484,58 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
               </div>
             ))}
           </div>
-          {sessions.length > 0 && (
-            <div className="flex shrink-0 items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setSplit((value) => !value)}
-                aria-label={split ? t("console.merge") : t("console.split")}
-                aria-pressed={split}
-                title={split ? t("console.merge") : t("console.split")}
-                className={`rounded p-1 ${
-                  split
-                    ? "bg-slate-700 text-slate-100"
-                    : "text-slate-400 hover:text-slate-100"
-                }`}
-              >
-                <ViewColumnsIcon className="h-4 w-4" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                aria-label={t("console.minimize")}
-                title={t("console.minimize")}
-                onClick={() => {
-                  for (const session of openSessions) minimize(session.id);
-                }}
-                disabled={openSessions.length === 0}
-                className="rounded p-1 text-slate-400 hover:text-slate-100 disabled:opacity-40"
-              >
-                <ChevronDownIcon className="h-4 w-4" aria-hidden="true" />
-              </button>
-            </div>
-          )}
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              onClick={() => openFiles(null)}
+              aria-label={t("files.open")}
+              title={t("files.open")}
+              className="flex items-center gap-1 rounded px-1.5 py-1 text-xs text-slate-400 hover:text-slate-100"
+            >
+              <FolderArrowDownIcon className="h-4 w-4" aria-hidden="true" />
+              <span className="hidden sm:inline">{t("files.label")}</span>
+            </button>
+            {sessions.length > 0 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setSplit((value) => !value)}
+                  aria-label={split ? t("console.merge") : t("console.split")}
+                  aria-pressed={split}
+                  title={split ? t("console.merge") : t("console.split")}
+                  className={`rounded p-1 ${
+                    split
+                      ? "bg-slate-700 text-slate-100"
+                      : "text-slate-400 hover:text-slate-100"
+                  }`}
+                >
+                  <ViewColumnsIcon className="h-4 w-4" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  aria-label={t("console.minimize")}
+                  title={t("console.minimize")}
+                  onClick={() => {
+                    for (const session of openSessions) minimize(session.id);
+                  }}
+                  disabled={openSessions.length === 0}
+                  className="rounded p-1 text-slate-400 hover:text-slate-100 disabled:opacity-40"
+                >
+                  <ChevronDownIcon className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
+
+      {filesOpen && (
+        <FileBrowserModal
+          open
+          serverId={fileServerId}
+          onClose={() => setFilesOpen(false)}
+        />
+      )}
       {storageError && (
         <p className="fixed right-3 bottom-14 z-50 rounded bg-amber-100 px-3 py-1 text-xs text-amber-900 shadow">
           {t("console.storageError")}

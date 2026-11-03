@@ -76,6 +76,116 @@ export interface ReachabilityResult {
   error: string | null;
 }
 
+export type FileTransferProtocol = "Sftp" | "Ftp";
+
+export interface RemoteFileEntry {
+  name: string;
+  path: string;
+  isDirectory: boolean;
+  size: number;
+  modifiedUtc: string | null;
+}
+
+export interface RemoteFileList {
+  path: string;
+  items: RemoteFileEntry[];
+}
+
+export interface FileTransferConfig {
+  protocol: FileTransferProtocol | null;
+  port: number | null;
+  credentialId: number | null;
+}
+
+export function assignFileTransfer(
+  serverId: number,
+  config: FileTransferConfig,
+  csrfToken: string,
+): Promise<void> {
+  return apiFetch<void>(
+    `/api/servers/${serverId}/file-transfer`,
+    {
+      method: "PUT",
+      body: JSON.stringify({
+        protocol: config.protocol,
+        port: config.port,
+        credentialId: config.credentialId,
+      }),
+    },
+    csrfToken,
+  );
+}
+
+export function listServerFiles(
+  serverId: number,
+  path: string,
+): Promise<RemoteFileList> {
+  return apiFetch<RemoteFileList>(
+    `/api/servers/${serverId}/files?path=${encodeURIComponent(path)}`,
+  );
+}
+
+export function serverFileDownloadUrl(serverId: number, path: string): string {
+  return `/api/servers/${serverId}/files/download?path=${encodeURIComponent(path)}`;
+}
+
+export function uploadServerFile(
+  serverId: number,
+  directory: string,
+  file: File,
+  csrfToken: string,
+): Promise<{ path: string }> {
+  const form = new FormData();
+  form.append("file", file);
+  return apiFetch<{ path: string }>(
+    `/api/servers/${serverId}/files/upload?path=${encodeURIComponent(directory)}`,
+    { method: "POST", body: form },
+    csrfToken,
+  );
+}
+
+export function createServerDirectory(
+  serverId: number,
+  path: string,
+  csrfToken: string,
+): Promise<{ path: string }> {
+  return apiFetch<{ path: string }>(
+    `/api/servers/${serverId}/files/directory`,
+    { method: "POST", body: JSON.stringify({ path }) },
+    csrfToken,
+  );
+}
+
+export function renameServerFile(
+  serverId: number,
+  path: string,
+  newName: string,
+  isDirectory: boolean,
+  csrfToken: string,
+): Promise<{ path: string }> {
+  return apiFetch<{ path: string }>(
+    `/api/servers/${serverId}/files/rename`,
+    {
+      method: "POST",
+      body: JSON.stringify({ path, newName, isDirectory }),
+    },
+    csrfToken,
+  );
+}
+
+export function deleteServerFile(
+  serverId: number,
+  path: string,
+  isDirectory: boolean,
+  csrfToken: string,
+): Promise<void> {
+  return apiFetch<void>(
+    `/api/servers/${serverId}/files?path=${encodeURIComponent(path)}&isDirectory=${isDirectory}`,
+    { method: "DELETE" },
+    csrfToken,
+  );
+}
+
 export interface CommandExecution {
   id: number;
   username: string;
