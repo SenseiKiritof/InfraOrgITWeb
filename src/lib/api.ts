@@ -59,7 +59,11 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const send = (token?: string) => {
     const headers = new Headers(options.headers);
-    if (options.body && !headers.has("Content-Type"))
+    if (
+      options.body &&
+      !(options.body instanceof FormData) &&
+      !headers.has("Content-Type")
+    )
       headers.set("Content-Type", "application/json");
     if (token) headers.set("X-CSRF-Token", token);
     return fetch(path, { ...options, headers, credentials: "include" });

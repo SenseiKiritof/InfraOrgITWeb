@@ -26,6 +26,7 @@ import type {
   ServerCredential,
 } from "../../lib/remote";
 import {
+  assignFileTransfer,
   assignServerSsh,
   getActionButtons,
   getCredentials,
@@ -367,6 +368,10 @@ export function ServerDetailPage() {
   const [credentialId, setCredentialId] = useState("");
   const [sshPort, setSshPort] = useState("22");
   const [sshMessage, setSshMessage] = useState<string | null>(null);
+  const [fileProtocol, setFileProtocol] = useState("");
+  const [filePort, setFilePort] = useState("22");
+  const [fileCredentialId, setFileCredentialId] = useState("");
+  const [fileMessage, setFileMessage] = useState<string | null>(null);
   const [reachabilityResults, setReachabilityResults] = useState<
     ReachabilityResult[]
   >([]);
@@ -382,6 +387,13 @@ export function ServerDetailPage() {
       server.data.credentialId ? String(server.data.credentialId) : "",
     );
     setSshPort(String(server.data.sshPort));
+    setFileProtocol(server.data.fileTransferProtocol ?? "");
+    setFilePort(String(server.data.fileTransferPort ?? 22));
+    setFileCredentialId(
+      server.data.fileTransferCredentialId
+        ? String(server.data.fileTransferCredentialId)
+        : "",
+    );
   }, [server.data]);
 
   const credentials = useQuery({
@@ -450,6 +462,32 @@ export function ServerDetailPage() {
     } catch (cause) {
       setSshMessage(
         cause instanceof Error ? cause.message : t("servers.sshSaveFailed"),
+      );
+    }
+  };
+
+  const saveFileTransfer = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setFileMessage(null);
+    try {
+      await assignFileTransfer(
+        serverId,
+        {
+          protocol: (fileProtocol || null) as "Sftp" | "Ftp" | null,
+          port: fileProtocol
+            ? Number(filePort || (fileProtocol === "Ftp" ? 21 : 22))
+            : null,
+          credentialId: fileCredentialId ? Number(fileCredentialId) : null,
+        },
+        csrf,
+      );
+      await queryClient.invalidateQueries({ queryKey: ["servers"] });
+      setFileMessage(t("servers.fileTransferSaved"));
+    } catch (cause) {
+      setFileMessage(
+        cause instanceof Error
+          ? cause.message
+          : t("servers.fileTransferSaveFailed"),
       );
     }
   };
@@ -584,16 +622,31 @@ export function ServerDetailPage() {
         }
         actions={
           isAdmin ? (
-            <button
-              type="button"
-              onClick={() =>
-                console.open(serverId, server.data?.name ?? t("servers.title"))
-              }
-              className="rounded-md border border-transparent bg-slate-900 px-3 py-1.5 text-sm font-medium text-white"
-            >
-              <span className="hidden sm:inline">{t("console.title")}</span>
-              <span className="sm:hidden">SSH</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => console.openFiles(serverId)}
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium"
+              >
+                <span className="hidden sm:inline">
+                  {t("servers.openFiles")}
+                </span>
+                <span className="sm:hidden">SFTP</span>
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  console.open(
+                    serverId,
+                    server.data?.name ?? t("servers.title"),
+                  )
+                }
+                className="rounded-md border border-transparent bg-slate-900 px-3 py-1.5 text-sm font-medium text-white"
+              >
+                <span className="hidden sm:inline">{t("console.title")}</span>
+                <span className="sm:hidden">SSH</span>
+              </button>
+            </div>
           ) : undefined
         }
       />
@@ -703,6 +756,86 @@ export function ServerDetailPage() {
             </button>
           </div>
           {sshMessage && <p className="text-sm text-slate-700">{sshMessage}</p>}
+        </form>
+      )}
+
+      {isSystemAdmin && (
+        <form
+          onSubmit={(event) => void saveFileTransfer(event)}
+          className="space-y-2 rounded-lg border border-slate-200 bg-white p-4 text-sm"
+        >
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+            {t("servers.fileTransfer")}
+          </h2>
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-slate-500">
+                {t("servers.fileTransferProtocol")}
+              </span>
+              <select
+                value={fileProtocol}
+                onChange={(event) => {
+                  const protocol = event.target.value;
+                  setFileProtocol(protocol);
+                  setFilePort(protocol === "Ftp" ? "21" : "22");
+                }}
+                className="w-40 rounded-md border border-slate-300 px-3 py-1.5"
+              >
+                <option value="">{t("servers.fileTransferNone")}</option>
+                <option value="Sftp">SFTP</option>
+                <option value="Ftp">FTP</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-slate-500">
+                {t("servers.fileTransferPort")}
+              </span>
+              <input
+                type="number"
+                min={1}
+                max={65535}
+                value={filePort}
+                onChange={(event) => setFilePort(event.target.value)}
+                disabled={!fileProtocol}
+                className="w-28 rounded-md border border-slate-300 px-3 py-1.5 disabled:bg-slate-100"
+              />
+            </label>
+            <label
+              htmlFor="server-file-credential"
+              className="flex flex-col gap-1"
+            >
+              <span className="text-xs text-slate-500">
+                {t("servers.fileTransferCredential")}
+              </span>
+              <AutocompleteSelect
+                id="server-file-credential"
+                value={fileCredentialId}
+                options={[
+                  { value: "", label: t("common.noCredential") },
+                  ...(credentials.data?.items.map(
+                    (credential: ServerCredential) => ({
+                      value: String(credential.id),
+                      label: `${credential.name} (${credential.username})`,
+                    }),
+                  ) ?? []),
+                ]}
+                onChange={setFileCredentialId}
+                className="w-72 rounded-md border border-slate-300 px-3 py-1.5"
+              />
+            </label>
+            <button
+              type="submit"
+              className="rounded-md border border-transparent bg-slate-900 px-3 py-1.5 font-medium text-white"
+            >
+              {t("servers.saveFileTransfer")}
+            </button>
+          </div>
+          <p className="text-xs text-slate-500">
+            {t("servers.fileTransferHint")}
+          </p>
+          {fileMessage && (
+            <p className="text-sm text-slate-700">{fileMessage}</p>
+          )}
         </form>
       )}
 

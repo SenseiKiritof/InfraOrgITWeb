@@ -40,6 +40,10 @@ export interface Server {
   sshPort: number;
   credentialId: number | null;
   hasHostKey: boolean;
+  fileTransferProtocol: "Sftp" | "Ftp" | null;
+  fileTransferPort: number | null;
+  fileTransferCredentialId: number | null;
+  fileTransferCredentialName: string | null;
   jumpServerId: number | null;
   jumpServerName: string | null;
   jumpServerIpAddress: string | null;
