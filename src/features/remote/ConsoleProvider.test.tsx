@@ -66,6 +66,7 @@ describe("ConsoleProvider", () => {
     cleanup();
     sessionStorage.clear();
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
   beforeEach(() => {
     sessionStorage.clear();
@@ -115,6 +116,45 @@ describe("ConsoleProvider", () => {
     expect(FakeSocket.instances[0].sent).toContain(
       JSON.stringify({ type: "terminate" }),
     );
+  });
+
+  it("aggiunge una console dal footer scegliendo il server", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const body = String(input).includes("/api/server-access/me")
+          ? {
+              isSystemAdmin: false,
+              adminEnvironmentIds: [1],
+              operatorEnvironmentIds: [1],
+            }
+          : {
+              items: [
+                {
+                  id: 44,
+                  name: "srv-alpha",
+                  providerEnvironmentId: 1,
+                  ipAddress: "10.0.0.1",
+                  sshPort: 22,
+                },
+              ],
+              total: 1,
+              page: 1,
+              pageSize: 200,
+            };
+        return new Response(JSON.stringify(body), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }),
+    );
+
+    renderWithProvider();
+    fireEvent.click(screen.getByLabelText("Aggiungi console"));
+    fireEvent.click(await screen.findByText("srv-alpha"));
+
+    expect(FakeSocket.instances).toHaveLength(1);
+    expect(screen.getByTitle("Apri la console di srv-alpha")).toBeTruthy();
   });
 
   it("divide e unisce i terminali senza riconnettere", () => {
