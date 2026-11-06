@@ -17,7 +17,7 @@ test("inventario: provider, ambiente, applicazione e progetto", async ({
   await page.getByRole("button", { name: "Nuovo provider" }).click();
   await page.getByLabel("Nome").fill(provider);
   await page.getByRole("dialog").getByRole("button", { name: "Salva" }).click();
-  await page.getByLabel("Cerca").fill(provider);
+  await page.getByRole("textbox", { name: "Cerca" }).fill(provider);
   await page.getByRole("button", { name: "Cerca" }).click();
   await expect(page.getByRole("cell", { name: provider })).toBeVisible();
 
@@ -28,7 +28,7 @@ test("inventario: provider, ambiente, applicazione e progetto", async ({
   provider = `${provider} (mod)`;
   await page.getByLabel("Nome").fill(provider);
   await page.getByRole("dialog").getByRole("button", { name: "Salva" }).click();
-  await page.getByLabel("Cerca").fill(provider);
+  await page.getByRole("textbox", { name: "Cerca" }).fill(provider);
   await page.getByRole("button", { name: "Cerca" }).click();
   await expect(page.getByRole("cell", { name: provider })).toBeVisible();
 
@@ -37,7 +37,7 @@ test("inventario: provider, ambiente, applicazione e progetto", async ({
   await page.getByLabel("Nome").fill(environment);
   await page.getByLabel("Descrizione").fill("Ambiente creato dal test");
   await page.getByRole("dialog").getByRole("button", { name: "Salva" }).click();
-  await page.getByLabel("Cerca").fill(environment);
+  await page.getByRole("textbox", { name: "Cerca" }).fill(environment);
   await page.getByRole("button", { name: "Cerca" }).click();
   await page
     .getByRole("row", { name: environment })
@@ -56,7 +56,7 @@ test("inventario: provider, ambiente, applicazione e progetto", async ({
   await page.getByLabel("Base path").fill("/e2e");
   await page.getByLabel("Porta in ascolto").fill("8080");
   await page.getByRole("dialog").getByRole("button", { name: "Salva" }).click();
-  await page.getByLabel("Cerca").fill(application);
+  await page.getByRole("textbox", { name: "Cerca" }).fill(application);
   await page.getByRole("button", { name: "Cerca" }).click();
   await page
     .getByRole("row", { name: application })
