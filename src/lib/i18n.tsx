@@ -110,6 +110,17 @@ const it = {
   "common.noCredential": "— nessuna —",
   "common.emptyValue": "—",
   "common.host": "Host",
+  "common.diagram": "Diagramma",
+  "common.diagrams": "Diagrammi",
+
+  // Global search
+  "search.label": "Cerca",
+  "search.placeholder": "Cerca server, applicazioni, progetti…",
+  "search.results": "Risultati della ricerca",
+  "search.hint": "Digita almeno 2 caratteri.",
+  "search.loading": "Ricerca in corso…",
+  "search.empty": "Nessun risultato.",
+  "search.error": "Ricerca non riuscita.",
 
   // Pagination
   "pagination.item": "elemento",
@@ -606,6 +617,17 @@ const en: Record<TranslationKey, string> = {
   "common.noCredential": "— none —",
   "common.emptyValue": "—",
   "common.host": "Host",
+  "common.diagram": "Diagram",
+  "common.diagrams": "Diagrams",
+
+  // Global search
+  "search.label": "Search",
+  "search.placeholder": "Search servers, applications, projects…",
+  "search.results": "Search results",
+  "search.hint": "Type at least 2 characters.",
+  "search.loading": "Searching…",
+  "search.empty": "No results.",
+  "search.error": "Search failed.",
 
   // Pagination
   "pagination.item": "item",

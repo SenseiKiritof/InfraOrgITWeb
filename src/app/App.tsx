@@ -11,6 +11,7 @@ import {
   useNavigate,
   useSearchParams,
 } from "react-router-dom";
+import { GlobalSearch } from "../components/GlobalSearch";
 import {
   HeaderSlotProvider,
   PageHeaderSlot,
@@ -232,6 +233,7 @@ function ShellLayout() {
             <XMarkIcon className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
+        <GlobalSearch />
         <nav
           aria-label={t("app.mainMenu")}
           className="min-h-0 flex-1 overflow-y-auto p-3"
