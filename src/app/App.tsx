@@ -22,6 +22,7 @@ import { GroupsPage } from "../features/admin/GroupsPage";
 import { MenusPage } from "../features/admin/MenusPage";
 import { RolesPage } from "../features/admin/RolesPage";
 import { UsersPage } from "../features/admin/UsersPage";
+import { ApiTokensPage } from "../features/auth/ApiTokensPage";
 import {
   ApplicationDetailPage,
   ApplicationsPage,
@@ -119,6 +120,7 @@ function AuthenticatedApp() {
             <Route path="servers" element={<ServersPage />} />
             <Route path="servers/:id" element={<ServerDetailPage />} />
             <Route path="users" element={<UsersPage />} />
+            <Route path="tokens" element={<ApiTokensPage />} />
             <Route path="groups" element={<GroupsPage />} />
             <Route path="roles" element={<RolesPage />} />
             <Route path="menu" element={<MenusPage />} />

@@ -60,6 +60,7 @@ export {
   ArrowsPointingOutIcon,
   Bars3Icon,
   HomeIcon,
+  KeyIcon,
   MagnifyingGlassIcon,
   MoonIcon,
   ServerStackIcon,
