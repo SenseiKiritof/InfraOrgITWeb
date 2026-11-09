@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LanguageProvider } from "../lib/i18n";
 import { UserMenu } from "./UserMenu";
@@ -12,9 +13,11 @@ afterEach(cleanup);
 describe("UserMenu", () => {
   it("mostra le opzioni lingua e cambia lingua al click", () => {
     const { container } = render(
-      <LanguageProvider>
-        <UserMenu name="Ada Lovelace" username="ada" onLogout={vi.fn()} />
-      </LanguageProvider>,
+      <MemoryRouter>
+        <LanguageProvider>
+          <UserMenu name="Ada Lovelace" username="ada" onLogout={vi.fn()} />
+        </LanguageProvider>
+      </MemoryRouter>,
     );
 
     expect(screen.getByText("Lingua / Language")).toBeInTheDocument();
