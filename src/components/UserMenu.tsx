@@ -1,6 +1,11 @@
 import { useRef } from "react";
+import { Link } from "react-router-dom";
 import { LANGUAGES, useI18n } from "../lib/i18n";
-import { ArrowRightOnRectangleIcon, UserCircleIcon } from "../lib/icons";
+import {
+  ArrowRightOnRectangleIcon,
+  KeyIcon,
+  UserCircleIcon,
+} from "../lib/icons";
 
 /** User dropdown with the language selector. */
 export function UserMenu({
@@ -52,6 +57,14 @@ export function UserMenu({
             ))}
           </div>
         </fieldset>
+        <Link
+          to="/tokens"
+          onClick={() => menu.current?.removeAttribute("open")}
+          className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
+        >
+          <KeyIcon className="h-4 w-4" aria-hidden="true" />
+          {t("tokens.title")}
+        </Link>
         <button
           type="button"
           onClick={onLogout}
