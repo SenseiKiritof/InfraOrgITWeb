@@ -27,11 +27,11 @@ test("layout mobile: drawer e nessun overflow", async ({ page }) => {
 test("home: le tile occupano lo spazio disponibile", async ({ page }) => {
   await page.setViewportSize({ width: 2000, height: 900 });
   await login(page);
-  const columns = await page.evaluate(() => {
-    const grid = document.querySelector("main div.grid");
-    return grid
-      ? getComputedStyle(grid).gridTemplateColumns.split(" ").length
-      : 0;
-  });
+  const grid = page.locator("main div.grid");
+  await expect(grid).toBeVisible();
+  const columns = await grid.evaluate(
+    (element) =>
+      getComputedStyle(element).gridTemplateColumns.split(" ").length,
+  );
   expect(columns).toBeGreaterThan(3);
 });
