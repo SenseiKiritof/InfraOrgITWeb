@@ -30,7 +30,8 @@ test("home: le tile occupano lo spazio disponibile", async ({ page }) => {
   const grid = page.locator("main div.grid");
   await expect(grid).toBeVisible();
   const columns = await grid.evaluate(
-    (element) => getComputedStyle(element).gridTemplateColumns.split(" ").length,
+    (element) =>
+      getComputedStyle(element).gridTemplateColumns.split(" ").length,
   );
   expect(columns).toBeGreaterThan(3);
 });
