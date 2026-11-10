@@ -123,6 +123,14 @@ export function ApiTokensPage() {
                 value: "mcp:read mcp:operate",
                 label: t("tokens.scopeOperate"),
               },
+              {
+                value: "tunnels:operate",
+                label: t("tokens.scopeTunnel"),
+              },
+              {
+                value: "mcp:read mcp:operate tunnels:operate",
+                label: t("tokens.scopeAll"),
+              },
             ],
           },
           {
