@@ -36,7 +36,7 @@ const ICONS: Record<string, Icon> = {
   "/commands": CommandLineIcon,
   "/reachability": SignalIcon,
   "/executions": ClipboardDocumentListIcon,
-  "/admin-audit": ShieldExclamationIcon,
+  "/audit": ShieldExclamationIcon,
 };
 
 const FALLBACK = Squares2X2Icon;
