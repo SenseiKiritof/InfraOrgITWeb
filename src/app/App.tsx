@@ -53,6 +53,7 @@ import {
 import { CredentialsPage } from "../features/remote/CredentialsPage";
 import { ExecutionsPage } from "../features/remote/ExecutionsPage";
 import { ReachabilityPage } from "../features/remote/ReachabilityPage";
+import { TunnelsPage } from "../features/remote/TunnelsPage";
 import type { Menu } from "../lib/api";
 import { getMenus } from "../lib/api";
 import { backAction } from "../lib/back";
@@ -132,6 +133,7 @@ function AuthenticatedApp() {
             <Route path="reachability" element={<ReachabilityPage />} />
             <Route path="executions" element={<ExecutionsPage />} />
             <Route path="audit" element={<AuditPage />} />
+            <Route path="tunnels" element={<TunnelsPage />} />
             <Route path="applications" element={<ApplicationsPage />} />
             <Route
               path="applications/:id"

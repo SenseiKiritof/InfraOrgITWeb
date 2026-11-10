@@ -1,4 +1,5 @@
 import {
+  ArrowsRightLeftIcon,
   Bars3Icon,
   BuildingOffice2Icon,
   ClipboardDocumentListIcon,
@@ -37,6 +38,7 @@ const ICONS: Record<string, Icon> = {
   "/reachability": SignalIcon,
   "/executions": ClipboardDocumentListIcon,
   "/audit": ShieldExclamationIcon,
+  "/tunnels": ArrowsRightLeftIcon,
 };
 
 const FALLBACK = Squares2X2Icon;

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import { Pagination } from "../../components/Pagination";
 import { SearchForm } from "../../components/page";
@@ -210,6 +211,14 @@ export function AuditPage() {
       <PageHeaderSlot
         title={t("audit.title")}
         description={t("audit.description")}
+        actions={
+          <Link
+            to="/tunnels"
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+          >
+            {t("tunnels.title")}
+          </Link>
+        }
       />
       <SearchForm
         value={search}
