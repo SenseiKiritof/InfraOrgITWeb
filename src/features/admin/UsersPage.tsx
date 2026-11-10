@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { FormEvent } from "react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../../app/AuthProvider";
 import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import { Pagination } from "../../components/Pagination";
@@ -134,6 +135,14 @@ export function UsersPage() {
       <PageHeaderSlot
         title={t("users.title")}
         description={t("users.description")}
+        actions={
+          <Link
+            to="/mcp-grants"
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+          >
+            {t("mcpGrants.title")}
+          </Link>
+        }
       />
       <SearchForm
         value={search}
