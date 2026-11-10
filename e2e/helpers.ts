@@ -1,7 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 
 export async function login(page: Page) {
-  await page.goto("/");
+  await page.goto("/auth/login");
   await page.waitForURL(/\/realms\/infraorgit/);
   await page.fill("#username", "admin");
   await page.fill("#password", "dev-admin");
