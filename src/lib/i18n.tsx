@@ -467,6 +467,16 @@ const it = {
   "audit.outcomeError": "Errore",
   "audit.outcomeDenied": "Negato",
 
+  "tunnels.title": "Tunnel attivi",
+  "tunnels.description":
+    "Proiezione centrale dei tunnel aperti dai desktop: porta locale, destinazione e ultimo contatto.",
+  "tunnels.forward": "Inoltro",
+  "tunnels.startedAt": "Avviato",
+  "tunnels.lastSeenAt": "Ultimo contatto",
+  "tunnels.none": "Nessun tunnel attivo",
+  "tunnels.refresh": "Aggiorna",
+  "tunnels.autoRefresh": "Aggiornamento automatico ogni 15 secondi.",
+
   "reachability.title": "Test di rete",
   "reachability.description":
     "Test globali: vengono eseguiti su ogni server dalla pagina del server.",
@@ -1030,6 +1040,16 @@ const en: Record<TranslationKey, string> = {
   "audit.outcomeOk": "OK",
   "audit.outcomeError": "Error",
   "audit.outcomeDenied": "Denied",
+
+  "tunnels.title": "Active tunnels",
+  "tunnels.description":
+    "Central projection of tunnels opened by desktops: local port, target and last contact.",
+  "tunnels.forward": "Forward",
+  "tunnels.startedAt": "Started",
+  "tunnels.lastSeenAt": "Last seen",
+  "tunnels.none": "No active tunnels",
+  "tunnels.refresh": "Refresh",
+  "tunnels.autoRefresh": "Automatic refresh every 15 seconds.",
 
   "reachability.title": "Network tests",
   "reachability.description":
