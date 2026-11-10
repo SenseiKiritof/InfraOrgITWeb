@@ -10,6 +10,10 @@
 		reverse_proxy {$API_UPSTREAM:api:8080}
 	}
 
+	handle /.well-known/oauth-protected-resource* {
+		reverse_proxy {$API_UPSTREAM:api:8080}
+	}
+
 	handle /auth/* {
 		reverse_proxy {$API_UPSTREAM:api:8080}
 	}
