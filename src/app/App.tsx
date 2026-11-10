@@ -19,6 +19,7 @@ import {
 } from "../components/PageHeaderSlot";
 import { UserMenu } from "../components/UserMenu";
 import { GroupsPage } from "../features/admin/GroupsPage";
+import { McpGrantsPage } from "../features/admin/McpGrantsPage";
 import { MenusPage } from "../features/admin/MenusPage";
 import { RolesPage } from "../features/admin/RolesPage";
 import { UsersPage } from "../features/admin/UsersPage";
@@ -121,6 +122,7 @@ function AuthenticatedApp() {
             <Route path="servers/:id" element={<ServerDetailPage />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="tokens" element={<ApiTokensPage />} />
+            <Route path="mcp-grants" element={<McpGrantsPage />} />
             <Route path="groups" element={<GroupsPage />} />
             <Route path="roles" element={<RolesPage />} />
             <Route path="menu" element={<MenusPage />} />
