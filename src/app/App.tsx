@@ -18,6 +18,7 @@ import {
   useHeaderSlotTargets,
 } from "../components/PageHeaderSlot";
 import { UserMenu } from "../components/UserMenu";
+import { AuditPage } from "../features/admin/AuditPage";
 import { GroupsPage } from "../features/admin/GroupsPage";
 import { McpGrantsPage } from "../features/admin/McpGrantsPage";
 import { MenusPage } from "../features/admin/MenusPage";
@@ -130,6 +131,7 @@ function AuthenticatedApp() {
             <Route path="commands" element={<CommandsPage />} />
             <Route path="reachability" element={<ReachabilityPage />} />
             <Route path="executions" element={<ExecutionsPage />} />
+            <Route path="audit" element={<AuditPage />} />
             <Route path="applications" element={<ApplicationsPage />} />
             <Route
               path="applications/:id"
