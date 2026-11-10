@@ -6,7 +6,11 @@
 		reverse_proxy {$API_UPSTREAM:api:8080}
 	}
 
-	handle /mcp* {
+	handle /mcp {
+		reverse_proxy {$API_UPSTREAM:api:8080}
+	}
+
+	handle /mcp/* {
 		reverse_proxy {$API_UPSTREAM:api:8080}
 	}
 
