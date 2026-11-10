@@ -16,7 +16,8 @@ test("MCP: token personale, tools/list e revoca", async ({ page }) => {
   await page.getByLabel("Nome").fill(name);
   await page.getByRole("dialog").getByRole("button", { name: "Salva" }).click();
   await expect(page.getByText("Token creato")).toBeVisible();
-  const token = (await page.locator("code").first().innerText()).trim();
+  const token =
+    (await page.locator("code").first().textContent())?.trim() ?? "";
   expect(token.startsWith("itk_")).toBe(true);
 
   const initialize = await page.request.post(`${apiBase}/mcp`, {
@@ -46,6 +47,26 @@ test("MCP: token personale, tools/list e revoca", async ({ page }) => {
   });
   expect(tools.status()).toBe(200);
   expect(await tools.text()).toContain("list_servers");
+
+  const resources = await page.request.post(`${apiBase}/mcp`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json, text/event-stream",
+    },
+    data: { jsonrpc: "2.0", id: 4, method: "resources/list" },
+  });
+  expect(resources.status()).toBe(200);
+  expect(await resources.text()).toContain("infraorgit://inventory/summary");
+
+  const prompts = await page.request.post(`${apiBase}/mcp`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json, text/event-stream",
+    },
+    data: { jsonrpc: "2.0", id: 5, method: "prompts/list" },
+  });
+  expect(prompts.status()).toBe(200);
+  expect(await prompts.text()).toContain("diagnose-server");
 
   const row = page.getByRole("row", { name: new RegExp(name) });
   await row.getByRole("button", { name: "Revoca" }).click();
