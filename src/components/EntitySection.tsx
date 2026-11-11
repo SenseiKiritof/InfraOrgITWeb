@@ -48,6 +48,9 @@ interface EntitySectionProps<T extends { id: number }> {
   };
   headerActions?: ReactNode;
   createLabel?: string;
+  /** When set, opens the create dialog prefilled with these values. */
+  createValues?: FormValues | null;
+  onCreateValuesUsed?: () => void;
 }
 
 export function EntitySection<T extends { id: number }>({
@@ -69,6 +72,8 @@ export function EntitySection<T extends { id: number }>({
   selection,
   headerActions,
   createLabel,
+  createValues,
+  onCreateValuesUsed,
 }: EntitySectionProps<T>) {
   const { t } = useI18n();
   const newLabel = createLabel ?? t("common.new");
@@ -83,6 +88,14 @@ export function EntitySection<T extends { id: number }>({
   useEffect(() => {
     if (editing !== null) firstField.current?.focus();
   }, [editing]);
+
+  useEffect(() => {
+    if (!createValues) return;
+    setValues({ ...empty, ...createValues });
+    setError(null);
+    setEditing("new");
+    onCreateValuesUsed?.();
+  }, [createValues, empty, onCreateValuesUsed]);
 
   const ordered = sortedRows(rows, sort);
   const paginated = usePagination(ordered);

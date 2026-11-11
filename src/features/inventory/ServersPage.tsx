@@ -40,6 +40,7 @@ import { useQueryFilter } from "../../lib/useQueryFilter";
 import { useServerAccess } from "../../lib/useServerAccess";
 import { useConsole } from "../remote/ConsoleProvider";
 import { connectionChanged } from "./serverConnection";
+import { TunnelServicesSection } from "./TunnelServicesSection";
 
 type ServerFormState = {
   name: string;
@@ -959,6 +960,8 @@ export function ServerDetailPage() {
           </ul>
         )}
       </section>
+
+      <TunnelServicesSection serverId={serverId} canWrite={isAdmin} />
 
       <EntitySection
         title={t("servers.deployedApplications")}

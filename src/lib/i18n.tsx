@@ -476,6 +476,46 @@ const it = {
   "tunnels.none": "Nessun tunnel attivo",
   "tunnels.refresh": "Aggiorna",
   "tunnels.autoRefresh": "Aggiornamento automatico ogni 15 secondi.",
+  "tunnels.mode": "Modalità",
+
+  "tunnelServices.title": "Tunnel",
+  "tunnelServices.create": "Nuovo servizio tunnel",
+  "tunnelServices.mode": "Modalità",
+  "tunnelServices.modeLocal": "Locale",
+  "tunnelServices.modeDynamic": "Dinamico",
+  "tunnelServices.modeRemote": "Remoto",
+  "tunnelServices.target": "Destinazione",
+  "tunnelServices.targetHost": "Host destinazione",
+  "tunnelServices.targetPort": "Porta destinazione",
+  "tunnelServices.localPort": "Porta locale",
+  "tunnelServices.remotePort": "Porta remota",
+  "tunnelServices.kind": "Tipo",
+  "tunnelServices.openPath": "Percorso HTTP",
+  "tunnelServices.autoStart": "Avvio automatico",
+  "tunnelServices.enabled": "Attivo",
+  "tunnelServices.discover": "Scopri porte",
+  "tunnelServices.discovering": "Scoperta in corso…",
+  "tunnelServices.discoverFailed": "Scoperta porte non riuscita",
+  "tunnelServices.discoveredTitle": "Porte rilevate",
+  "tunnelServices.discoveredNone": "Nessuna porta trovata.",
+  "tunnelServices.addDiscovered": "Aggiungi",
+  "tunnelServices.portName": "Porta {port}",
+  "tunnelServices.errorNameRequired": "Il nome è obbligatorio.",
+  "tunnelServices.errorTargetHostRequired":
+    "L'host di destinazione è obbligatorio.",
+  "tunnelServices.errorTargetPortRequired":
+    "La porta di destinazione è obbligatoria.",
+  "tunnelServices.errorTargetPortRange":
+    "La porta di destinazione deve essere tra 1 e 65535.",
+  "tunnelServices.errorLocalPortRange":
+    "La porta locale deve essere tra 1024 e 65535.",
+  "tunnelServices.errorRemotePortRequired": "La porta remota è obbligatoria.",
+  "tunnelServices.errorRemotePortRange":
+    "La porta remota deve essere tra 1 e 65535.",
+  "tunnelServices.errorOpenPathFormat":
+    'Il percorso HTTP deve iniziare con "/".',
+  "tunnelServices.errorKindLocalOnly":
+    "HTTP e HTTPS sono disponibili solo per i tunnel locali.",
 
   "reachability.title": "Test di rete",
   "reachability.description":
@@ -1050,6 +1090,43 @@ const en: Record<TranslationKey, string> = {
   "tunnels.none": "No active tunnels",
   "tunnels.refresh": "Refresh",
   "tunnels.autoRefresh": "Automatic refresh every 15 seconds.",
+  "tunnels.mode": "Mode",
+
+  "tunnelServices.title": "Tunnels",
+  "tunnelServices.create": "New tunnel service",
+  "tunnelServices.mode": "Mode",
+  "tunnelServices.modeLocal": "Local",
+  "tunnelServices.modeDynamic": "Dynamic",
+  "tunnelServices.modeRemote": "Remote",
+  "tunnelServices.target": "Target",
+  "tunnelServices.targetHost": "Target host",
+  "tunnelServices.targetPort": "Target port",
+  "tunnelServices.localPort": "Local port",
+  "tunnelServices.remotePort": "Remote port",
+  "tunnelServices.kind": "Kind",
+  "tunnelServices.openPath": "HTTP path",
+  "tunnelServices.autoStart": "Auto start",
+  "tunnelServices.enabled": "Enabled",
+  "tunnelServices.discover": "Discover ports",
+  "tunnelServices.discovering": "Discovering…",
+  "tunnelServices.discoverFailed": "Port discovery failed",
+  "tunnelServices.discoveredTitle": "Discovered ports",
+  "tunnelServices.discoveredNone": "No ports found.",
+  "tunnelServices.addDiscovered": "Add",
+  "tunnelServices.portName": "Port {port}",
+  "tunnelServices.errorNameRequired": "Name is required.",
+  "tunnelServices.errorTargetHostRequired": "Target host is required.",
+  "tunnelServices.errorTargetPortRequired": "Target port is required.",
+  "tunnelServices.errorTargetPortRange":
+    "Target port must be between 1 and 65535.",
+  "tunnelServices.errorLocalPortRange":
+    "Local port must be between 1024 and 65535.",
+  "tunnelServices.errorRemotePortRequired": "Remote port is required.",
+  "tunnelServices.errorRemotePortRange":
+    "Remote port must be between 1 and 65535.",
+  "tunnelServices.errorOpenPathFormat": 'The HTTP path must start with "/".',
+  "tunnelServices.errorKindLocalOnly":
+    "HTTP and HTTPS are only available for local tunnels.",
 
   "reachability.title": "Network tests",
   "reachability.description":
