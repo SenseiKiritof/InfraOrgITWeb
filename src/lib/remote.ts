@@ -302,13 +302,18 @@ export function runAction(
   serverApplicationId: number,
   actionId: number,
   csrfToken: string,
+  confirm = false,
 ): Promise<CommandResult> {
   const idempotencyKey =
     globalThis.crypto?.randomUUID?.() ??
     `run-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   return apiFetch<CommandResult>(
     `/api/server-applications/${serverApplicationId}/actions/${actionId}/run`,
-    { method: "POST", headers: { "Idempotency-Key": idempotencyKey } },
+    {
+      method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify({ confirm }),
+    },
     csrfToken,
   );
 }

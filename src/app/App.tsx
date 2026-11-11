@@ -68,6 +68,7 @@ import {
   XMarkIcon,
 } from "../lib/icons";
 import { AuthProvider, useAuth } from "./AuthProvider";
+import { RequireSystemAdmin } from "./RequireSystemAdmin";
 
 const DiagramPage = lazy(() =>
   import("../features/diagrams/DiagramPage").then((module) => ({
@@ -122,17 +123,52 @@ function AuthenticatedApp() {
             />
             <Route path="servers" element={<ServersPage />} />
             <Route path="servers/:id" element={<ServerDetailPage />} />
-            <Route path="users" element={<UsersPage />} />
+            <Route
+              path="users"
+              element={
+                <RequireSystemAdmin>
+                  <UsersPage />
+                </RequireSystemAdmin>
+              }
+            />
             <Route path="tokens" element={<ApiTokensPage />} />
-            <Route path="mcp-grants" element={<McpGrantsPage />} />
-            <Route path="groups" element={<GroupsPage />} />
-            <Route path="roles" element={<RolesPage />} />
+            <Route
+              path="mcp-grants"
+              element={
+                <RequireSystemAdmin>
+                  <McpGrantsPage />
+                </RequireSystemAdmin>
+              }
+            />
+            <Route
+              path="groups"
+              element={
+                <RequireSystemAdmin>
+                  <GroupsPage />
+                </RequireSystemAdmin>
+              }
+            />
+            <Route
+              path="roles"
+              element={
+                <RequireSystemAdmin>
+                  <RolesPage />
+                </RequireSystemAdmin>
+              }
+            />
             <Route path="menu" element={<MenusPage />} />
             <Route path="credentials" element={<CredentialsPage />} />
             <Route path="commands" element={<CommandsPage />} />
             <Route path="reachability" element={<ReachabilityPage />} />
             <Route path="executions" element={<ExecutionsPage />} />
-            <Route path="audit" element={<AuditPage />} />
+            <Route
+              path="audit"
+              element={
+                <RequireSystemAdmin>
+                  <AuditPage />
+                </RequireSystemAdmin>
+              }
+            />
             <Route path="tunnels" element={<TunnelsPage />} />
             <Route path="applications" element={<ApplicationsPage />} />
             <Route
