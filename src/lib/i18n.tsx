@@ -212,15 +212,20 @@ const it = {
   "servers.details": "Dati server",
   "servers.credential": "Credenziale",
   "servers.saveSsh": "Salva SSH",
-  "servers.fileTransfer": "Accesso file (SFTP/FTP)",
+  "servers.fileTransfer": "Accesso file (SFTP/FTPS/FTP)",
   "servers.fileTransferProtocol": "Protocollo",
   "servers.fileTransferPort": "Porta",
   "servers.fileTransferCredential": "Credenziale file",
   "servers.fileTransferNone": "Disattivato",
+  "servers.fileTransferSftp": "SFTP (consigliato)",
+  "servers.fileTransferFtps": "FTPS (TLS esplicito)",
+  "servers.fileTransferFtp": "FTP (in chiaro)",
   "servers.fileTransferFtpWarning":
-    "FTP non è cifrato: credenziali e file viaggiano in chiaro. Se il server lo supporta, usa SFTP (o FTPS).",
+    "FTP non è cifrato: credenziali e file viaggiano in chiaro. Usa SFTP (consigliato) o FTPS se il server li supporta.",
+  "servers.fileTransferFtpsHint":
+    "FTPS usa TLS esplicito sulla porta 21: la connessione viene cifrata dopo AUTH TLS. Preferisci comunque SFTP quando disponibile.",
   "servers.fileTransferHint":
-    "La credenziale è separata da quella SSH; se non ne scegli una viene usata quella SSH.",
+    "SFTP è il protocollo consigliato. La credenziale è separata da quella SSH; se non ne scegli una viene usata quella SSH.",
   "servers.saveFileTransfer": "Salva accesso file",
   "servers.fileTransferSaved": "Accesso file salvato.",
   "servers.fileTransferSaveFailed":
@@ -556,12 +561,12 @@ const it = {
 
   // Files
   "files.label": "File",
-  "files.title": "File SFTP/FTP",
+  "files.title": "File SFTP/FTPS/FTP",
   "files.open": "Apri i file dei server",
   "files.chooseServer": "Scegli un server…",
   "files.chooseServerHint": "Scegli un server per aprire i file.",
   "files.notConfigured":
-    "Accesso SFTP/FTP non configurato per questo server: impostalo nella pagina del server.",
+    "Accesso SFTP/FTPS/FTP non configurato per questo server: impostalo nella pagina del server.",
   "files.filterPlaceholder": "Filtra i file…",
   "files.up": "Su",
   "files.refresh": "Aggiorna",
@@ -834,15 +839,20 @@ const en: Record<TranslationKey, string> = {
   "servers.details": "Server details",
   "servers.credential": "Credential",
   "servers.saveSsh": "Save SSH",
-  "servers.fileTransfer": "File access (SFTP/FTP)",
+  "servers.fileTransfer": "File access (SFTP/FTPS/FTP)",
   "servers.fileTransferProtocol": "Protocol",
   "servers.fileTransferPort": "Port",
   "servers.fileTransferCredential": "File credential",
   "servers.fileTransferNone": "Disabled",
+  "servers.fileTransferSftp": "SFTP (recommended)",
+  "servers.fileTransferFtps": "FTPS (explicit TLS)",
+  "servers.fileTransferFtp": "FTP (cleartext)",
   "servers.fileTransferFtpWarning":
-    "FTP is not encrypted: credentials and files travel in cleartext. Use SFTP (or FTPS) if the server supports it.",
+    "FTP is not encrypted: credentials and files travel in cleartext. Use SFTP (recommended) or FTPS if the server supports them.",
+  "servers.fileTransferFtpsHint":
+    "FTPS uses explicit TLS on port 21: the session is encrypted after AUTH TLS. SFTP remains the preferred choice when available.",
   "servers.fileTransferHint":
-    "The credential is separate from the SSH one; when none is chosen the SSH credential is used.",
+    "SFTP is the recommended protocol. The credential is separate from the SSH one; when none is chosen the SSH credential is used.",
   "servers.saveFileTransfer": "Save file access",
   "servers.fileTransferSaved": "File access saved.",
   "servers.fileTransferSaveFailed": "File access save failed",
@@ -1174,12 +1184,12 @@ const en: Record<TranslationKey, string> = {
 
   // Files
   "files.label": "Files",
-  "files.title": "SFTP/FTP files",
+  "files.title": "SFTP/FTPS/FTP files",
   "files.open": "Open server files",
   "files.chooseServer": "Choose a server…",
   "files.chooseServerHint": "Choose a server to open its files.",
   "files.notConfigured":
-    "SFTP/FTP access is not configured for this server: set it on the server page.",
+    "SFTP/FTPS/FTP access is not configured for this server: set it on the server page.",
   "files.filterPlaceholder": "Filter files…",
   "files.up": "Up",
   "files.refresh": "Refresh",

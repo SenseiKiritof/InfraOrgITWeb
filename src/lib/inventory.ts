@@ -40,7 +40,7 @@ export interface Server {
   sshPort: number;
   credentialId: number | null;
   hasHostKey: boolean;
-  fileTransferProtocol: "Sftp" | "Ftp" | null;
+  fileTransferProtocol: "Sftp" | "Ftp" | "Ftps" | null;
   fileTransferPort: number | null;
   fileTransferCredentialId: number | null;
   fileTransferCredentialName: string | null;

@@ -26,7 +26,7 @@ import {
 } from "../../lib/remote";
 import { fetchServerAccess } from "../../lib/useServerAccess";
 
-/** Esploratore file SFTP/FTP dei server configurati. */
+/** Esploratore file SFTP/FTPS/FTP dei server configurati. */
 export function FileBrowserModal({
   open,
   serverId,

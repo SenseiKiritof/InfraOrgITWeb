@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Server } from "./inventory";
-import { runAction, splitServersByCredential } from "./remote";
+import {
+  defaultFileTransferPort,
+  runAction,
+  splitServersByCredential,
+} from "./remote";
 
 const server = (id: number, credentialId: number | null): Server => ({
   id,
@@ -37,6 +41,16 @@ describe("splitServersByCredential", () => {
 
     expect(result.assigned.map((item) => item.id)).toEqual([1, 3]);
     expect(result.available.map((item) => item.id)).toEqual([2]);
+  });
+});
+
+describe("defaultFileTransferPort", () => {
+  it("usa 22 per SFTP e 21 per FTP/FTPS", () => {
+    expect(defaultFileTransferPort("Sftp")).toBe(22);
+    expect(defaultFileTransferPort("Ftp")).toBe(21);
+    expect(defaultFileTransferPort("Ftps")).toBe(21);
+    expect(defaultFileTransferPort(null)).toBe(22);
+    expect(defaultFileTransferPort("")).toBe(22);
   });
 });
 
