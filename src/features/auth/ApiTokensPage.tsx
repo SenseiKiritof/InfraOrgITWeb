@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../../app/AuthProvider";
 import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
@@ -59,6 +60,14 @@ export function ApiTokensPage() {
       <PageHeaderSlot
         title={t("tokens.title")}
         description={t("tokens.description")}
+        actions={
+          <Link
+            to="/approvals"
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+          >
+            {t("approvals.title")}
+          </Link>
+        }
       />
       {created && (
         <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-900">

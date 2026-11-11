@@ -2,6 +2,7 @@ import {
   ArrowsRightLeftIcon,
   Bars3Icon,
   BuildingOffice2Icon,
+  CheckBadgeIcon,
   ClipboardDocumentListIcon,
   CommandLineIcon,
   FolderIcon,
@@ -39,6 +40,7 @@ const ICONS: Record<string, Icon> = {
   "/executions": ClipboardDocumentListIcon,
   "/audit": ShieldExclamationIcon,
   "/tunnels": ArrowsRightLeftIcon,
+  "/approvals": CheckBadgeIcon,
 };
 
 const FALLBACK = Squares2X2Icon;
