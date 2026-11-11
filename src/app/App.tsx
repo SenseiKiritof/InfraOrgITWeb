@@ -25,6 +25,7 @@ import { MenusPage } from "../features/admin/MenusPage";
 import { RolesPage } from "../features/admin/RolesPage";
 import { UsersPage } from "../features/admin/UsersPage";
 import { ApiTokensPage } from "../features/auth/ApiTokensPage";
+import { McpApprovalsPage } from "../features/auth/McpApprovalsPage";
 import {
   ApplicationDetailPage,
   ApplicationsPage,
@@ -132,6 +133,7 @@ function AuthenticatedApp() {
               }
             />
             <Route path="tokens" element={<ApiTokensPage />} />
+            <Route path="approvals" element={<McpApprovalsPage />} />
             <Route
               path="mcp-grants"
               element={
