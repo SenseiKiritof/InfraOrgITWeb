@@ -21,6 +21,7 @@ import { deleteEntity, paged, saveEntity } from "../../lib/inventory";
 import type {
   ApplicationActionButton,
   CommandResult,
+  FileTransferProtocol,
   ReachabilityResult,
   ReachabilityTest,
   ServerCredential,
@@ -28,6 +29,7 @@ import type {
 import {
   assignFileTransfer,
   assignServerSsh,
+  defaultFileTransferPort,
   getActionButtons,
   getCredentials,
   getGlobalReachability,
@@ -369,7 +371,9 @@ export function ServerDetailPage() {
   const [credentialId, setCredentialId] = useState("");
   const [sshPort, setSshPort] = useState("22");
   const [sshMessage, setSshMessage] = useState<string | null>(null);
-  const [fileProtocol, setFileProtocol] = useState("");
+  const [fileProtocol, setFileProtocol] = useState<FileTransferProtocol | "">(
+    "",
+  );
   const [filePort, setFilePort] = useState("22");
   const [fileCredentialId, setFileCredentialId] = useState("");
   const [fileMessage, setFileMessage] = useState<string | null>(null);
@@ -389,7 +393,12 @@ export function ServerDetailPage() {
     );
     setSshPort(String(server.data.sshPort));
     setFileProtocol(server.data.fileTransferProtocol ?? "");
-    setFilePort(String(server.data.fileTransferPort ?? 22));
+    setFilePort(
+      String(
+        server.data.fileTransferPort ??
+          defaultFileTransferPort(server.data.fileTransferProtocol),
+      ),
+    );
     setFileCredentialId(
       server.data.fileTransferCredentialId
         ? String(server.data.fileTransferCredentialId)
@@ -474,9 +483,9 @@ export function ServerDetailPage() {
       await assignFileTransfer(
         serverId,
         {
-          protocol: (fileProtocol || null) as "Sftp" | "Ftp" | null,
+          protocol: fileProtocol || null,
           port: fileProtocol
-            ? Number(filePort || (fileProtocol === "Ftp" ? 21 : 22))
+            ? Number(filePort || defaultFileTransferPort(fileProtocol))
             : null,
           credentialId: fileCredentialId ? Number(fileCredentialId) : null,
         },
@@ -776,15 +785,18 @@ export function ServerDetailPage() {
               <select
                 value={fileProtocol}
                 onChange={(event) => {
-                  const protocol = event.target.value;
+                  const protocol = event.target.value as
+                    | FileTransferProtocol
+                    | "";
                   setFileProtocol(protocol);
-                  setFilePort(protocol === "Ftp" ? "21" : "22");
+                  setFilePort(String(defaultFileTransferPort(protocol)));
                 }}
                 className="w-40 rounded-md border border-slate-300 px-3 py-1.5"
               >
                 <option value="">{t("servers.fileTransferNone")}</option>
-                <option value="Sftp">SFTP</option>
-                <option value="Ftp">FTP</option>
+                <option value="Sftp">{t("servers.fileTransferSftp")}</option>
+                <option value="Ftps">{t("servers.fileTransferFtps")}</option>
+                <option value="Ftp">{t("servers.fileTransferFtp")}</option>
               </select>
             </label>
             <label className="flex flex-col gap-1">
@@ -837,6 +849,11 @@ export function ServerDetailPage() {
               className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
             >
               {t("servers.fileTransferFtpWarning")}
+            </p>
+          )}
+          {fileProtocol === "Ftps" && (
+            <p className="rounded-md border border-sky-300 bg-sky-50 px-3 py-2 text-sm text-sky-900">
+              {t("servers.fileTransferFtpsHint")}
             </p>
           )}
           <p className="text-xs text-slate-500">
