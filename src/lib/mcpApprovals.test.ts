@@ -14,9 +14,9 @@ const approval: McpApproval = {
   serverId: 3,
   serverName: "web-01",
   serverApplicationId: 12,
-  application: "Shop",
+  serverApplicationName: "Shop",
   applicationActionId: 4,
-  actionLabel: "Restart",
+  applicationActionLabel: "Restart",
   status: "Pending",
   requestedAt: "2026-11-11T09:00:00Z",
   expiresAt: "2026-11-11T09:05:00Z",
@@ -91,15 +91,15 @@ describe("formatApprovalTarget", () => {
     expect(
       formatApprovalTarget({
         serverName: "web-01",
-        application: null,
-        actionLabel: " Restart ",
+        serverApplicationName: null,
+        applicationActionLabel: " Restart ",
       }),
     ).toBe("web-01 · Restart");
     expect(
       formatApprovalTarget({
         serverName: "",
-        application: null,
-        actionLabel: null,
+        serverApplicationName: null,
+        applicationActionLabel: null,
       }),
     ).toBe("—");
   });

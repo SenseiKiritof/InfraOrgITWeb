@@ -10,9 +10,9 @@ export interface McpApproval {
   serverId: number;
   serverName: string;
   serverApplicationId: number | null;
-  application: string | null;
+  serverApplicationName: string | null;
   applicationActionId: number | null;
-  actionLabel: string | null;
+  applicationActionLabel: string | null;
   status: string;
   requestedAt: string;
   expiresAt: string;
@@ -52,12 +52,15 @@ export function isPendingApproval(status: string): boolean {
  * Missing parts are skipped instead of printing placeholder separators.
  */
 export function formatApprovalTarget(
-  approval: Pick<McpApproval, "serverName" | "application" | "actionLabel">,
+  approval: Pick<
+    McpApproval,
+    "serverName" | "serverApplicationName" | "applicationActionLabel"
+  >,
 ): string {
   const parts = [
     approval.serverName,
-    approval.application,
-    approval.actionLabel,
+    approval.serverApplicationName,
+    approval.applicationActionLabel,
   ]
     .map((part) => part?.trim())
     .filter((part): part is string => Boolean(part));
