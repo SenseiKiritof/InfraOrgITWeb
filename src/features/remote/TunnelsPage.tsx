@@ -38,7 +38,7 @@ export function TunnelsPage() {
       key: "application",
       label: t("common.application"),
       weight: 14,
-      render: (row: TunnelSession) => row.application || "—",
+      render: (row: TunnelSession) => row.application || row.serviceName || "—",
     },
     {
       key: "user",

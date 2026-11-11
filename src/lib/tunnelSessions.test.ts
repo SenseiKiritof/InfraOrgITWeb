@@ -10,6 +10,8 @@ const session: TunnelSession = {
   serverId: 3,
   serverName: "db-01",
   application: "PostgreSQL",
+  serviceId: null,
+  serviceName: null,
   mode: "Local",
   localPort: 15432,
   targetHost: "db.internal",

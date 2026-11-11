@@ -10,6 +10,8 @@ export interface TunnelSession {
   serverId: number;
   serverName: string;
   application: string;
+  serviceId: number | null;
+  serviceName: string | null;
   mode: TunnelServiceMode;
   localPort: number | null;
   targetHost: string | null;
