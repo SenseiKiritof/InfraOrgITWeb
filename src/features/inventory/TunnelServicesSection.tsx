@@ -5,6 +5,7 @@ import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
 import { type TranslationKey, useI18n } from "../../lib/i18n";
 import type {
+  DiscoveredPort,
   TunnelService,
   TunnelServiceError,
   TunnelServiceMode,
@@ -57,7 +58,7 @@ export function TunnelServicesSection({
   const { t } = useI18n();
   const csrf = session?.csrfToken ?? "";
   const queryClient = useQueryClient();
-  const [discovered, setDiscovered] = useState<number[] | null>(null);
+  const [discovered, setDiscovered] = useState<DiscoveredPort[] | null>(null);
   const [discovering, setDiscovering] = useState(false);
   const [discoveryError, setDiscoveryError] = useState<string | null>(null);
   const [createValues, setCreateValues] = useState<FormValues | null>(null);
@@ -282,15 +283,17 @@ export function TunnelServicesSection({
             </p>
           ) : (
             <ul className="mt-2 space-y-1">
-              {discovered.map((port) => (
+              {discovered.map((item) => (
                 <li
-                  key={port}
+                  key={item.port}
                   className="flex items-center justify-between gap-2"
                 >
-                  <span className="font-mono">{port}</span>
+                  <span className="font-mono">
+                    {item.address ? `${item.address}:${item.port}` : item.port}
+                  </span>
                   <button
                     type="button"
-                    onClick={() => addPort(port)}
+                    onClick={() => addPort(item.port)}
                     className="rounded-md border border-slate-300 px-3 py-1 text-sm"
                   >
                     {t("tunnelServices.addDiscovered")}

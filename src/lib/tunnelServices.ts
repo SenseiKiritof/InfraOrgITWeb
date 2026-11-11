@@ -47,8 +47,13 @@ export type TunnelServiceError =
   | "openPathFormat"
   | "kindLocalOnly";
 
+export interface DiscoveredPort {
+  port: number;
+  address: string | null;
+}
+
 export interface TunnelPortDiscovery {
-  ports: number[];
+  items: DiscoveredPort[];
 }
 
 export const emptyTunnelServiceForm: TunnelServiceForm = {
@@ -105,18 +110,28 @@ export function deleteTunnelService(
   );
 }
 
-/** POST discover: the API answers `{ ports }`, a bare array is tolerated. */
+/** POST discover: the API answers `{ items: [{ port, address }] }`, a bare array is tolerated. */
 export async function discoverTunnelPorts(
   serverId: number,
   csrfToken: string,
-): Promise<number[]> {
+): Promise<DiscoveredPort[]> {
   const result = await apiFetch<TunnelPortDiscovery | number[]>(
     `/api/servers/${serverId}/tunnel-services/discover`,
     { method: "POST" },
     csrfToken,
   );
-  const ports = Array.isArray(result) ? result : (result.ports ?? []);
-  return [...new Set(ports)].sort((a, b) => a - b);
+  const items = Array.isArray(result)
+    ? result.map((port) => ({ port, address: null }))
+    : (result.items ?? []);
+  const byPort = new Map<number, DiscoveredPort>();
+  for (const item of items) {
+    const address = item.address?.trim() || null;
+    const current = byPort.get(item.port);
+    if (!current) byPort.set(item.port, { port: item.port, address });
+    else if (!current.address && address)
+      byPort.set(item.port, { port: item.port, address });
+  }
+  return [...byPort.values()].sort((a, b) => a.port - b.port);
 }
 
 function parsedPort(value: string): number | null {

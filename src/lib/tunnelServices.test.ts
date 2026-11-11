@@ -107,10 +107,19 @@ describe("tunnel services API client", () => {
     expect(init?.method).toBe("DELETE");
   });
 
-  it("normalizza le porte scoperte", async () => {
-    const fetchMock = stubFetch({ ports: [80, 22, 80] });
+  it("normalizza le porte scoperte con indirizzo", async () => {
+    const fetchMock = stubFetch({
+      items: [
+        { port: 80, address: "0.0.0.0" },
+        { port: 22, address: "" },
+        { port: 80, address: "127.0.0.1" },
+      ],
+    });
 
-    await expect(discoverTunnelPorts(3, "csrf")).resolves.toEqual([22, 80]);
+    await expect(discoverTunnelPorts(3, "csrf")).resolves.toEqual([
+      { port: 22, address: null },
+      { port: 80, address: "0.0.0.0" },
+    ]);
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("/api/servers/3/tunnel-services/discover");
     expect(init?.method).toBe("POST");
@@ -119,7 +128,10 @@ describe("tunnel services API client", () => {
   it("accetta anche una lista di porte senza involucro", async () => {
     stubFetch([443, 22]);
 
-    await expect(discoverTunnelPorts(3, "csrf")).resolves.toEqual([22, 443]);
+    await expect(discoverTunnelPorts(3, "csrf")).resolves.toEqual([
+      { port: 22, address: null },
+      { port: 443, address: null },
+    ]);
   });
 });
 
