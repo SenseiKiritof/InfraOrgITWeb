@@ -831,6 +831,14 @@ export function ServerDetailPage() {
               {t("servers.saveFileTransfer")}
             </button>
           </div>
+          {fileProtocol === "Ftp" && (
+            <p
+              role="alert"
+              className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+            >
+              {t("servers.fileTransferFtpWarning")}
+            </p>
+          )}
           <p className="text-xs text-slate-500">
             {t("servers.fileTransferHint")}
           </p>
@@ -1121,7 +1129,14 @@ function DeployActions({
     setError(null);
     setResult(null);
     try {
-      setResult(await runAction(deployment.id, button.id, csrfToken));
+      setResult(
+        await runAction(
+          deployment.id,
+          button.id,
+          csrfToken,
+          button.requiresConfirmation,
+        ),
+      );
       await queryClient.invalidateQueries({ queryKey: ["command-executions"] });
     } catch (cause) {
       setError(
