@@ -76,7 +76,14 @@ export interface ReachabilityResult {
   error: string | null;
 }
 
-export type FileTransferProtocol = "Sftp" | "Ftp";
+export type FileTransferProtocol = "Sftp" | "Ftp" | "Ftps";
+
+/** FTPS e FTP usano la 21; SFTP la 22. */
+export function defaultFileTransferPort(
+  protocol: FileTransferProtocol | "" | null,
+): number {
+  return protocol === "Ftp" || protocol === "Ftps" ? 21 : 22;
+}
 
 export interface RemoteFileEntry {
   name: string;
