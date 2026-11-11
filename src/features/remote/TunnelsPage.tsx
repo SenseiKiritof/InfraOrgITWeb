@@ -14,6 +14,12 @@ const REFETCH_MS = 15_000;
 
 export function TunnelsPage() {
   const { t } = useI18n();
+  const modeLabel = (mode: TunnelSession["mode"]) =>
+    mode === "Dynamic"
+      ? t("tunnelServices.modeDynamic")
+      : mode === "Remote"
+        ? t("tunnelServices.modeRemote")
+        : t("tunnelServices.modeLocal");
   const tunnels = useQuery({
     queryKey: ["tunnel-sessions"],
     queryFn: getTunnelSessions,
@@ -32,13 +38,19 @@ export function TunnelsPage() {
       key: "application",
       label: t("common.application"),
       weight: 14,
-      render: (row: TunnelSession) => row.application || "—",
+      render: (row: TunnelSession) => row.application || row.serviceName || "—",
     },
     {
       key: "user",
       label: t("common.user"),
       weight: 9,
       render: (row: TunnelSession) => row.username || "—",
+    },
+    {
+      key: "mode",
+      label: t("tunnels.mode"),
+      weight: 8,
+      render: (row: TunnelSession) => modeLabel(row.mode),
     },
     {
       key: "forward",
