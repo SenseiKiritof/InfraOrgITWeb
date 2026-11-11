@@ -45,6 +45,11 @@ const it = {
   "app.loginErrorBody":
     "Il login non è stato completato. Riprova o contatta un amministratore.",
   "app.retry": "Riprova",
+  "app.adminOnlyTitle": "Accesso riservato",
+  "app.adminOnlyBody":
+    "Questa sezione è disponibile solo agli amministratori di sistema.",
+  "app.accessCheckFailed": "Verifica dei permessi non riuscita: {message}",
+  "app.backHome": "Torna alla home",
 
   // Shared terms
   "common.actions": "Azioni",
@@ -212,6 +217,8 @@ const it = {
   "servers.fileTransferPort": "Porta",
   "servers.fileTransferCredential": "Credenziale file",
   "servers.fileTransferNone": "Disattivato",
+  "servers.fileTransferFtpWarning":
+    "FTP non è cifrato: credenziali e file viaggiano in chiaro. Se il server lo supporta, usa SFTP (o FTPS).",
   "servers.fileTransferHint":
     "La credenziale è separata da quella SSH; se non ne scegli una viene usata quella SSH.",
   "servers.saveFileTransfer": "Salva accesso file",
@@ -661,6 +668,11 @@ const en: Record<TranslationKey, string> = {
   "app.loginErrorBody":
     "Sign-in did not complete. Try again or contact an administrator.",
   "app.retry": "Try again",
+  "app.adminOnlyTitle": "Admin access required",
+  "app.adminOnlyBody":
+    "This section is available only to system administrators.",
+  "app.accessCheckFailed": "Permission check failed: {message}",
+  "app.backHome": "Back to home",
 
   // Shared terms
   "common.actions": "Actions",
@@ -827,6 +839,8 @@ const en: Record<TranslationKey, string> = {
   "servers.fileTransferPort": "Port",
   "servers.fileTransferCredential": "File credential",
   "servers.fileTransferNone": "Disabled",
+  "servers.fileTransferFtpWarning":
+    "FTP is not encrypted: credentials and files travel in cleartext. Use SFTP (or FTPS) if the server supports it.",
   "servers.fileTransferHint":
     "The credential is separate from the SSH one; when none is chosen the SSH credential is used.",
   "servers.saveFileTransfer": "Save file access",

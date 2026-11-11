@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Server } from "./inventory";
-import { splitServersByCredential } from "./remote";
+import { runAction, splitServersByCredential } from "./remote";
 
 const server = (id: number, credentialId: number | null): Server => ({
   id,
@@ -37,5 +37,41 @@ describe("splitServersByCredential", () => {
 
     expect(result.assigned.map((item) => item.id)).toEqual([1, 3]);
     expect(result.available.map((item) => item.id)).toEqual([2]);
+  });
+});
+
+describe("runAction", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const stubRun = () =>
+    vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        new Response(
+          JSON.stringify({ exitCode: 0, output: "ok", timedOut: false }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+    );
+
+  it("invia confirm=true dopo la conferma", async () => {
+    const fetchMock = stubRun();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await runAction(7, 3, "csrf", true);
+
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+    expect(JSON.parse(String(init?.body))).toEqual({ confirm: true });
+    expect(new Headers(init?.headers).get("Idempotency-Key")).toBeTruthy();
+  });
+
+  it("invia confirm=false per le azioni senza conferma", async () => {
+    const fetchMock = stubRun();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await runAction(7, 3, "csrf");
+
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+    expect(JSON.parse(String(init?.body))).toEqual({ confirm: false });
   });
 });
