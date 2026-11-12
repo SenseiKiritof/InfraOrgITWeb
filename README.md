@@ -5,6 +5,8 @@ providers, environments, servers, applications and projects once, then use the
 same model to draw the topology, test APIs and reachability, open an SSH
 console, transfer files and review what happened.
 
+The screenshots use the fictitious "Acme" demo data, not a real installation.
+
 ![Production diagram with servers, deployed applications and proxy routes](docs/screenshots/diagram.png)
 
 ## What you can do
