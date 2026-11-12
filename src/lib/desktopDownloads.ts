@@ -186,16 +186,23 @@ export async function createDesktopDownloadTicket(
   path: string,
   csrfToken: string,
 ): Promise<DesktopDownloadTicket> {
-  const ticket = await apiFetch<DesktopDownloadTicket>(
-    "/api/desktop/downloads/tickets",
-    {
-      method: "POST",
-      body: JSON.stringify({ serverId, path }),
-    },
-    csrfToken,
-  );
-  if (!ticket?.url) throw new Error("Invalid desktop download ticket");
-  return { ...ticket, url: absoluteUrl(ticket.url) };
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 3000);
+  try {
+    const ticket = await apiFetch<DesktopDownloadTicket>(
+      "/api/desktop/downloads/tickets",
+      {
+        method: "POST",
+        body: JSON.stringify({ serverId, path }),
+        signal: controller.signal,
+      },
+      csrfToken,
+    );
+    if (!ticket?.url) throw new Error("Invalid desktop download ticket");
+    return { ...ticket, url: absoluteUrl(ticket.url) };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /** Il processo nativo riceve un URL assoluto e già firmato. */

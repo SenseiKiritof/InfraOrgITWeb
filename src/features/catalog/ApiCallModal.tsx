@@ -132,7 +132,10 @@ export function ApiCallModal({
 
   const downloadResult = async (result: ApplicationApiCallResult) => {
     const newFile = t("apiCall.newFile");
-    if (downloadRoute === "bridge") {
+    // I risultati API sono blob generati nel browser: il percorso native non
+    // è affidabile su WKWebView, quindi il bridge resta la scelta corretta
+    // anche quando il server usa la modalità native per gli attachment.
+    if (desktopDownloads.available()) {
       const filename = resultFilename(result, newFile);
       const mime = result.contentType || "text/plain";
       setDownloadNote({ text: t("desktopDownload.sending"), tone: "info" });
