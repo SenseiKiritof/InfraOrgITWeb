@@ -602,6 +602,10 @@ const it = {
   "files.renamePrompt": "Nuovo nome",
   "files.deleteConfirm": 'Eliminare "{name}"?',
   "files.failed": "Operazione non riuscita",
+  "files.sessionTab": "File · {name}",
+  "files.openSession": "Apri la sessione file di {name}",
+  "files.closeSession": "Chiudi la sessione file di {name}",
+  "files.hideSession": "Riduci la sessione file di {name}",
 
   // Diagrams
   "diagrams.title": "Diagrammi",
@@ -1247,6 +1251,10 @@ const en: Record<TranslationKey, string> = {
   "files.renamePrompt": "New name",
   "files.deleteConfirm": 'Delete "{name}"?',
   "files.failed": "Operation failed",
+  "files.sessionTab": "Files · {name}",
+  "files.openSession": "Open the file session for {name}",
+  "files.closeSession": "Close the file session for {name}",
+  "files.hideSession": "Minimize the file session for {name}",
 
   // Diagrams
   "diagrams.title": "Diagrams",

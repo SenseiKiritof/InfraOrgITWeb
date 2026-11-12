@@ -2,6 +2,7 @@ import {
   ArrowDownTrayIcon,
   ArrowPathIcon,
   ArrowUpTrayIcon,
+  ChevronDownIcon,
   DocumentIcon,
   FolderIcon,
   FolderPlusIcon,
@@ -30,17 +31,29 @@ import { fetchServerAccess } from "../../lib/useServerAccess";
 export function FileBrowserModal({
   open,
   serverId,
+  initialPath = null,
+  onPathChange,
+  onServerSelected,
   onClose,
+  onCloseSession,
 }: {
   open: boolean;
   serverId: number | null;
+  /** Percorso da ripristinare; null parte dalla home restituita dal server. */
+  initialPath?: string | null;
+  onPathChange?: (path: string) => void;
+  /** Solo in modalità scelta server: apre la sessione del server indicato. */
+  onServerSelected?: (serverId: number, serverName: string) => void;
+  /** Nasconde il pannello lasciando viva la sessione. */
   onClose: () => void;
+  /** Chiude e distrugge la sessione file. */
+  onCloseSession?: () => void;
 }) {
   const { t, language } = useI18n();
   const { session } = useAuth();
   const csrf = session?.csrfToken ?? "";
   const [selectedId, setSelectedId] = useState<number | null>(serverId);
-  const [path, setPath] = useState("/");
+  const [path, setPath] = useState<string | null>(initialPath);
   const [filter, setFilter] = useState("");
   const [busy, setBusy] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -52,18 +65,28 @@ export function FileBrowserModal({
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const upload = useRef<HTMLInputElement | null>(null);
+  const adoptedPath = useRef<string | null>(null);
 
   useEffect(() => {
     if (open) setSelectedId(serverId);
   }, [open, serverId]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reset quando cambia il server
+  const previousServer = useRef(selectedId);
   useEffect(() => {
-    setPath("/");
+    if (previousServer.current === selectedId) return;
+    previousServer.current = selectedId;
+    // Cambiando server si riparte dalla home, non dal percorso del precedente.
+    setPath(null);
     setFilter("");
     setLoadError(null);
     setActionError(null);
   }, [selectedId]);
+
+  const notifyPath = useRef(onPathChange);
+  notifyPath.current = onPathChange;
+  useEffect(() => {
+    if (path !== null) notifyPath.current?.(path);
+  }, [path]);
 
   useEffect(() => {
     if (!open) return;
@@ -101,6 +124,12 @@ export function FileBrowserModal({
   // biome-ignore lint/correctness/useExhaustiveDependencies: reloadKey ricarica la cartella
   useEffect(() => {
     if (!open || selectedId === null || !server?.fileTransferProtocol) return;
+    // La home appena restituita dal server è già stata elencata: non serve
+    // ripetere la richiesta con il path esplicito.
+    if (path !== null && adoptedPath.current === path) {
+      adoptedPath.current = null;
+      return;
+    }
     let cancelled = false;
     setLoadingFiles(true);
     setLoadError(null);
@@ -108,7 +137,10 @@ export function FileBrowserModal({
       .then((listing) => {
         if (cancelled) return;
         setEntries(listing.items);
-        setPath(listing.path);
+        if (listing.path !== path) {
+          adoptedPath.current = listing.path;
+          setPath(listing.path);
+        }
       })
       .catch((cause: unknown) => {
         if (cancelled) return;
@@ -126,7 +158,7 @@ export function FileBrowserModal({
   }, [open, selectedId, path, server?.fileTransferProtocol, reloadKey]);
 
   const parentPath = () => {
-    const parts = path.split("/").filter(Boolean);
+    const parts = (path ?? "/").split("/").filter(Boolean);
     parts.pop();
     return parts.length === 0 ? "/" : `/${parts.join("/")}`;
   };
@@ -151,7 +183,7 @@ export function FileBrowserModal({
   };
 
   const addDirectory = () => {
-    if (selectedId === null) return;
+    if (selectedId === null || path === null) return;
     const name = window.prompt(t("files.newFolderPrompt"));
     if (!name?.trim()) return;
     void run(() =>
@@ -162,7 +194,7 @@ export function FileBrowserModal({
   const uploadFile = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (!file || selectedId === null) return;
+    if (!file || selectedId === null || path === null) return;
     void run(() => uploadServerFile(selectedId, path, file, csrf));
   };
 
@@ -213,38 +245,91 @@ export function FileBrowserModal({
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-600">
             {t("files.title")}
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t("common.close")}
-            className="rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-          >
-            <XMarkIcon className="h-5 w-5" aria-hidden="true" />
-          </button>
+          <div className="flex items-center gap-1">
+            {onCloseSession && (
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label={t("files.hideSession", {
+                  name: server?.name ?? `#${selectedId}`,
+                })}
+                title={t("files.hideSession", {
+                  name: server?.name ?? `#${selectedId}`,
+                })}
+                className="rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+              >
+                <ChevronDownIcon className="h-5 w-5" aria-hidden="true" />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onCloseSession ?? onClose}
+              aria-label={
+                onCloseSession
+                  ? t("files.closeSession", {
+                      name: server?.name ?? `#${selectedId}`,
+                    })
+                  : t("common.close")
+              }
+              title={
+                onCloseSession
+                  ? t("files.closeSession", {
+                      name: server?.name ?? `#${selectedId}`,
+                    })
+                  : t("common.close")
+              }
+              className="rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+            >
+              <XMarkIcon className="h-5 w-5" aria-hidden="true" />
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-end gap-2 border-b border-slate-200 px-4 py-3 text-sm">
-          <label className="flex min-w-56 flex-col gap-1">
-            <span className="text-xs text-slate-500">{t("common.server")}</span>
-            <select
-              value={selectedId ?? ""}
-              onChange={(event) =>
-                setSelectedId(
-                  event.target.value ? Number(event.target.value) : null,
-                )
-              }
-              className="rounded-md border border-slate-300 px-2 py-1.5"
-            >
-              <option value="">
-                {loadingServers ? t("common.loading") : t("files.chooseServer")}
-              </option>
-              {available.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name} ({item.ipAddress})
+          {serverId === null ? (
+            <label className="flex min-w-56 flex-col gap-1">
+              <span className="text-xs text-slate-500">
+                {t("common.server")}
+              </span>
+              <select
+                value={selectedId ?? ""}
+                onChange={(event) => {
+                  const value = event.target.value
+                    ? Number(event.target.value)
+                    : null;
+                  if (value !== null && onServerSelected) {
+                    const chosen = available.find((item) => item.id === value);
+                    onServerSelected(value, chosen?.name ?? `#${value}`);
+                    return;
+                  }
+                  setSelectedId(value);
+                }}
+                className="rounded-md border border-slate-300 px-2 py-1.5"
+              >
+                <option value="">
+                  {loadingServers
+                    ? t("common.loading")
+                    : t("files.chooseServer")}
                 </option>
-              ))}
-            </select>
-          </label>
+                {available.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name} ({item.ipAddress})
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <div className="flex min-w-56 flex-col gap-1">
+              <span className="text-xs text-slate-500">
+                {t("common.server")}
+              </span>
+              <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
+                {server
+                  ? `${server.name} (${server.ipAddress})`
+                  : `#${serverId}`}
+              </span>
+            </div>
+          )}
           {server?.fileTransferProtocol && (
             <span className="rounded bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">
               {server.fileTransferProtocol}
@@ -264,7 +349,7 @@ export function FileBrowserModal({
             <button
               type="button"
               onClick={() => setPath(parentPath())}
-              disabled={path === "/"}
+              disabled={path === null || path === "/"}
               className="rounded-md border border-slate-300 px-2 py-1.5 disabled:opacity-40"
             >
               {t("files.up")}
@@ -281,7 +366,7 @@ export function FileBrowserModal({
             <button
               type="button"
               onClick={addDirectory}
-              disabled={selectedId === null || busy}
+              disabled={selectedId === null || path === null || busy}
               title={t("files.newFolder")}
               className="rounded-md border border-slate-300 p-1.5 disabled:opacity-40"
             >
@@ -290,7 +375,7 @@ export function FileBrowserModal({
             <button
               type="button"
               onClick={() => upload.current?.click()}
-              disabled={selectedId === null || busy}
+              disabled={selectedId === null || path === null || busy}
               title={t("files.upload")}
               className="rounded-md border border-slate-300 p-1.5 disabled:opacity-40"
             >
@@ -314,7 +399,7 @@ export function FileBrowserModal({
             /
           </button>
           {path
-            .split("/")
+            ?.split("/")
             .filter(Boolean)
             .map((segment, index, all) => {
               const target = `/${all.slice(0, index + 1).join("/")}`;

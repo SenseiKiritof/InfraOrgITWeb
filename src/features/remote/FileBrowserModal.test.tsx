@@ -13,8 +13,11 @@ const json = (body: unknown) =>
     headers: { "Content-Type": "application/json" },
   });
 
+let fileRequests: string[] = [];
+
 describe("FileBrowserModal", () => {
   beforeEach(() => {
+    fileRequests = [];
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
@@ -26,13 +29,17 @@ describe("FileBrowserModal", () => {
             operatorEnvironmentIds: [1],
           });
         }
-        if (url.includes("/api/servers/7/files?")) {
+        if (url.includes("/api/servers/7/files")) {
+          fileRequests.push(url);
+          const path =
+            new URL(url, "http://localhost").searchParams.get("path") ??
+            "/home/test";
           return json({
-            path: "/",
+            path,
             items: [
               {
                 name: "hello.txt",
-                path: "/hello.txt",
+                path: `${path}/hello.txt`,
                 isDirectory: false,
                 size: 12,
                 modifiedUtc: "2026-11-03T10:00:00Z",
@@ -76,6 +83,22 @@ describe("FileBrowserModal", () => {
     expect(screen.getAllByText("Sftp :2222").length).toBeGreaterThan(0);
     expect(
       screen.getByRole("link", { name: "Scarica" }).getAttribute("href"),
-    ).toContain("/api/servers/7/files/download?path=%2Fhello.txt");
+    ).toContain(
+      "/api/servers/7/files/download?path=%2Fhome%2Ftest%2Fhello.txt",
+    );
+  });
+
+  it("parte senza path e adotta la home restituita dal server", async () => {
+    render(
+      <LanguageProvider initialLanguage="it">
+        <FileBrowserModal open serverId={7} onClose={() => undefined} />
+      </LanguageProvider>,
+    );
+
+    expect(await screen.findByText("hello.txt")).toBeTruthy();
+    expect(fileRequests).toEqual(["/api/servers/7/files"]);
+    // Il percorso restituito è adottato e mostrato nel breadcrumb.
+    expect(screen.getByText("home")).toBeTruthy();
+    expect(screen.getByText("test")).toBeTruthy();
   });
 });
