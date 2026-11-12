@@ -103,14 +103,36 @@ describe("resolveDesktopDownloadRoute", () => {
     expect(init?.credentials).toBe("include");
   });
 
-  it("usa native quando il webview sa scaricare e signedUrl è false", async () => {
-    installBridge({ downloadMode: "auto", nativeDownload: true });
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => json({ signedUrl: false })),
-    );
+  it.each(["auto", "native"] as const)(
+    "con %s e native disponibile non aspetta la capability del server",
+    async (downloadMode) => {
+      installBridge({ downloadMode, nativeDownload: true });
+      // Una richiesta che non risponde mai: se partisse, il test resterebbe
+      // appeso fino al timeout di Vitest.
+      const fetchMock = vi.fn(() => new Promise<Response>(() => undefined));
+      vi.stubGlobal("fetch", fetchMock);
 
-    expect(await resolveDesktopDownloadRoute(50)).toBe("native");
+      expect(await resolveDesktopDownloadRoute(50, 20)).toBe("native");
+      expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("col bridge scarica nativo se il server non firma entro il timeout", async () => {
+    installBridge({ downloadMode: "bridge", nativeDownload: true });
+    const fetchMock = vi.fn(
+      (_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () =>
+            reject(new DOMException("Aborted", "AbortError")),
+          );
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const started = Date.now();
+
+    expect(await resolveDesktopDownloadRoute(50, 20)).toBe("native");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(Date.now() - started).toBeLessThan(500);
   });
 
   it("al timeout delle capability torna al download web", async () => {

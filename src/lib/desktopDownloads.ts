@@ -29,6 +29,9 @@ export const DESKTOP_BLOB_MAX_BYTES = 8 * 1024 * 1024;
 /** Il desktop deve rispondere subito: oltre questo tempo si usa il web. */
 export const DESKTOP_CAPABILITIES_TIMEOUT_MS = 500;
 
+/** Il server non deve ritardare un download già possibile in locale. */
+export const DESKTOP_SIGNED_URL_TIMEOUT_MS = 1000;
+
 type WindowWithDesktopBridge = Window & {
   external?: Partial<DesktopBridge>;
 };
@@ -102,11 +105,29 @@ function parseCapabilities(raw: string): DesktopCapabilities | null {
 }
 
 /** `GET /api/desktop/downloads/capabilities`. */
-export async function getSignedUrlCapability(): Promise<boolean> {
+export async function getSignedUrlCapability(
+  signal?: AbortSignal,
+): Promise<boolean> {
   const capability = await apiFetch<{ signedUrl?: boolean }>(
     "/api/desktop/downloads/capabilities",
+    { signal },
   );
   return capability.signedUrl === true;
+}
+
+async function getSignedUrlCapabilityWithTimeout(
+  timeoutMs: number,
+): Promise<boolean> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await getSignedUrlCapability(controller.signal);
+  } catch {
+    // Timeout o errore: senza signed URL il bridge non è utilizzabile.
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**
@@ -130,18 +151,28 @@ export function resolveDownloadRoute(
   return "normal";
 }
 
-/** Senza bridge Photino non serve interrogare il server. */
+/**
+ * Senza bridge Photino non serve interrogare il server. Il server viene
+ * contattato solo se il bridge è davvero candidato: il download nativo non
+ * deve aspettare una capability remota.
+ */
 export async function resolveDesktopDownloadRoute(
   timeoutMs = DESKTOP_CAPABILITIES_TIMEOUT_MS,
+  signedUrlTimeoutMs = DESKTOP_SIGNED_URL_TIMEOUT_MS,
 ): Promise<DesktopDownloadRoute> {
   const bridge = getDesktopBridge();
   if (!bridge) return "normal";
 
-  const [capabilities, signedUrl] = await Promise.all([
-    requestDesktopCapabilities(timeoutMs, bridge),
-    getSignedUrlCapability().catch(() => false),
-  ]);
+  const capabilities = await requestDesktopCapabilities(timeoutMs, bridge);
   if (!capabilities) return "normal";
+
+  // Precedenza: native con auto/native, oppure bridge che deve comunque
+  // chiedere al server se può firmare l'URL.
+  if (capabilities.nativeDownload && capabilities.downloadMode !== "bridge") {
+    return "native";
+  }
+
+  const signedUrl = await getSignedUrlCapabilityWithTimeout(signedUrlTimeoutMs);
   return resolveDownloadRoute(
     capabilities.downloadMode,
     capabilities.nativeDownload,
