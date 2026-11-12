@@ -95,6 +95,12 @@ const it = {
   "common.versions": "Versioni",
   "common.type": "Tipo",
   "common.status": "Stato",
+  "desktopDownload.sending": "Invio al desktop…",
+  "desktopDownload.sent": "Download avviato sul desktop.",
+  "desktopDownload.failed":
+    "Download desktop non riuscito: uso il download del browser.",
+  "desktopDownload.tooLarge":
+    "File troppo grande per il desktop: uso il download del browser.",
   "tokens.title": "Token API",
   "tokens.description":
     "Token personali per client MCP, IDE e automazioni. Il valore è mostrato una sola volta.",
@@ -743,6 +749,12 @@ const en: Record<TranslationKey, string> = {
   "common.versions": "Versions",
   "common.type": "Type",
   "common.status": "Status",
+  "desktopDownload.sending": "Sending to the desktop…",
+  "desktopDownload.sent": "Download started on the desktop.",
+  "desktopDownload.failed":
+    "Desktop download failed: using the browser download.",
+  "desktopDownload.tooLarge":
+    "File too large for the desktop: using the browser download.",
   "tokens.title": "API tokens",
   "tokens.description":
     "Personal tokens for MCP clients, IDEs and automation. The value is shown once.",

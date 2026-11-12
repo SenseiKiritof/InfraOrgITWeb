@@ -2,6 +2,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { AutocompleteSelect } from "../../components/AutocompleteSelect";
 import { apiFetch } from "../../lib/api";
+import {
+  type DesktopDownloadRoute,
+  desktopDownloads,
+  utf8ToBase64,
+} from "../../lib/desktopDownloads";
 import { formatBytes } from "../../lib/format";
 import { useI18n } from "../../lib/i18n";
 import type {
@@ -58,6 +63,27 @@ export function ApiCallModal({
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [downloadRoute, setDownloadRoute] =
+    useState<DesktopDownloadRoute>("normal");
+  const [downloadNote, setDownloadNote] = useState<{
+    text: string;
+    tone: "info" | "warning";
+  } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void desktopDownloads
+      .resolveRoute()
+      .then((route) => {
+        if (!cancelled) setDownloadRoute(route);
+      })
+      .catch(() => {
+        if (!cancelled) setDownloadRoute("normal");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const sendsBody = ["POST", "PUT", "PATCH"].includes(api.requestType);
   const environmentId = environment;
@@ -104,6 +130,38 @@ export function ApiCallModal({
     }
   };
 
+  const downloadResult = async (result: ApplicationApiCallResult) => {
+    const newFile = t("apiCall.newFile");
+    if (downloadRoute === "bridge") {
+      const filename = resultFilename(result, newFile);
+      const mime = result.contentType || "text/plain";
+      setDownloadNote({ text: t("desktopDownload.sending"), tone: "info" });
+      try {
+        const base64 = result.binary ? result.body : utf8ToBase64(result.body);
+        const sent = desktopDownloads.sendBlob(filename, base64, mime);
+        if (sent === "sent") {
+          setDownloadNote({ text: t("desktopDownload.sent"), tone: "info" });
+          return;
+        }
+        setDownloadNote({
+          text:
+            sent === "too-large"
+              ? t("desktopDownload.tooLarge")
+              : t("desktopDownload.failed"),
+          tone: "warning",
+        });
+      } catch {
+        setDownloadNote({
+          text: t("desktopDownload.failed"),
+          tone: "warning",
+        });
+      }
+    }
+    // Native e web (e fallback desktop) tengono il blob classico. Su macOS
+    // WKWebView non salva i blob: URL: il percorso native non può riusarlo.
+    downloadBlob(result, newFile);
+  };
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 p-4">
       <section
@@ -113,6 +171,7 @@ export function ApiCallModal({
           method: api.requestType,
           url: api.url,
         })}
+        data-download-route={downloadRoute}
         className="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-xl"
       >
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
@@ -256,7 +315,7 @@ export function ApiCallModal({
                 </button>
                 <button
                   type="button"
-                  onClick={() => download(result, t("apiCall.newFile"))}
+                  onClick={() => void downloadResult(result)}
                   className="rounded-md border border-slate-300 px-3 py-1 text-sm"
                 >
                   {t("apiCall.download")}
@@ -267,6 +326,18 @@ export function ApiCallModal({
                   </span>
                 )}
               </div>
+              {downloadNote && (
+                <p
+                  role="status"
+                  className={
+                    downloadNote.tone === "warning"
+                      ? "text-xs text-amber-700"
+                      : "text-xs text-slate-500"
+                  }
+                >
+                  {downloadNote.text}
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -289,12 +360,7 @@ async function copyResult(
   }
 }
 
-function download(result: ApplicationApiCallResult, newFile: string): void {
-  const extension = result.binary
-    ? extensionFor(result.contentType)
-    : result.contentType.includes("json")
-      ? "json"
-      : "txt";
+function downloadBlob(result: ApplicationApiCallResult, newFile: string): void {
   const content = result.binary ? base64Bytes(result.body) : result.body;
   const blob = new Blob([content], {
     type: result.contentType || "text/plain",
@@ -302,11 +368,23 @@ function download(result: ApplicationApiCallResult, newFile: string): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `api-call-${result.callId ?? newFile}.${extension}`;
+  link.download = resultFilename(result, newFile);
   document.body.append(link);
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+}
+
+function resultFilename(
+  result: ApplicationApiCallResult,
+  newFile: string,
+): string {
+  const extension = result.binary
+    ? extensionFor(result.contentType)
+    : result.contentType.includes("json")
+      ? "json"
+      : "txt";
+  return `api-call-${result.callId ?? newFile}.${extension}`;
 }
 
 function base64Bytes(value: string): ArrayBuffer {
