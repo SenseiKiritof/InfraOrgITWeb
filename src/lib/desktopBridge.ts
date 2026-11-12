@@ -9,21 +9,23 @@ export type DesktopMessage = Record<string, unknown> & { type: string };
 
 type WindowWithDesktopBridge = Window & {
   external?: Partial<DesktopBridge>;
+  infraorgitDesktop?: Partial<DesktopBridge>;
 };
 
 const listeners = new Set<(message: DesktopMessage) => void>();
 let installedBridge: DesktopBridge | null = null;
 
-/** Photino espone `window.external` solo nel webview desktop. */
+/** Photino espone `window.external`, Electron un bridge esplicito. */
 export function getDesktopBridge(): DesktopBridge | null {
   if (typeof window === "undefined") return null;
-  const external = (window as WindowWithDesktopBridge).external;
+  const scope = window as WindowWithDesktopBridge;
+  const candidate = scope.infraorgitDesktop ?? scope.external;
   if (
-    typeof external?.sendMessage !== "function" ||
-    typeof external.receiveMessage !== "function"
+    typeof candidate?.sendMessage !== "function" ||
+    typeof candidate?.receiveMessage !== "function"
   )
     return null;
-  return external as DesktopBridge;
+  return candidate as DesktopBridge;
 }
 
 export function isDesktopBridgeAvailable(): boolean {
