@@ -1,87 +1,111 @@
-# InfraOrgITWeb
+# InfraOrgIT Web
 
-InfraOrgIT frontend: Vite + React 19 + TypeScript SPA.
+InfraOrgIT Web is the browser workspace for your IT infrastructure. Describe
+providers, environments, servers, applications and projects once, then use the
+same model to draw the topology, test APIs and reachability, open an SSH
+console, transfer files and review what happened.
 
-## Status
+![Production diagram with servers, deployed applications and proxy routes](docs/screenshots/diagram.png)
 
-2026-10-30. Implemented: BFF login, session, filtered menu, inventory, diagrams, remote management and admin pages (users, groups, roles, menu, per-environment roles). Recent UI work: a single shell header for every page, single-record cards instead of one-row tables, the new server/deployment fields, typed applications, project server sections with a run-all reachability action. React Flow and the console are in separate chunks; 5 Playwright E2E tests.
+## What you can do
 
-## Stack
+### Model the infrastructure
 
-- Vite 8 + React 19 + TypeScript
-- React Router 7, TanStack Query
-- Tailwind 4
-- Biome 2 + `tsc --noEmit`
-- Vitest + Testing Library, Playwright
+Keep providers, environments, servers, applications, versions, deployments and
+projects in one place. A server carries its IP addresses, SSH port, hostname,
+jump host, sizing, operating system and HA role; a deployment records how an
+application version runs on that server.
 
-## Structure
+| Servers | Application |
+|---|---|
+| ![Server list with environment, IP, SSH port and jump host](docs/screenshots/servers.png) | ![Application with type, versions and APIs](docs/screenshots/application.png) |
+| **Server detail** | **Execution log** |
+| ![Server detail with sizing, SSH credential and reachability tests](docs/screenshots/server.png) | ![Execution log of console sessions, actions and reachability tests](docs/screenshots/executions.png) |
 
-```
-src/
-  app/{App.tsx, AuthProvider.tsx}
-  components/{EntitySection.tsx, RecordCard.tsx, PageHeaderSlot.tsx, page.tsx}
-  features/{inventory, catalog, diagrams, remote, admin}/*.tsx
-  lib/{api.ts, inventory.ts, diagrams.ts, buildGraph.ts, remote.ts, admin.ts, useServerAccess.ts}
-  test/setup.ts
-e2e/{login,inventory,diagrams,remote,admin}.spec.ts
-```
+### Draw and explore the topology
 
-## UI conventions
+The diagram is built from the same data: provider → environment → server →
+deployed application, with proxy connections and routes. Filter by provider,
+environment or project, arrange the layout and save it.
 
-- The shell header shows the page name (and, for list pages, its short
-  description); detail pages show the record name and keep the actions on the
-  right.
-- A single record (provider, environment, application, project, server) is a
-  `RecordCard`: an editable form for who can write, a definition list
-  otherwise. Never a one-row table with pagination.
-- Applications are typed: `Backend`, `Frontend`, `Sftp`, `RabbitMq`, `Nginx`,
-  `Elastic`, `Kibana`, `Kafka`, `MySql`, `MongoDb`, `Redis`. Only `Frontend`
-  hides the API, API key and call sections.
-- The server page edits the master data and the deployed applications in one
-  place (runtime, container image/name/compose folder, host port, HA role).
-- The project page lists the servers of its applications split into
-  integrated and production, and can run all their reachability tests.
-- Action buttons are 34 px high; table headers and the compact pagination keep
-  their smaller size.
+![Zoom, pan and fit on the production diagram](docs/screenshots/diagram.gif)
 
-## Commands
+### Test APIs and network reachability
 
-```bash
-yarn dev              # Vite :3000, /api and /auth proxy → API :5298
-yarn build            # tsc --noEmit + vite build
-yarn biome ci .
-yarn tsc --noEmit
-yarn vitest run
-yarn playwright test  # requires the stack started with make dev
-```
+Import an OpenAPI 3.x or Swagger 2.0 document into an application version and
+call its endpoints from the browser, with the environment hostname and API
+keys. Host:port reachability tests run from the server itself over SSH, so the
+result is what the server really reaches.
 
-With the meta repo:
+![Reachability tests with OK and KO results, then application actions](docs/screenshots/tests-actions.gif)
 
-```bash
-cd ../AllInfraOrgIT
-make dev
-make e2e
-```
+### Work on servers
 
-## Auth
+Open an SSH console with several sessions side by side or minimized to the bar
+at the bottom. The same bar opens an SFTP/FTPS file browser. Command templates
+and application actions (restart, logs, health check) run from the server page;
+every session, action and test is written to the audit log.
 
-- The SPA calls `/api/session`; on 401 it goes to `/auth/login`.
-- The backend handles the callback and the HttpOnly cookie; no token in JavaScript.
-- Logout: `POST /auth/logout` with the `X-CSRF-Token` from the session.
-- Menu: `/api/menus` filtered by role; admin entries only for `SystemAdmin`.
+![SSH session with hostname, uptime, disk usage, application log and health endpoint](docs/screenshots/console.gif)
 
-## References
+![Two consoles side by side, minimized to the bar and reopened](docs/screenshots/console-split.gif)
 
-- `../AllInfraOrgIT/docs/ux/pages.md`
-- ADR 002, 003, 005, 007
+### Approve AI actions
 
-## Docker image
+MCP clients can read the inventory and request actions. An action requested by
+an AI client does not run on its own: it becomes a **Pending** request on
+`/approvals`. You check server, application and action, then approve or deny
+from your browser session. The request expires after 10 minutes, is used once
+and cannot be approved by the AI client itself.
 
-Multi-stage `Dockerfile` (Node 24 → Caddy 2) and `Caddyfile` that serves the SPA and proxies `/api`, `/auth`, `/realms` and `/resources` (compose front door).
+![MCP approvals page with a pending action, Approve and Deny buttons, and the human-approval warning](docs/screenshots/approvals.png)
 
-- workflow `.github/workflows/docker.yml`: builds on every PR (no push, required `image` check), publishes `main`, `dev` and `sha-<commit>` on branch pushes, and `X.Y.Z`, `X.Y`, `sha-<commit>`, `latest` on `v*` tags
-- branch and tag builds are multi-arch (`linux/amd64`, `linux/arm64`); PR builds stay amd64
-- image `ghcr.io/senseikiritof/infraorgit-web`
-- local build: `docker build --build-arg APP_VERSION=v0.2.0 -t infraorgit-web:0.2.0 .`
-- the SPA is served on port 80; the version is baked into `VITE_APP_VERSION` and shown in the sidebar
-- the published image is used by `../AllInfraOrgIT/deploy/compose.yaml` (stack without source, `make up-images`)
+### See desktop tunnels
+
+Tunnels opened by InfraOrgIT Desktop are projected on `/tunnels`: local port,
+target, server, user and last contact. The page refreshes every 15 seconds, so
+the team can see which forwards are active.
+
+![Active tunnel with local port, target and last contact](docs/screenshots/tunnels.png)
+
+### Keep an audit trail
+
+`/audit` records MCP tool calls and tunnel events with actor, client, target,
+outcome, error code and correlation id. Administrators can filter by type,
+outcome and server.
+
+![Audit log of MCP calls and tunnel events](docs/screenshots/audit.png)
+
+### Control access
+
+Keycloak handles login through the backend-for-frontend: the browser never sees
+an access token. Users, groups and roles are managed in the app. `SystemAdmin`
+owns the master data; `ServerAdmin` and `ServerOperator` are granted per
+environment and control what a user can open or run. The sidebar is filtered
+by role, so each user sees only the pages they can use.
+
+Personal API tokens for MCP clients and automations are created from the user
+menu. The raw value is shown once; grant only the scopes the client needs.
+
+![Personal API tokens with scopes, creation, expiry, last use and state](docs/screenshots/tokens.png)
+
+## Sign in
+
+Open the URL of your InfraOrgIT instance and sign in with the Keycloak account
+provided by your administrator. If the deployment enables MFA, Keycloak asks
+for the second factor before the app loads.
+
+Use the user menu to switch between Italian and English or between the light
+and dark theme. The menu labels stored in the database can be edited by an
+administrator from **Menu**.
+
+## Learn more
+
+- [AllInfraOrgIT](https://github.com/SenseiKiritof/AllInfraOrgIT) — product
+  overview, deployment and architecture.
+- [`../AllInfraOrgIT/docs/ux/pages.md`](../AllInfraOrgIT/docs/ux/pages.md) —
+  page map and flows.
+- [`../AllInfraOrgIT/docs/security/permissions.md`](../AllInfraOrgIT/docs/security/permissions.md)
+  — role matrix.
+- [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) — local development, tests, UI
+  conventions and image build.
