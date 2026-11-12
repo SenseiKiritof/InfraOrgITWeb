@@ -13,6 +13,17 @@ export default defineConfig({
         ws: true,
       },
       "/auth": "http://localhost:5298",
+      // Keycloak through the Vite origin so the desktop child window never
+      // performs a cross-origin redirect before login. Keep the Host header
+      // (changeOrigin: false) so Keycloak generates localhost:3000 URLs.
+      "/realms": {
+        target: "http://localhost:18081",
+        changeOrigin: false,
+      },
+      "/resources": {
+        target: "http://localhost:18081",
+        changeOrigin: false,
+      },
     },
   },
 });
