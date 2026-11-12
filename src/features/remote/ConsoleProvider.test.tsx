@@ -41,6 +41,7 @@ const terminalHidden = () => {
 
 import {
   ConsoleProvider,
+  type ConsoleServerInfo,
   clearConsoleSessions,
   useConsole,
 } from "./ConsoleProvider";
@@ -48,14 +49,19 @@ import {
 function Opener({
   serverId,
   serverName,
+  info,
 }: {
   serverId: number;
   serverName: string;
+  info?: ConsoleServerInfo;
 }) {
   const consoleApi = useConsole();
   return (
-    <button type="button" onClick={() => consoleApi.open(serverId, serverName)}>
-      Apri console
+    <button
+      type="button"
+      onClick={() => consoleApi.open(serverId, serverName, info)}
+    >
+      Apri console {serverName}
     </button>
   );
 }
@@ -74,6 +80,31 @@ const json = (body: unknown) =>
     status: 200,
     headers: { "Content-Type": "application/json" },
   });
+
+const SERVERS = [
+  {
+    id: 44,
+    name: "srv-alpha",
+    providerEnvironmentId: 1,
+    providerEnvironmentLabel: "ACME / PROD",
+    ipAddress: "10.0.0.44",
+    hostname: "srv-alpha.acme.example",
+    sshPort: 22,
+    fileTransferProtocol: "Sftp",
+    fileTransferPort: 22,
+  },
+  {
+    id: 45,
+    name: "srv-beta",
+    providerEnvironmentId: 1,
+    providerEnvironmentLabel: "ACME / TEST",
+    ipAddress: "10.0.0.45",
+    hostname: "srv-beta.acme.example",
+    sshPort: 22,
+    fileTransferProtocol: "Ftp",
+    fileTransferPort: 21,
+  },
+];
 
 let fileRequests: string[] = [];
 
@@ -125,27 +156,8 @@ function stubFilesFetch() {
       }
       if (url.includes("/api/servers")) {
         return json({
-          items: [
-            {
-              id: 44,
-              name: "srv-alpha",
-              providerEnvironmentId: 1,
-              ipAddress: "10.0.0.44",
-              sshPort: 22,
-              fileTransferProtocol: "Sftp",
-              fileTransferPort: 22,
-            },
-            {
-              id: 45,
-              name: "srv-beta",
-              providerEnvironmentId: 1,
-              ipAddress: "10.0.0.45",
-              sshPort: 22,
-              fileTransferProtocol: "Sftp",
-              fileTransferPort: 22,
-            },
-          ],
-          total: 2,
+          items: SERVERS,
+          total: SERVERS.length,
           page: 1,
           pageSize: 200,
         });
@@ -170,16 +182,31 @@ const renderWithProvider = () =>
     </ConsoleProvider>,
   );
 
+const visiblePanes = () =>
+  screen
+    .getAllByTestId(/console-pane-/)
+    .filter((pane) => !pane.hasAttribute("hidden"));
+
+const consoleTab = (label: string) =>
+  screen.getByRole("button", { name: `Apri la console di ${label}` });
+
+const fileTab = (serverId: number) =>
+  screen.getByTestId(`file-tab-${serverId}`);
+
 describe("ConsoleProvider", () => {
   afterEach(() => {
     cleanup();
     sessionStorage.clear();
+    localStorage.clear();
     vi.useRealTimers();
     vi.unstubAllGlobals();
   });
   beforeEach(() => {
     sessionStorage.clear();
+    localStorage.clear();
+    localStorage.setItem("infraorgit-console-height", "320");
     stubWebSocket();
+    vi.stubGlobal("PointerEvent", class extends MouseEvent {});
     vi.stubGlobal(
       "ResizeObserver",
       class {
@@ -190,9 +217,31 @@ describe("ConsoleProvider", () => {
     );
   });
 
+  it("mostra nome, IP e hostname nella tab e il testo intero nel tooltip", () => {
+    render(
+      <ConsoleProvider>
+        <Opener
+          serverId={44}
+          serverName="demo-app-01"
+          info={{
+            ipAddress: "10.0.0.10",
+            hostname: "demo-app-01.acme.example",
+            environment: "ACME / PROD",
+          }}
+        />
+      </ConsoleProvider>,
+    );
+    fireEvent.click(screen.getByText("Apri console demo-app-01"));
+
+    const label = "demo-app-01 · 10.0.0.10 · demo-app-01.acme.example";
+    const tab = consoleTab(label);
+    expect(tab.getAttribute("title")).toBe(label);
+    expect(within(tab).getByText(label)).toHaveClass("truncate");
+  });
+
   it("riduce la console nella barra senza chiudere la sessione", () => {
     renderWithProvider();
-    fireEvent.click(screen.getByText("Apri console"));
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
 
     const socket = FakeSocket.instances[0];
     expect(terminalHidden()).toBe(false);
@@ -201,14 +250,14 @@ describe("ConsoleProvider", () => {
 
     expect(terminalHidden()).toBe(true);
     expect(socket.readyState).toBe(FakeSocket.OPEN);
-    expect(screen.getByText("srv-alpha")).toBeTruthy();
+    expect(consoleTab("srv-alpha")).toBeTruthy();
   });
 
   it("riapre la sessione ridotta dalla barra", () => {
     renderWithProvider();
-    fireEvent.click(screen.getByText("Apri console"));
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
     fireEvent.click(screen.getByText("Riduci"));
-    fireEvent.click(screen.getByText("srv-alpha"));
+    fireEvent.click(consoleTab("srv-alpha"));
 
     expect(terminalHidden()).toBe(false);
     expect(FakeSocket.instances).toHaveLength(1);
@@ -216,85 +265,132 @@ describe("ConsoleProvider", () => {
 
   it("chiude la console dalla barra", () => {
     renderWithProvider();
-    fireEvent.click(screen.getByText("Apri console"));
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
     fireEvent.click(screen.getByText("Riduci"));
     fireEvent.click(screen.getByLabelText("Chiudi la console di srv-alpha"));
 
-    expect(screen.queryByText("srv-alpha")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Apri la console di srv-alpha" }),
+    ).toBeNull();
     expect(FakeSocket.instances[0].readyState).toBe(FakeSocket.CLOSED);
     expect(FakeSocket.instances[0].sent).toContain(
       JSON.stringify({ type: "terminate" }),
     );
   });
 
-  it("aggiunge una console dal footer scegliendo il server", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (input: RequestInfo | URL) => {
-        const body = String(input).includes("/api/server-access/me")
-          ? {
-              isSystemAdmin: false,
-              adminEnvironmentIds: [1],
-              operatorEnvironmentIds: [1],
-            }
-          : {
-              items: [
-                {
-                  id: 44,
-                  name: "srv-alpha",
-                  providerEnvironmentId: 1,
-                  ipAddress: "10.0.0.1",
-                  sshPort: 22,
-                },
-              ],
-              total: 1,
-              page: 1,
-              pageSize: 200,
-            };
-        return new Response(JSON.stringify(body), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
-      }),
-    );
-
+  it("cerca nel launcher per IP, hostname e ambiente", async () => {
+    stubFilesFetch();
     renderWithProvider();
     fireEvent.click(screen.getByLabelText("Aggiungi console"));
-    fireEvent.click(await screen.findByText("srv-alpha"));
+
+    const search = await screen.findByPlaceholderText("Cerca un server…");
+    await screen.findByText("srv-alpha");
+
+    fireEvent.change(search, { target: { value: "10.0.0.45" } });
+    expect(screen.queryByText("srv-alpha")).toBeNull();
+    expect(screen.getByText("srv-beta")).toBeTruthy();
+
+    fireEvent.change(search, { target: { value: "alpha.acme.example" } });
+    expect(screen.getByText("srv-alpha")).toBeTruthy();
+    expect(screen.queryByText("srv-beta")).toBeNull();
+
+    fireEvent.change(search, { target: { value: "ACME / TEST" } });
+    expect(screen.getByText("srv-beta")).toBeTruthy();
+    expect(screen.queryByText("srv-alpha")).toBeNull();
+
+    fireEvent.change(search, { target: { value: "niente" } });
+    expect(
+      screen.getByText("Nessun server su cui hai il ruolo ServerAdmin."),
+    ).toBeTruthy();
+
+    fireEvent.change(search, { target: { value: "10.0.0.45" } });
+    fireEvent.click(screen.getByText("srv-beta"));
 
     expect(FakeSocket.instances).toHaveLength(1);
-    expect(screen.getByTitle("Apri la console di srv-alpha")).toBeTruthy();
+    expect(
+      consoleTab("srv-beta · 10.0.0.45 · srv-beta.acme.example"),
+    ).toBeTruthy();
   });
 
-  it("divide e unisce i terminali senza riconnettere", () => {
+  it("dispone le console su due pannelli e permette di sceglierli", () => {
     render(
       <ConsoleProvider>
         <Opener serverId={44} serverName="srv-alpha" />
         <Opener serverId={45} serverName="srv-beta" />
       </ConsoleProvider>,
     );
-    fireEvent.click(screen.getAllByText("Apri console")[0]);
-
-    const panes = () => screen.getAllByTestId(/console-pane-/);
-    expect(panes()).toHaveLength(1);
-    expect(panes()[0].hasAttribute("hidden")).toBe(false);
-
-    fireEvent.click(screen.getByLabelText("Dividi le console"));
-    expect(panes().filter((pane) => !pane.hasAttribute("hidden"))).toHaveLength(
-      1,
-    );
-
-    fireEvent.click(screen.getAllByText("Apri console")[1]);
-    expect(panes()).toHaveLength(2);
-    expect(panes().filter((pane) => !pane.hasAttribute("hidden"))).toHaveLength(
-      2,
-    );
-
-    fireEvent.click(screen.getByLabelText("Unisci le console"));
-    expect(panes().filter((pane) => !pane.hasAttribute("hidden"))).toHaveLength(
-      1,
-    );
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
+    fireEvent.click(screen.getByLabelText("2 pannelli"));
+    fireEvent.click(screen.getByText("Apri console srv-beta"));
+    expect(visiblePanes()).toHaveLength(2);
+    expect(visiblePanes()[0]).toHaveTextContent("srv-alpha");
+    expect(visiblePanes()[1]).toHaveTextContent("srv-beta");
     expect(FakeSocket.instances).toHaveLength(2);
+
+    fireEvent.click(screen.getByLabelText("1 pannello"));
+    expect(visiblePanes()).toHaveLength(1);
+    expect(consoleTab("srv-alpha")).toBeTruthy();
+    expect(consoleTab("srv-beta")).toBeTruthy();
+    expect(FakeSocket.instances).toHaveLength(2);
+
+    fireEvent.click(screen.getByLabelText("2 pannelli"));
+    const chooser = screen.getByLabelText(
+      "Scegli la console per questo pannello",
+    );
+    expect(chooser).toBeTruthy();
+    const betaOption = within(chooser).getByRole("option", {
+      name: "srv-beta",
+    }) as HTMLOptionElement;
+    fireEvent.change(chooser, { target: { value: betaOption.value } });
+
+    expect(visiblePanes()).toHaveLength(2);
+    expect(FakeSocket.instances).toHaveLength(2);
+  });
+
+  it("sposta una console su un altro pannello dal pannello stesso", () => {
+    render(
+      <ConsoleProvider>
+        <Opener serverId={44} serverName="srv-alpha" />
+        <Opener serverId={45} serverName="srv-beta" />
+      </ConsoleProvider>,
+    );
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
+    fireEvent.click(screen.getByLabelText("3 pannelli"));
+    fireEvent.click(screen.getByText("Apri console srv-beta"));
+    const alphaPane = screen
+      .getAllByTestId(/console-pane-/)
+      .find((pane) => pane.textContent?.includes("srv-alpha")) as HTMLElement;
+    const picker = within(alphaPane).getByLabelText("Pannello della console");
+    fireEvent.change(picker, { target: { value: "2" } });
+
+    expect(alphaPane.hasAttribute("hidden")).toBe(false);
+    expect(screen.getByTestId("console-empty-pane-0")).toBeTruthy();
+    expect(visiblePanes()).toHaveLength(2);
+  });
+
+  it("espande la console, torna all'altezza scelta e la persiste", () => {
+    renderWithProvider();
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
+
+    const dockHeight = () =>
+      document.documentElement.style.getPropertyValue("--console-dock-height");
+    expect(dockHeight()).toBe("364px");
+
+    fireEvent.click(screen.getByLabelText("Espandi la console"));
+    expect(dockHeight()).toBe("calc(100vh - 4rem)");
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(dockHeight()).toBe("364px");
+
+    const handle = screen.getByRole("separator", {
+      name: "Ridimensiona l'altezza della console",
+    });
+    fireEvent.pointerDown(handle, { clientY: 500 });
+    fireEvent.pointerMove(window, { clientY: 420 });
+    fireEvent.pointerUp(window);
+
+    expect(localStorage.getItem("infraorgit-console-height")).toBe("400");
+    expect(dockHeight()).toBe("444px");
   });
 
   it("mantiene la barra anche senza console", () => {
@@ -307,32 +403,22 @@ describe("ConsoleProvider", () => {
 
   it("minimizza i pannelli dalla barra, come Riduci", () => {
     renderWithProvider();
-    fireEvent.click(screen.getByText("Apri console"));
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
     expect(
       document.documentElement.style.getPropertyValue("--console-dock-height"),
-    ).toBe("calc(45vh + 2.75rem)");
+    ).toBe("364px");
 
-    fireEvent.click(screen.getByLabelText("Riduci"));
+    fireEvent.click(screen.getByTitle("Riduci"));
     expect(
       document.documentElement.style.getPropertyValue("--console-dock-height"),
     ).toBe("2.75rem");
     expect(terminalHidden()).toBe(true);
   });
 
-  it("minimizza il pannello e lo riapre dalla barra", () => {
-    renderWithProvider();
-    fireEvent.click(screen.getByText("Apri console"));
-    fireEvent.click(screen.getByText("Riduci"));
-
-    expect(terminalHidden()).toBe(true);
-    fireEvent.click(screen.getByTitle("Apri la console di srv-alpha"));
-    expect(terminalHidden()).toBe(false);
-  });
-
   it("segnala l'output non visto e lo azzera quando apri la console", () => {
     vi.useFakeTimers();
     renderWithProvider();
-    fireEvent.click(screen.getByText("Apri console"));
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
     fireEvent.click(screen.getByText("Riduci"));
     const socket = FakeSocket.instances[0];
 
@@ -343,16 +429,22 @@ describe("ConsoleProvider", () => {
 
     expect(screen.getByLabelText("Output non visto")).toBeTruthy();
 
-    fireEvent.click(screen.getByText("srv-alpha"));
+    fireEvent.click(consoleTab("srv-alpha"));
 
     expect(screen.queryByLabelText("Output non visto")).toBeNull();
   });
 
   it("segnala l'output non visto anche con il pannello minimizzato", () => {
     vi.useFakeTimers();
-    renderWithProvider();
-    fireEvent.click(screen.getByText("Apri console"));
-    fireEvent.click(screen.getByText("Riduci"));
+    render(
+      <ConsoleProvider>
+        <Opener serverId={44} serverName="srv-alpha" />
+        <Opener serverId={45} serverName="srv-beta" />
+      </ConsoleProvider>,
+    );
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
+    fireEvent.click(screen.getByText("Apri console srv-beta"));
+    // srv-alpha è stato sostituito nel pannello unico: il suo output è non visto.
     const socket = FakeSocket.instances[0];
 
     act(() => {
@@ -362,24 +454,28 @@ describe("ConsoleProvider", () => {
 
     expect(screen.getByLabelText("Output non visto")).toBeTruthy();
 
-    fireEvent.click(screen.getByTitle("Apri la console di srv-alpha"));
+    fireEvent.click(consoleTab("srv-alpha"));
 
     expect(screen.queryByLabelText("Output non visto")).toBeNull();
   });
 
-  it("clearConsoleSessions svuota lo storage delle console", () => {
+  it("clearConsoleSessions svuota storage e sessioni attive", () => {
     renderWithProvider();
-    fireEvent.click(screen.getByText("Apri console"));
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
     expect(sessionStorage.getItem("ds-console-sessions")).not.toBeNull();
 
-    clearConsoleSessions();
+    act(() => clearConsoleSessions());
 
-    expect(sessionStorage.getItem("ds-console-sessions")).toBeNull();
+    expect(sessionStorage.getItem("ds-console-sessions") ?? "[]").toBe("[]");
+    expect(terminalHidden()).toBe(true);
+    expect(
+      screen.queryByRole("button", { name: "Apri la console di srv-alpha" }),
+    ).toBeNull();
   });
 
   it("dopo un refresh riaggancia la stessa sessione", () => {
     const first = renderWithProvider();
-    fireEvent.click(screen.getByText("Apri console"));
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
     act(() => {
       FakeSocket.instances[0].emitText(
         JSON.stringify({ type: "session", id: "tok-9" }),
@@ -400,6 +496,11 @@ describe("ConsoleProvider", () => {
     fireEvent.click(screen.getByText("Apri file 44"));
 
     await screen.findByTestId("file-tab-44");
+    await waitFor(() =>
+      expect(
+        within(fileTab(44)).getByText("File · srv-alpha · 10.0.0.44 · SFTP"),
+      ).toBeTruthy(),
+    );
     fireEvent.click(await screen.findByText("sub"));
     await waitFor(() =>
       expect(
@@ -413,7 +514,7 @@ describe("ConsoleProvider", () => {
       await screen.findByLabelText("Riduci la sessione file di srv-alpha"),
     );
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(screen.getByTestId("file-tab-44")).toBeTruthy();
+    expect(fileTab(44)).toBeTruthy();
 
     const before = fileRequests.length;
     fireEvent.click(screen.getByText("Apri file 44"));
@@ -430,9 +531,7 @@ describe("ConsoleProvider", () => {
     );
     const reopened = fileRequests.length;
     fireEvent.click(
-      within(screen.getByTestId("file-tab-44")).getByLabelText(
-        "Apri la sessione file di srv-alpha",
-      ),
+      within(fileTab(44)).getByLabelText(/Apri la sessione file di srv-alpha/),
     );
     await waitFor(() =>
       expect(
@@ -478,6 +577,11 @@ describe("ConsoleProvider", () => {
 
     fireEvent.click(screen.getByText("Apri file 45"));
     await screen.findByTestId("file-tab-45");
+    await waitFor(() =>
+      expect(
+        within(fileTab(45)).getByText("File · srv-beta · 10.0.0.45 · FTP"),
+      ).toBeTruthy(),
+    );
     fireEvent.click(await screen.findByText("docs"));
     await waitFor(() =>
       expect(
@@ -491,18 +595,16 @@ describe("ConsoleProvider", () => {
     );
 
     fireEvent.click(
-      within(screen.getByTestId("file-tab-44")).getByLabelText(
+      within(fileTab(44)).getByLabelText(
         "Chiudi la sessione file di srv-alpha",
       ),
     );
     await waitFor(() => expect(screen.queryByTestId("file-tab-44")).toBeNull());
-    expect(screen.getByTestId("file-tab-45")).toBeTruthy();
+    expect(fileTab(45)).toBeTruthy();
 
     const before = fileRequests.length;
     fireEvent.click(
-      within(screen.getByTestId("file-tab-45")).getByLabelText(
-        "Apri la sessione file di srv-beta",
-      ),
+      within(fileTab(45)).getByLabelText(/Apri la sessione file di srv-beta/),
     );
     await waitFor(() =>
       expect(
@@ -525,21 +627,41 @@ describe("ConsoleProvider", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("apre una sessione file scegliendo il server dal pannello", async () => {
+  it("sceglie il server del pannello file cercando per IP, hostname e ambiente", async () => {
     stubFilesFetch();
     renderFiles();
     fireEvent.click(screen.getByLabelText("Apri i file dei server"));
 
-    const select = await screen.findByRole("combobox");
-    await waitFor(() =>
-      expect(within(select).getByText(/srv-alpha/)).toBeTruthy(),
+    const search = await screen.findByPlaceholderText(
+      "Cerca per nome, IP, hostname o ambiente…",
     );
-    fireEvent.change(select, { target: { value: "44" } });
+    await screen.findByText("srv-alpha");
+    expect(
+      screen.getByText("10.0.0.44 · srv-alpha.acme.example · ACME / PROD"),
+    ).toBeTruthy();
 
-    expect(await screen.findByTestId("file-tab-44")).toBeTruthy();
+    fireEvent.change(search, { target: { value: "10.0.0.45" } });
+    expect(screen.queryByText("srv-alpha")).toBeNull();
+    expect(screen.getByText("srv-beta")).toBeTruthy();
+
+    fireEvent.change(search, { target: { value: "alpha.acme.example" } });
+    expect(screen.getByText("srv-alpha")).toBeTruthy();
+
+    fireEvent.change(search, { target: { value: "ACME / TEST" } });
+    expect(screen.getByText("srv-beta")).toBeTruthy();
+
+    fireEvent.change(search, { target: { value: "niente" } });
+    expect(
+      screen.getByText("Nessun server corrisponde alla ricerca."),
+    ).toBeTruthy();
+
+    fireEvent.change(search, { target: { value: "beta.acme.example" } });
+    fireEvent.click(screen.getByText("srv-beta"));
+
+    expect(await screen.findByTestId("file-tab-45")).toBeTruthy();
     await waitFor(() =>
       expect(
-        fileRequests.some((url) => url.includes("/api/servers/44/files")),
+        fileRequests.some((url) => url.includes("/api/servers/45/files")),
       ).toBe(true),
     );
   });

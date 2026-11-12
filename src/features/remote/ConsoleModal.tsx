@@ -6,6 +6,8 @@ import "@xterm/xterm/css/xterm.css";
 
 type ConsoleStatus = "connecting" | "connected" | "error";
 
+const PANE_INDEXES = [0, 1, 2] as const;
+
 const STATUS_KEYS: Record<ConsoleStatus, TranslationKey> = {
   connecting: "console.connecting",
   connected: "console.connected",
@@ -19,6 +21,9 @@ export function ConsoleModal({
   active,
   closing,
   resumeId,
+  pane,
+  paneCount,
+  onMovePane,
   onSessionId,
   onData,
   onActivate,
@@ -31,6 +36,9 @@ export function ConsoleModal({
   active: boolean;
   closing?: boolean;
   resumeId?: string;
+  pane?: number;
+  paneCount?: number;
+  onMovePane?: (pane: number) => void;
   onSessionId?: (id: string) => void;
   onData?: () => void;
   onActivate?: () => void;
@@ -199,6 +207,24 @@ export function ConsoleModal({
           </span>
         </p>
         <div className="flex shrink-0 items-center gap-1.5 text-xs">
+          {paneCount !== undefined &&
+            paneCount > 1 &&
+            pane !== undefined &&
+            onMovePane && (
+              <select
+                aria-label={t("console.paneFor")}
+                title={t("console.paneFor")}
+                value={pane}
+                onChange={(event) => onMovePane(Number(event.target.value))}
+                className="rounded border border-slate-600 bg-slate-900 px-1 py-1 text-xs text-slate-100"
+              >
+                {PANE_INDEXES.slice(0, paneCount).map((index) => (
+                  <option key={index} value={index}>
+                    {t("console.paneLabel", { index: index + 1 })}
+                  </option>
+                ))}
+              </select>
+            )}
           {disconnected && (
             <button
               type="button"

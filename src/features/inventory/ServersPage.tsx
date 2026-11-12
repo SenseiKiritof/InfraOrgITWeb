@@ -668,6 +668,11 @@ export function ServerDetailPage() {
                   console.open(
                     serverId,
                     server.data?.name ?? t("servers.title"),
+                    {
+                      ipAddress: server.data?.ipAddress,
+                      hostname: server.data?.hostname,
+                      environment: server.data?.providerEnvironmentLabel,
+                    },
                   )
                 }
                 className="rounded-md border border-transparent bg-slate-900 px-3 py-1.5 text-sm font-medium text-white"

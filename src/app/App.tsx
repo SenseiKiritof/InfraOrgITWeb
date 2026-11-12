@@ -68,6 +68,7 @@ import {
   SunIcon,
   XMarkIcon,
 } from "../lib/icons";
+import { useTheme } from "../lib/theme";
 import { AuthProvider, useAuth } from "./AuthProvider";
 import { RequireSystemAdmin } from "./RequireSystemAdmin";
 
@@ -210,9 +211,7 @@ function ShellLayout() {
   });
   const [logoutError, setLogoutError] = useState<string | null>(null);
   const [navOpen, setNavOpen] = useState(false);
-  const [dark, setDark] = useState(() =>
-    document.documentElement.classList.contains("dark"),
-  );
+  const { resolved: dark, toggle: toggleTheme } = useTheme(session);
   const location = useLocation();
   const navigate = useNavigate();
   const detailParent = DETAIL_ROUTE.exec(location.pathname)?.[1];
@@ -226,13 +225,6 @@ function ShellLayout() {
     const action = backAction(window.history.state?.idx ?? 0, detailParent);
     if (action.kind === "history") navigate(-1);
     else navigate(action.to);
-  };
-
-  const toggleTheme = () => {
-    const next = !dark;
-    setDark(next);
-    document.documentElement.classList.toggle("dark", next);
-    localStorage.setItem("infraorgit-theme", next ? "dark" : "light");
   };
 
   const handleLogout = async () => {

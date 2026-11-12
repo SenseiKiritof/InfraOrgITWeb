@@ -6,6 +6,7 @@ import {
   DocumentIcon,
   FolderIcon,
   FolderPlusIcon,
+  MagnifyingGlassIcon,
   PencilSquareIcon,
   TrashIcon,
   XMarkIcon,
@@ -31,7 +32,41 @@ import {
 } from "../../lib/remote";
 import { fetchServerAccess } from "../../lib/useServerAccess";
 
-/** Esploratore file SFTP/FTPS/FTP dei server configurati. */
+/** Filtro file: nome, estensione o tipo (cartella/file). */
+export function matchesFileFilter(
+  entry: RemoteFileEntry,
+  rawFilter: string,
+): boolean {
+  const filter = rawFilter.trim().toLocaleLowerCase();
+  if (!filter) return true;
+  if (entry.name.toLocaleLowerCase().includes(filter)) return true;
+  if (entry.isDirectory)
+    return ["cartella", "folder", "directory", "dir"].some((word) =>
+      word.includes(filter),
+    );
+  const extension = fileExtension(entry.name);
+  return ["file", extension].some((type) => type.includes(filter));
+}
+
+function fileExtension(name: string): string {
+  const dot = name.lastIndexOf(".");
+  return dot > 0 ? name.slice(dot + 1).toLocaleLowerCase() : "";
+}
+
+function serverMatches(server: Server, rawQuery: string): boolean {
+  const query = rawQuery.trim().toLocaleLowerCase();
+  if (!query) return true;
+  return [
+    server.name,
+    server.ipAddress,
+    server.hostname,
+    server.providerEnvironmentLabel,
+  ]
+    .filter(Boolean)
+    .some((field) => field.toLocaleLowerCase().includes(query));
+}
+
+/** Pannello file SFTP/FTPS/FTP dei server configurati. */
 export function FileBrowserModal({
   open,
   serverId,
@@ -59,6 +94,7 @@ export function FileBrowserModal({
   const [selectedId, setSelectedId] = useState<number | null>(serverId);
   const [path, setPath] = useState<string | null>(initialPath);
   const [filter, setFilter] = useState("");
+  const [serverQuery, setServerQuery] = useState("");
   const [busy, setBusy] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -75,11 +111,28 @@ export function FileBrowserModal({
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const upload = useRef<HTMLInputElement | null>(null);
+  const filterInput = useRef<HTMLInputElement | null>(null);
   const adoptedPath = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (open && serverId !== null) filterInput.current?.focus();
+  }, [open, serverId]);
 
   useEffect(() => {
     if (open) setSelectedId(serverId);
   }, [open, serverId]);
+
+  // Esc chiude il pannello in cima: intercetta prima della console espansa.
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.stopPropagation();
+      onClose();
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [open, onClose]);
 
   const previousServer = useRef(selectedId);
   useEffect(() => {
@@ -147,7 +200,15 @@ export function FileBrowserModal({
         .sort((a, b) => a.name.localeCompare(b.name)),
     [servers, adminIds],
   );
+  const filteredAvailable = useMemo(
+    () => available.filter((server) => serverMatches(server, serverQuery)),
+    [available, serverQuery],
+  );
   const server = available.find((item) => item.id === selectedId) ?? null;
+  const visibleEntries = useMemo(
+    () => entries.filter((entry) => matchesFileFilter(entry, filter)),
+    [entries, filter],
+  );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: reloadKey ricarica la cartella
   useEffect(() => {
@@ -274,28 +335,126 @@ export function FileBrowserModal({
 
   if (!open) return null;
 
-  const visibleEntries = entries.filter((entry) =>
-    entry.name.toLocaleLowerCase().includes(filter.toLocaleLowerCase()),
-  );
+  if (serverId === null) {
+    return (
+      <div className="fixed inset-x-0 bottom-11 z-40 px-2">
+        <div
+          role="dialog"
+          aria-label={t("files.chooseServer")}
+          className="flex h-[60vh] w-full flex-col rounded-lg border border-slate-200 bg-white shadow-2xl"
+        >
+          <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-600">
+              {t("files.chooseServer")}
+            </h2>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={t("common.close")}
+              title={t("common.close")}
+              className="rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+            >
+              <XMarkIcon className="h-5 w-5" aria-hidden="true" />
+            </button>
+          </div>
+          <div className="border-b border-slate-200 px-4 py-3">
+            <label className="flex items-center gap-2 rounded-md border border-slate-300 px-2 py-1.5">
+              <MagnifyingGlassIcon
+                className="h-4 w-4 shrink-0 text-slate-400"
+                aria-hidden="true"
+              />
+              <input
+                // biome-ignore lint/a11y/noAutofocus: la ricerca è il primo campo del pannello appena aperto
+                autoFocus
+                value={serverQuery}
+                onChange={(event) => setServerQuery(event.target.value)}
+                placeholder={t("files.searchServer")}
+                className="min-w-0 flex-1 text-sm outline-none"
+              />
+              {serverQuery && (
+                <button
+                  type="button"
+                  aria-label={t("files.clearFilter")}
+                  title={t("files.clearFilter")}
+                  onClick={() => setServerQuery("")}
+                  className="rounded p-0.5 text-slate-400 hover:text-slate-700"
+                >
+                  <XMarkIcon className="h-4 w-4" aria-hidden="true" />
+                </button>
+              )}
+            </label>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-2">
+            {loadingServers && (
+              <p className="px-2 py-3 text-sm text-slate-500">
+                {t("common.loading")}
+              </p>
+            )}
+            {!loadingServers && available.length === 0 && (
+              <p className="px-2 py-3 text-sm text-slate-500">
+                {t("console.noServers")}
+              </p>
+            )}
+            {!loadingServers &&
+              available.length > 0 &&
+              filteredAvailable.length === 0 && (
+                <p className="px-2 py-3 text-sm text-slate-500">
+                  {t("files.searchServerEmpty")}
+                </p>
+              )}
+            {filteredAvailable.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onServerSelected?.(item.id, item.name)}
+                className="flex w-full items-center justify-between gap-3 rounded px-2 py-2 text-left hover:bg-slate-100"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium text-slate-900">
+                    {item.name}
+                  </span>
+                  <span className="block truncate font-mono text-[11px] text-slate-500">
+                    {[
+                      item.ipAddress,
+                      item.hostname,
+                      item.providerEnvironmentLabel,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
+                </span>
+                {item.fileTransferProtocol && (
+                  <span className="shrink-0 rounded bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-700">
+                    {item.fileTransferProtocol.toUpperCase()}
+                    {item.fileTransferPort ? ` :${item.fileTransferPort}` : ""}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-3 sm:p-6">
-      <button
-        type="button"
-        aria-label={t("common.close")}
-        onClick={onClose}
-        className="absolute inset-0 cursor-default"
-      />
+    <div className="fixed inset-x-0 bottom-11 z-40 px-2">
       <div
         role="dialog"
-        aria-modal="true"
         aria-label={t("files.title")}
         data-download-route={downloadRoute}
-        className="relative flex h-[85vh] w-full max-w-5xl flex-col rounded-lg border border-slate-200 bg-white shadow-xl"
+        className="flex h-[60vh] w-full flex-col rounded-lg border border-slate-200 bg-white shadow-2xl"
       >
         <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-600">
+          <h2 className="min-w-0 truncate text-sm font-semibold uppercase tracking-wide text-slate-600">
             {t("files.title")}
+            {server && (
+              <span className="ml-2 normal-case font-normal text-slate-500">
+                {[server.name, server.ipAddress, server.hostname]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
+            )}
           </h2>
           <div className="flex items-center gap-1">
             {onCloseSession && (
@@ -338,50 +497,12 @@ export function FileBrowserModal({
         </div>
 
         <div className="flex flex-wrap items-end gap-2 border-b border-slate-200 px-4 py-3 text-sm">
-          {serverId === null ? (
-            <label className="flex min-w-56 flex-col gap-1">
-              <span className="text-xs text-slate-500">
-                {t("common.server")}
-              </span>
-              <select
-                value={selectedId ?? ""}
-                onChange={(event) => {
-                  const value = event.target.value
-                    ? Number(event.target.value)
-                    : null;
-                  if (value !== null && onServerSelected) {
-                    const chosen = available.find((item) => item.id === value);
-                    onServerSelected(value, chosen?.name ?? `#${value}`);
-                    return;
-                  }
-                  setSelectedId(value);
-                }}
-                className="rounded-md border border-slate-300 px-2 py-1.5"
-              >
-                <option value="">
-                  {loadingServers
-                    ? t("common.loading")
-                    : t("files.chooseServer")}
-                </option>
-                {available.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name} ({item.ipAddress})
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : (
-            <div className="flex min-w-56 flex-col gap-1">
-              <span className="text-xs text-slate-500">
-                {t("common.server")}
-              </span>
-              <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
-                {server
-                  ? `${server.name} (${server.ipAddress})`
-                  : `#${serverId}`}
-              </span>
-            </div>
-          )}
+          <div className="flex min-w-56 flex-col gap-1">
+            <span className="text-xs text-slate-500">{t("common.server")}</span>
+            <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
+              {server ? `${server.name} (${server.ipAddress})` : `#${serverId}`}
+            </span>
+          </div>
           {server?.fileTransferProtocol && (
             <span className="rounded bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">
               {server.fileTransferProtocol}
@@ -390,12 +511,26 @@ export function FileBrowserModal({
           )}
           <label className="flex min-w-40 flex-1 flex-col gap-1">
             <span className="text-xs text-slate-500">{t("common.search")}</span>
-            <input
-              value={filter}
-              onChange={(event) => setFilter(event.target.value)}
-              placeholder={t("files.filterPlaceholder")}
-              className="rounded-md border border-slate-300 px-2 py-1.5"
-            />
+            <span className="relative flex items-center">
+              <input
+                ref={filterInput}
+                value={filter}
+                onChange={(event) => setFilter(event.target.value)}
+                placeholder={t("files.filterPlaceholder")}
+                className="w-full rounded-md border border-slate-300 px-2 py-1.5 pr-8"
+              />
+              {filter && (
+                <button
+                  type="button"
+                  aria-label={t("files.clearFilter")}
+                  title={t("files.clearFilter")}
+                  onClick={() => setFilter("")}
+                  className="absolute right-1 rounded p-0.5 text-slate-400 hover:text-slate-700"
+                >
+                  <XMarkIcon className="h-4 w-4" aria-hidden="true" />
+                </button>
+              )}
+            </span>
           </label>
           <div className="flex items-center gap-1">
             <button
@@ -471,14 +606,7 @@ export function FileBrowserModal({
         </div>
 
         <div className="min-h-0 flex-1 overflow-auto">
-          {selectedId === null && (
-            <p className="p-6 text-sm text-slate-500">
-              {!loadingServers && available.length === 0
-                ? t("console.noServers")
-                : t("files.chooseServerHint")}
-            </p>
-          )}
-          {selectedId !== null && !server?.fileTransferProtocol && (
+          {!server?.fileTransferProtocol && (
             <p className="p-6 text-sm text-slate-500">
               {t("files.notConfigured")}
             </p>
@@ -600,7 +728,20 @@ export function FileBrowserModal({
                   {visibleEntries.length === 0 && (
                     <tr>
                       <td colSpan={4} className="px-4 py-6 text-slate-500">
-                        {t("common.noItems")}
+                        <span className="flex flex-wrap items-center gap-2">
+                          {filter
+                            ? t("files.noMatches", { query: filter })
+                            : t("files.emptyFolder")}
+                          {filter && (
+                            <button
+                              type="button"
+                              onClick={() => setFilter("")}
+                              className="rounded border border-slate-300 px-2 py-0.5 text-xs hover:bg-slate-100"
+                            >
+                              {t("files.clearFilter")}
+                            </button>
+                          )}
+                        </span>
                       </td>
                     </tr>
                   )}
