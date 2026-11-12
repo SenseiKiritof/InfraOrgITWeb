@@ -9,6 +9,7 @@ import {
   formatTunnelForward,
   getTunnelSessions,
 } from "../../lib/tunnelSessions";
+import { DesktopTunnelsPanel } from "./DesktopTunnelsPanel";
 
 const REFETCH_MS = 15_000;
 
@@ -115,6 +116,7 @@ export function TunnelsPage() {
         }
       />
       <p className="text-xs text-slate-500">{t("tunnels.autoRefresh")}</p>
+      <DesktopTunnelsPanel />
       {tunnels.error && (
         <p
           role="alert"

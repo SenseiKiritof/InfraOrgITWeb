@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../../app/AuthProvider";
 import { AutocompleteSelect } from "../../components/AutocompleteSelect";
 import type { FormValues } from "../../components/EntitySection";
@@ -8,6 +8,7 @@ import { EntitySection } from "../../components/EntitySection";
 import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import { RecordCard, type RecordField } from "../../components/RecordCard";
 import { apiFetch } from "../../lib/api";
+import { isDesktopBridgeAvailable } from "../../lib/desktopBridge";
 import { includesText, startsWithValue } from "../../lib/filter";
 import { type TranslationKey, useI18n } from "../../lib/i18n";
 import type {
@@ -642,6 +643,15 @@ export function ServerDetailPage() {
         actions={
           isAdmin ? (
             <div className="flex items-center gap-2">
+              {isDesktopBridgeAvailable() && (
+                <Link
+                  to="/tunnels"
+                  title={t("desktopTunnels.linkTitle")}
+                  className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium"
+                >
+                  {t("desktopTunnels.link")}
+                </Link>
+              )}
               <button
                 type="button"
                 onClick={() => console.openFiles(serverId)}

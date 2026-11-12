@@ -1,4 +1,10 @@
 import { apiFetch } from "./api";
+import {
+  type DesktopMessage,
+  getDesktopBridge,
+  isDesktopBridgeAvailable,
+  subscribeDesktopMessages,
+} from "./desktopBridge";
 
 /** Modalità scelta nel desktop; il web chiede solo quella corrente. */
 export type DesktopDownloadMode = "auto" | "bridge" | "native";
@@ -16,11 +22,6 @@ export interface DesktopDownloadTicket {
   expiresAt: string;
 }
 
-export interface DesktopBridge {
-  sendMessage(message: string): void;
-  receiveMessage(handler: (message: string) => void): void;
-}
-
 export type DesktopBlobResult = "sent" | "too-large" | "unavailable";
 
 /** Limite per il passaggio del blob al processo nativo (base64 incluso). */
@@ -31,26 +32,6 @@ export const DESKTOP_CAPABILITIES_TIMEOUT_MS = 500;
 
 /** Il server non deve ritardare un download già possibile in locale. */
 export const DESKTOP_SIGNED_URL_TIMEOUT_MS = 1000;
-
-type WindowWithDesktopBridge = Window & {
-  external?: Partial<DesktopBridge>;
-};
-
-/** Photino espone `window.external` solo nel webview desktop. */
-export function getDesktopBridge(): DesktopBridge | null {
-  if (typeof window === "undefined") return null;
-  const external = (window as WindowWithDesktopBridge).external;
-  if (
-    typeof external?.sendMessage !== "function" ||
-    typeof external.receiveMessage !== "function"
-  )
-    return null;
-  return external as DesktopBridge;
-}
-
-export function isDesktopBridgeAvailable(): boolean {
-  return getDesktopBridge() !== null;
-}
 
 /**
  * Chiede le capability al processo nativo e aspetta una risposta tipizzata.
@@ -64,19 +45,21 @@ export function requestDesktopCapabilities(
 
   return new Promise((resolve) => {
     let settled = false;
+    let unsubscribe = () => {};
     const finish = (value: DesktopCapabilities | null) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      unsubscribe();
       resolve(value);
     };
     const timer = setTimeout(() => finish(null), timeoutMs);
 
+    unsubscribe = subscribeDesktopMessages((message) => {
+      const capabilities = parseCapabilities(message);
+      if (capabilities) finish(capabilities);
+    });
     try {
-      bridge.receiveMessage((raw) => {
-        const capabilities = parseCapabilities(raw);
-        if (capabilities) finish(capabilities);
-      });
       bridge.sendMessage(JSON.stringify({ type: "desktop.capabilities" }));
     } catch {
       finish(null);
@@ -84,24 +67,17 @@ export function requestDesktopCapabilities(
   });
 }
 
-function parseCapabilities(raw: string): DesktopCapabilities | null {
-  try {
-    const message = JSON.parse(raw) as {
-      type?: unknown;
-      downloadMode?: unknown;
-      nativeDownload?: unknown;
-    };
-    if (message.type !== "desktop.capabilities") return null;
-    return {
-      downloadMode:
-        message.downloadMode === "bridge" || message.downloadMode === "native"
-          ? message.downloadMode
-          : "auto",
-      nativeDownload: message.nativeDownload === true,
-    };
-  } catch {
-    return null;
-  }
+function parseCapabilities(
+  message: DesktopMessage,
+): DesktopCapabilities | null {
+  if (message.type !== "desktop.capabilities") return null;
+  return {
+    downloadMode:
+      message.downloadMode === "bridge" || message.downloadMode === "native"
+        ? message.downloadMode
+        : "auto",
+    nativeDownload: message.nativeDownload === true,
+  };
 }
 
 /** `GET /api/desktop/downloads/capabilities`. */
