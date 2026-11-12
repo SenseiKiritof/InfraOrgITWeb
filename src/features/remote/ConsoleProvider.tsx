@@ -1,6 +1,7 @@
 import {
   ChevronDownIcon,
   FolderArrowDownIcon,
+  FolderIcon,
   MagnifyingGlassIcon,
   PlusIcon,
   ViewColumnsIcon,
@@ -33,6 +34,13 @@ type Session = {
 
 type Activity = "idle" | "receiving" | "unread";
 
+type FileSession = {
+  serverId: number;
+  serverName: string | null;
+  path: string | null;
+  visible: boolean;
+};
+
 type ConsoleApi = {
   open: (serverId: number, serverName: string) => void;
   hasSession: (serverId: number) => boolean;
@@ -42,6 +50,7 @@ type ConsoleApi = {
 };
 
 const STORAGE_KEY = "ds-console-sessions";
+const FILE_SESSIONS_CLEAR_EVENT = "infraorgit:file-sessions-clear";
 const ACTIVITY_QUIET_MS = 600;
 
 /** Cancella le console salvate: da chiamare al logout. */
@@ -51,6 +60,8 @@ export function clearConsoleSessions() {
   } catch {
     // storage non disponibile
   }
+  // Le sessioni file vivono solo in memoria: il provider le distrugge al logout.
+  window.dispatchEvent(new Event(FILE_SESSIONS_CLEAR_EVENT));
 }
 
 function newSessionId(): string {
@@ -118,7 +129,10 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
   const [launcherOpen, setLauncherOpen] = useState(false);
   const [launcherQuery, setLauncherQuery] = useState("");
   const [filesOpen, setFilesOpen] = useState(false);
-  const [fileServerId, setFileServerId] = useState<number | null>(null);
+  const [fileSessions, setFileSessions] = useState<FileSession[]>([]);
+  const [activeFileServerId, setActiveFileServerId] = useState<number | null>(
+    null,
+  );
   const sessionsRef = useRef(sessions);
   const splitRef = useRef(split);
   const activeRef = useRef(activeId);
@@ -130,7 +144,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
   const [adminEnvironmentIds, setAdminEnvironmentIds] = useState<number[]>([]);
 
   useEffect(() => {
-    if (!launcherOpen && !filesOpen) return;
+    if (!launcherOpen && !filesOpen && fileSessions.length === 0) return;
     let cancelled = false;
     setServersLoading(true);
     Promise.all([paged<Server>("/api/servers"), fetchServerAccess()])
@@ -151,7 +165,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [launcherOpen, filesOpen]);
+  }, [launcherOpen, filesOpen, fileSessions.length]);
   const availableServers = useMemo(
     () =>
       serverList
@@ -304,11 +318,111 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
     setSessions((current) =>
       current.filter((session) => session.serverId !== serverId),
     );
+    setFileSessions((current) =>
+      current.filter((session) => session.serverId !== serverId),
+    );
   }, []);
 
-  const openFiles = useCallback((serverId: number | null) => {
-    setFileServerId(serverId);
-    setFilesOpen(true);
+  const showFileSession = useCallback(
+    (serverId: number, serverName?: string) => {
+      setFileSessions((current) => {
+        const existing = current.some(
+          (session) => session.serverId === serverId,
+        );
+        const hidden = current.map((session) => ({
+          ...session,
+          visible: false,
+        }));
+        if (!existing) {
+          return [
+            ...hidden,
+            {
+              serverId,
+              serverName: serverName ?? null,
+              path: null,
+              visible: true,
+            },
+          ];
+        }
+        return hidden.map((session) =>
+          session.serverId === serverId
+            ? {
+                ...session,
+                serverName: session.serverName ?? serverName ?? null,
+                visible: true,
+              }
+            : session,
+        );
+      });
+      setActiveFileServerId(serverId);
+    },
+    [],
+  );
+
+  const hideFileSession = useCallback((serverId: number) => {
+    setFileSessions((current) =>
+      current.map((session) =>
+        session.serverId === serverId
+          ? { ...session, visible: false }
+          : session,
+      ),
+    );
+  }, []);
+
+  const closeFileSession = useCallback((serverId: number) => {
+    setFileSessions((current) =>
+      current.filter((session) => session.serverId !== serverId),
+    );
+  }, []);
+
+  const updateFilePath = useCallback((serverId: number, path: string) => {
+    setFileSessions((current) => {
+      const index = current.findIndex(
+        (session) => session.serverId === serverId,
+      );
+      if (index < 0 || current[index].path === path) return current;
+      const next = [...current];
+      next[index] = { ...next[index], path };
+      return next;
+    });
+  }, []);
+
+  const openFiles = useCallback(
+    (serverId: number | null) => {
+      if (serverId === null) {
+        setFilesOpen(true);
+        return;
+      }
+      showFileSession(serverId);
+    },
+    [showFileSession],
+  );
+
+  const selectFileServer = useCallback(
+    (serverId: number, serverName: string) => {
+      setFilesOpen(false);
+      showFileSession(serverId, serverName);
+    },
+    [showFileSession],
+  );
+
+  useEffect(() => {
+    if (
+      activeFileServerId !== null &&
+      fileSessions.some((session) => session.serverId === activeFileServerId)
+    )
+      return;
+    setActiveFileServerId(fileSessions[0]?.serverId ?? null);
+  }, [fileSessions, activeFileServerId]);
+
+  useEffect(() => {
+    const clear = () => {
+      setFileSessions([]);
+      setActiveFileServerId(null);
+      setFilesOpen(false);
+    };
+    window.addEventListener(FILE_SESSIONS_CLEAR_EVENT, clear);
+    return () => window.removeEventListener(FILE_SESSIONS_CLEAR_EVENT, clear);
   }, []);
 
   const api = useMemo(
@@ -320,6 +434,13 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
     ? openSessions
     : openSessions.filter((session) => session.id === activeId);
   const dockHeight = shown.length === 0 ? "2.75rem" : "calc(45vh + 2.75rem)";
+  const activeFileSession =
+    fileSessions.find((session) => session.serverId === activeFileServerId) ??
+    null;
+  const fileSessionName = (session: FileSession) =>
+    session.serverName ??
+    serverList.find((server) => server.id === session.serverId)?.name ??
+    `#${session.serverId}`;
 
   useEffect(() => {
     document.documentElement.style.setProperty(
@@ -483,6 +604,50 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                 </button>
               </div>
             ))}
+            {fileSessions.map((session) => {
+              const name = fileSessionName(session);
+              return (
+                <div
+                  key={`files-${session.serverId}`}
+                  data-testid={`file-tab-${session.serverId}`}
+                  className={`flex shrink-0 items-center rounded ${
+                    session.serverId === activeFileServerId
+                      ? "bg-slate-800"
+                      : ""
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => showFileSession(session.serverId)}
+                    title={t("files.openSession", { name })}
+                    aria-label={t("files.openSession", { name })}
+                    className="flex items-center gap-1.5 py-1.5 pr-1 pl-2 text-xs"
+                  >
+                    <FolderIcon
+                      className={`h-3.5 w-3.5 shrink-0 ${
+                        session.visible ? "text-amber-400" : "text-slate-500"
+                      }`}
+                      aria-hidden="true"
+                    />
+                    <span
+                      className={`max-w-[12rem] truncate ${
+                        session.visible ? "" : "text-slate-400"
+                      }`}
+                    >
+                      {t("files.sessionTab", { name })}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={t("files.closeSession", { name })}
+                    onClick={() => closeFileSession(session.serverId)}
+                    className="px-1.5 py-1 text-slate-400 hover:text-slate-100"
+                  >
+                    ×
+                  </button>
+                </div>
+              );
+            })}
           </div>
           <div className="flex shrink-0 items-center gap-1">
             <button
@@ -532,8 +697,22 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
       {filesOpen && (
         <FileBrowserModal
           open
-          serverId={fileServerId}
+          serverId={null}
+          onServerSelected={selectFileServer}
           onClose={() => setFilesOpen(false)}
+        />
+      )}
+      {activeFileSession && (
+        <FileBrowserModal
+          key={activeFileSession.serverId}
+          open={activeFileSession.visible}
+          serverId={activeFileSession.serverId}
+          initialPath={activeFileSession.path}
+          onPathChange={(path) =>
+            updateFilePath(activeFileSession.serverId, path)
+          }
+          onClose={() => hideFileSession(activeFileSession.serverId)}
+          onCloseSession={() => closeFileSession(activeFileSession.serverId)}
         />
       )}
       {storageError && (

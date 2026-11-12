@@ -4,6 +4,8 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FakeSocket, stubWebSocket } from "../../test/fakeSocket";
@@ -26,6 +28,10 @@ vi.mock("@xterm/addon-fit", () => ({
   FitAddon: class {
     fit = vi.fn();
   },
+}));
+
+vi.mock("../../app/AuthProvider", () => ({
+  useAuth: () => ({ session: { csrfToken: "csrf" } }),
 }));
 
 const terminalHidden = () => {
@@ -53,6 +59,109 @@ function Opener({
     </button>
   );
 }
+
+function FilesOpener({ serverId }: { serverId: number }) {
+  const consoleApi = useConsole();
+  return (
+    <button type="button" onClick={() => consoleApi.openFiles(serverId)}>
+      Apri file {serverId}
+    </button>
+  );
+}
+
+const json = (body: unknown) =>
+  new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+
+let fileRequests: string[] = [];
+
+function stubFilesFetch() {
+  fileRequests = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/server-access/me")) {
+        return json({
+          isSystemAdmin: false,
+          adminEnvironmentIds: [1],
+          operatorEnvironmentIds: [1],
+        });
+      }
+      if (
+        url.includes("/api/servers/44/files") ||
+        url.includes("/api/servers/45/files")
+      ) {
+        fileRequests.push(url);
+        const serverId = url.includes("/api/servers/44/") ? 44 : 45;
+        const home = serverId === 44 ? "/home/alpha" : "/home/beta";
+        const path =
+          new URL(url, "http://localhost").searchParams.get("path") ?? home;
+        const items =
+          path === "/home/alpha"
+            ? [
+                {
+                  name: "sub",
+                  path: "/home/alpha/sub",
+                  isDirectory: true,
+                  size: 0,
+                  modifiedUtc: null,
+                },
+              ]
+            : path === "/home/beta"
+              ? [
+                  {
+                    name: "docs",
+                    path: "/home/beta/docs",
+                    isDirectory: true,
+                    size: 0,
+                    modifiedUtc: null,
+                  },
+                ]
+              : [];
+        return json({ path, items });
+      }
+      if (url.includes("/api/servers")) {
+        return json({
+          items: [
+            {
+              id: 44,
+              name: "srv-alpha",
+              providerEnvironmentId: 1,
+              ipAddress: "10.0.0.44",
+              sshPort: 22,
+              fileTransferProtocol: "Sftp",
+              fileTransferPort: 22,
+            },
+            {
+              id: 45,
+              name: "srv-beta",
+              providerEnvironmentId: 1,
+              ipAddress: "10.0.0.45",
+              sshPort: 22,
+              fileTransferProtocol: "Sftp",
+              fileTransferPort: 22,
+            },
+          ],
+          total: 2,
+          page: 1,
+          pageSize: 200,
+        });
+      }
+      return json({});
+    }),
+  );
+}
+
+const renderFiles = () =>
+  render(
+    <ConsoleProvider>
+      <FilesOpener serverId={44} />
+      <FilesOpener serverId={45} />
+    </ConsoleProvider>,
+  );
 
 const renderWithProvider = () =>
   render(
@@ -283,5 +392,155 @@ describe("ConsoleProvider", () => {
     expect(terminalHidden()).toBe(false);
     expect(FakeSocket.instances).toHaveLength(2);
     expect(FakeSocket.instances[1].url).toContain("resume=tok-9");
+  });
+
+  it("nasconde e riapre la stessa sessione file con il percorso corrente", async () => {
+    stubFilesFetch();
+    renderFiles();
+    fireEvent.click(screen.getByText("Apri file 44"));
+
+    await screen.findByTestId("file-tab-44");
+    fireEvent.click(await screen.findByText("sub"));
+    await waitFor(() =>
+      expect(
+        fileRequests.some((url) =>
+          url.includes("/api/servers/44/files?path=%2Fhome%2Falpha%2Fsub"),
+        ),
+      ).toBe(true),
+    );
+
+    fireEvent.click(
+      await screen.findByLabelText("Riduci la sessione file di srv-alpha"),
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByTestId("file-tab-44")).toBeTruthy();
+
+    const before = fileRequests.length;
+    fireEvent.click(screen.getByText("Apri file 44"));
+    await waitFor(() =>
+      expect(
+        fileRequests
+          .slice(before)
+          .some((url) => url.includes("path=%2Fhome%2Falpha%2Fsub")),
+      ).toBe(true),
+    );
+
+    fireEvent.click(
+      await screen.findByLabelText("Riduci la sessione file di srv-alpha"),
+    );
+    const reopened = fileRequests.length;
+    fireEvent.click(
+      within(screen.getByTestId("file-tab-44")).getByLabelText(
+        "Apri la sessione file di srv-alpha",
+      ),
+    );
+    await waitFor(() =>
+      expect(
+        fileRequests
+          .slice(reopened)
+          .some((url) => url.includes("path=%2Fhome%2Falpha%2Fsub")),
+      ).toBe(true),
+    );
+  });
+
+  it("chiude e distrugge la sessione file con la ×", async () => {
+    stubFilesFetch();
+    renderFiles();
+    fireEvent.click(screen.getByText("Apri file 44"));
+    await screen.findByTestId("file-tab-44");
+    await screen.findByText("sub");
+
+    const dialog = screen.getByRole("dialog");
+    fireEvent.click(
+      within(dialog).getByLabelText("Chiudi la sessione file di srv-alpha"),
+    );
+
+    await waitFor(() => expect(screen.queryByTestId("file-tab-44")).toBeNull());
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("tiene separate le sessioni file di due server", async () => {
+    stubFilesFetch();
+    renderFiles();
+    fireEvent.click(screen.getByText("Apri file 44"));
+    await screen.findByTestId("file-tab-44");
+    fireEvent.click(await screen.findByText("sub"));
+    await waitFor(() =>
+      expect(
+        fileRequests.some((url) =>
+          url.includes("/api/servers/44/files?path=%2Fhome%2Falpha%2Fsub"),
+        ),
+      ).toBe(true),
+    );
+    fireEvent.click(
+      await screen.findByLabelText("Riduci la sessione file di srv-alpha"),
+    );
+
+    fireEvent.click(screen.getByText("Apri file 45"));
+    await screen.findByTestId("file-tab-45");
+    fireEvent.click(await screen.findByText("docs"));
+    await waitFor(() =>
+      expect(
+        fileRequests.some((url) =>
+          url.includes("/api/servers/45/files?path=%2Fhome%2Fbeta%2Fdocs"),
+        ),
+      ).toBe(true),
+    );
+    fireEvent.click(
+      await screen.findByLabelText("Riduci la sessione file di srv-beta"),
+    );
+
+    fireEvent.click(
+      within(screen.getByTestId("file-tab-44")).getByLabelText(
+        "Chiudi la sessione file di srv-alpha",
+      ),
+    );
+    await waitFor(() => expect(screen.queryByTestId("file-tab-44")).toBeNull());
+    expect(screen.getByTestId("file-tab-45")).toBeTruthy();
+
+    const before = fileRequests.length;
+    fireEvent.click(
+      within(screen.getByTestId("file-tab-45")).getByLabelText(
+        "Apri la sessione file di srv-beta",
+      ),
+    );
+    await waitFor(() =>
+      expect(
+        fileRequests
+          .slice(before)
+          .some((url) => url.includes("path=%2Fhome%2Fbeta%2Fdocs")),
+      ).toBe(true),
+    );
+  });
+
+  it("chiude le sessioni file al logout", async () => {
+    stubFilesFetch();
+    renderFiles();
+    fireEvent.click(screen.getByText("Apri file 44"));
+    await screen.findByTestId("file-tab-44");
+
+    act(() => clearConsoleSessions());
+
+    await waitFor(() => expect(screen.queryByTestId("file-tab-44")).toBeNull());
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("apre una sessione file scegliendo il server dal pannello", async () => {
+    stubFilesFetch();
+    renderFiles();
+    fireEvent.click(screen.getByLabelText("Apri i file dei server"));
+
+    const select = await screen.findByRole("combobox");
+    await waitFor(() =>
+      expect(within(select).getByText(/srv-alpha/)).toBeTruthy(),
+    );
+    fireEvent.change(select, { target: { value: "44" } });
+
+    expect(await screen.findByTestId("file-tab-44")).toBeTruthy();
+    await waitFor(() =>
+      expect(
+        fileRequests.some((url) => url.includes("/api/servers/44/files")),
+      ).toBe(true),
+    );
   });
 });
