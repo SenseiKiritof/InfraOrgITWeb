@@ -142,6 +142,112 @@ describe("EntitySection", () => {
     ).toBeInTheDocument();
   });
 
+  it("filtra per colonna e azzera i filtri", () => {
+    render(
+      <EntitySection
+        rows={[
+          { id: 1, name: "Alpha" },
+          { id: 2, name: "Beta" },
+        ]}
+        columns={[
+          {
+            key: "name",
+            label: "Nome",
+            render: (row) => row.name,
+            filter: (row, value) => row.name.toLowerCase().includes(value),
+          },
+        ]}
+        fields={[]}
+        empty={{}}
+        toForm={() => ({})}
+        canWrite={false}
+        onSave={async () => {}}
+      />,
+    );
+
+    expect(screen.getAllByRole("searchbox")).toHaveLength(1);
+    fireEvent.change(screen.getByLabelText("Filtra Nome"), {
+      target: { value: "BET" },
+    });
+
+    expect(screen.queryByText("Alpha")).not.toBeInTheDocument();
+    expect(screen.getByText("Beta")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Azzera filtri" }));
+
+    expect(screen.getByText("Alpha")).toBeInTheDocument();
+    expect(screen.queryByText("Azzera filtri")).not.toBeInTheDocument();
+  });
+
+  it("riporta alla prima pagina quando cambia un filtro", () => {
+    const many = Array.from({ length: 25 }, (_, index) => ({
+      id: index + 1,
+      name: `Voce ${index + 1}`,
+    }));
+
+    render(
+      <EntitySection
+        rows={many}
+        columns={[
+          {
+            key: "name",
+            label: "Nome",
+            render: (row) => row.name,
+            filter: (row, value) => row.name.toLowerCase().includes(value),
+          },
+        ]}
+        fields={[]}
+        empty={{}}
+        toForm={() => ({})}
+        canWrite={false}
+        onSave={async () => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Successiva" }));
+    expect(screen.getByText("Voce 21")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Filtra Nome"), {
+      target: { value: "voce 1" },
+    });
+
+    expect(screen.getByText("Voce 1")).toBeInTheDocument();
+    expect(screen.queryByText("Voce 21")).not.toBeInTheDocument();
+    expect(screen.getByText(/11 elementi/)).toBeInTheDocument();
+  });
+
+  it("usa l'ordine predefinito e lo ripristina azzerando il sort", () => {
+    render(
+      <EntitySection
+        rows={[
+          { id: 1, name: "Beta" },
+          { id: 2, name: "Alpha" },
+        ]}
+        defaultOrder={(left, right) => left.name.localeCompare(right.name)}
+        columns={[{ key: "name", label: "Nome", render: (row) => row.name }]}
+        fields={[]}
+        empty={{}}
+        toForm={() => ({})}
+        canWrite={false}
+        onSave={async () => {}}
+      />,
+    );
+
+    const header = screen.getByRole("button", { name: "Nome" });
+    const order = () =>
+      screen
+        .getAllByRole("row")
+        .slice(1)
+        .map((row) => row.textContent);
+
+    expect(order()).toEqual(["Alpha", "Beta"]);
+    fireEvent.click(header);
+    fireEvent.click(header);
+    expect(order()).toEqual(["Beta", "Alpha"]);
+    fireEvent.click(header);
+    expect(order()).toEqual(["Alpha", "Beta"]);
+  });
+
   it("nasconde le azioni di scrittura senza permesso", () => {
     render(
       <EntitySection

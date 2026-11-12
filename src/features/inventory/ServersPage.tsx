@@ -6,9 +6,9 @@ import { AutocompleteSelect } from "../../components/AutocompleteSelect";
 import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
 import { PageHeaderSlot } from "../../components/PageHeaderSlot";
-import { SearchForm } from "../../components/page";
 import { RecordCard, type RecordField } from "../../components/RecordCard";
 import { apiFetch } from "../../lib/api";
+import { includesText, startsWithValue } from "../../lib/filter";
 import { type TranslationKey, useI18n } from "../../lib/i18n";
 import type {
   ApplicationVersion,
@@ -38,10 +38,10 @@ import {
   runAction,
   runServerReachability,
 } from "../../lib/remote";
-import { useQueryFilter } from "../../lib/useQueryFilter";
 import { useServerAccess } from "../../lib/useServerAccess";
 import { useConsole } from "../remote/ConsoleProvider";
 import { connectionChanged } from "./serverConnection";
+import { compareServerDefault } from "./serverOrder";
 import { TunnelServicesSection } from "./TunnelServicesSection";
 
 type ServerFormState = {
@@ -135,11 +135,10 @@ export function ServersPage() {
   const adminEnvironmentIds = access.data?.adminEnvironmentIds ?? [];
   const console = useConsole();
   const queryClient = useQueryClient();
-  const { search, setSearch, q, setQ } = useQueryFilter();
 
   const servers = useQuery({
-    queryKey: ["servers", q],
-    queryFn: () => paged<Server>("/api/servers", q),
+    queryKey: ["servers"],
+    queryFn: () => paged<Server>("/api/servers"),
   });
 
   const isSystemAdmin = access.data?.isSystemAdmin ?? false;
@@ -212,29 +211,34 @@ export function ServersPage() {
         title={t("servers.title")}
         description={t("servers.description")}
       />
-      <SearchForm
-        value={search}
-        onChange={setSearch}
-        onSubmit={() => setQ(search)}
-      />
       <EntitySection
         rows={servers.data?.items}
+        defaultOrder={compareServerDefault}
         columns={[
-          { key: "name", label: t("common.name"), render: (row) => row.name },
+          {
+            key: "name",
+            label: t("common.name"),
+            render: (row) => row.name,
+            filter: (row, value) => includesText(row.name, value),
+          },
           {
             key: "providerEnvironmentLabel",
             label: t("common.environment"),
             render: (row) => row.providerEnvironmentLabel,
+            filter: (row, value) =>
+              includesText(row.providerEnvironmentLabel, value),
           },
           {
             key: "ipAddress",
             label: t("common.ip"),
             render: (row) => row.ipAddress,
+            filter: (row, value) => includesText(row.ipAddress, value),
           },
           {
             key: "sshPort",
             label: t("common.sshPort"),
             render: (row) => row.sshPort,
+            filter: (row, value) => startsWithValue(row.sshPort, value),
           },
           {
             key: "jumpServerName",
@@ -243,6 +247,11 @@ export function ServersPage() {
               row.jumpServerName
                 ? `${row.jumpServerName} (${row.jumpServerIpAddress ?? "—"})`
                 : "—",
+            filter: (row, value) =>
+              includesText(
+                `${row.jumpServerName ?? ""} ${row.jumpServerIpAddress ?? ""}`,
+                value,
+              ),
           },
         ]}
         fields={[
