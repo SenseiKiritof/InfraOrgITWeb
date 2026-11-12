@@ -99,8 +99,9 @@ routes:
 - **Bridge**: the app asks the server for a short-lived one-time link and saves
   the file in the desktop process. The download runs in the background, so a
   slow server does not block the window.
-- **Native**: the desktop's macOS webview saves the file directly. It requires
-  the optional patched Photino build.
+- **Native**: the desktop webview saves the file directly: Windows WebView2,
+  or macOS with the optional patched Photino build. It requires the platform
+  support and is not used for generated blobs.
 
 The desktop manager chooses `Automatico`, `Bridge` or `Nativo`. The server
 administrator can disable the signed bridge with
