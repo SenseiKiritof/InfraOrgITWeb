@@ -91,6 +91,24 @@ menu. The raw value is shown once; grant only the scopes the client needs.
 
 ![Personal API tokens with scopes, creation, expiry, last use and state](docs/screenshots/tokens.png)
 
+## Downloads in the desktop app
+
+When InfraOrgIT runs inside InfraOrgIT Desktop, file downloads can use two
+routes:
+
+- **Bridge**: the app asks the server for a short-lived one-time link and saves
+  the file in the desktop process. The download runs in the background, so a
+  slow server does not block the window.
+- **Native**: the desktop webview saves the file directly: Windows WebView2,
+  or macOS with the optional patched Photino build. It requires the platform
+  support and is not used for generated blobs.
+
+The desktop manager chooses `Automatico`, `Bridge` or `Nativo`. The server
+administrator can disable the signed bridge with
+`DESKTOP_DOWNLOADS_ENABLED=false`; the desktop then uses its native route.
+Generated API results keep using the bridge because WKWebView does not reliably
+save blob URLs.
+
 ## Sign in
 
 Open the URL of your InfraOrgIT instance and sign in with the Keycloak account

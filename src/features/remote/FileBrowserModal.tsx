@@ -12,6 +12,10 @@ import {
 } from "@heroicons/react/24/outline";
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../../app/AuthProvider";
+import {
+  type DesktopDownloadRoute,
+  desktopDownloads,
+} from "../../lib/desktopDownloads";
 import { formatBytes, formatDateTime } from "../../lib/format";
 import { useI18n } from "../../lib/i18n";
 import type { Server } from "../../lib/inventory";
@@ -58,6 +62,12 @@ export function FileBrowserModal({
   const [busy, setBusy] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [downloadRoute, setDownloadRoute] =
+    useState<DesktopDownloadRoute>("normal");
+  const [downloadNote, setDownloadNote] = useState<{
+    text: string;
+    tone: "info" | "warning";
+  } | null>(null);
   const [servers, setServers] = useState<Server[]>([]);
   const [adminIds, setAdminIds] = useState<number[]>([]);
   const [loadingServers, setLoadingServers] = useState(false);
@@ -72,6 +82,25 @@ export function FileBrowserModal({
   }, [open, serverId]);
 
   const previousServer = useRef(selectedId);
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setDownloadRoute("normal");
+    setDownloadNote(null);
+    void desktopDownloads
+      .resolveRoute()
+      .then((route) => {
+        if (!cancelled) setDownloadRoute(route);
+      })
+      .catch(() => {
+        if (!cancelled) setDownloadRoute("normal");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset quando cambia il server
   useEffect(() => {
     if (previousServer.current === selectedId) return;
     previousServer.current = selectedId;
@@ -221,6 +250,29 @@ export function FileBrowserModal({
     );
   };
 
+  const downloadEntry = async (entry: RemoteFileEntry) => {
+    if (selectedId === null || entry.isDirectory) return;
+    const url = serverFileDownloadUrl(selectedId, entry.path);
+    // Native e web: navigazione normale, il webview desktop la intercetta.
+    if (downloadRoute !== "bridge") {
+      window.location.assign(url);
+      return;
+    }
+    setDownloadNote({ text: t("desktopDownload.sending"), tone: "info" });
+    const sent = await desktopDownloads.sendServerFile({
+      serverId: selectedId,
+      path: entry.path,
+      filename: entry.name,
+      csrfToken: csrf,
+    });
+    if (sent) {
+      setDownloadNote({ text: t("desktopDownload.sent"), tone: "info" });
+      return;
+    }
+    setDownloadNote({ text: t("desktopDownload.failed"), tone: "warning" });
+    window.location.assign(url);
+  };
+
   if (!open) return null;
 
   const visibleEntries = entries.filter((entry) =>
@@ -239,6 +291,7 @@ export function FileBrowserModal({
         role="dialog"
         aria-modal="true"
         aria-label={t("files.title")}
+        data-download-route={downloadRoute}
         className="relative flex h-[85vh] w-full max-w-5xl flex-col rounded-lg border border-slate-200 bg-white shadow-xl"
       >
         <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
@@ -467,9 +520,7 @@ export function FileBrowserModal({
                             if (entry.isDirectory) {
                               setPath(entry.path);
                             } else {
-                              window.location.assign(
-                                serverFileDownloadUrl(selectedId, entry.path),
-                              );
+                              void downloadEntry(entry);
                             }
                           }}
                           className="flex max-w-[28rem] items-center gap-2 truncate text-left hover:underline"
@@ -507,6 +558,13 @@ export function FileBrowserModal({
                                 entry.path,
                               )}
                               title={t("files.download")}
+                              onClick={(event) => {
+                                // Solo il bridge possiede il file: native e web
+                                // lasciano la navigazione normale al webview.
+                                if (downloadRoute !== "bridge") return;
+                                event.preventDefault();
+                                void downloadEntry(entry);
+                              }}
                               className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
                             >
                               <ArrowDownTrayIcon
@@ -551,6 +609,19 @@ export function FileBrowserModal({
               </table>
             )}
         </div>
+
+        {downloadNote && (
+          <p
+            role="status"
+            className={`border-t px-4 py-2 text-sm ${
+              downloadNote.tone === "warning"
+                ? "border-amber-200 bg-amber-50 text-amber-800"
+                : "border-slate-200 bg-slate-50 text-slate-600"
+            }`}
+          >
+            {downloadNote.text}
+          </p>
+        )}
 
         {actionError && (
           <p className="border-t border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
