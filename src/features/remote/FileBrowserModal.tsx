@@ -100,7 +100,6 @@ export function FileBrowserModal({
     };
   }, [open]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reset quando cambia il server
   useEffect(() => {
     if (previousServer.current === selectedId) return;
     previousServer.current = selectedId;

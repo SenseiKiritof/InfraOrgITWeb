@@ -151,13 +151,15 @@ describe("FileBrowserModal", () => {
             operatorEnvironmentIds: [1],
           });
         }
-        if (url.includes("/api/servers/7/files?")) {
+        if (url.includes("/api/servers/7/files")) {
+          const path =
+            new URL(url, "http://localhost").searchParams.get("path") ?? "/";
           return json({
-            path: "/",
+            path,
             items: [
               {
                 name: "hello.txt",
-                path: "/hello.txt",
+                path: path === "/" ? "/hello.txt" : `${path}/hello.txt`,
                 isDirectory: false,
                 size: 12,
                 modifiedUtc: "2026-11-03T10:00:00Z",
