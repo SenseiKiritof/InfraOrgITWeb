@@ -44,9 +44,12 @@ result is what the server really reaches.
 ### Work on servers
 
 Open an SSH console with several sessions side by side or minimized to the bar
-at the bottom. The same bar opens an SFTP/FTPS file browser. Command templates
-and application actions (restart, logs, health check) run from the server page;
-every session, action and test is written to the audit log.
+at the bottom. The same bar opens an SFTP/FTPS file browser. If the server has
+no file protocol or no usable credential, the browser shows a warning and lets
+a SystemAdmin configure protocol, port and credential inline (or open the
+Credentials page) before retrying. Command templates and application actions
+(restart, logs, health check) run from the server page; every session, action
+and test is written to the audit log.
 
 ![SSH session with hostname, uptime, disk usage, application log and health endpoint](docs/screenshots/console.gif)
 
