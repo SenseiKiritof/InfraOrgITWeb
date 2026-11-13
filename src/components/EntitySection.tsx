@@ -24,6 +24,12 @@ export interface Column<T> {
   label: string;
   render: (row: T) => ReactNode;
   sortable?: boolean;
+  /**
+   * Client-side column filter. `value` is trimmed and lowercased, so the
+   * column only decides how to match (substring, numeric prefix, ...).
+   */
+  filter?: (row: T, value: string) => boolean;
+  filterPlaceholder?: string;
 }
 
 interface EntitySectionProps<T extends { id: number }> {
@@ -42,6 +48,8 @@ interface EntitySectionProps<T extends { id: number }> {
   rowHref?: (row: T) => string;
   rowActions?: (row: T) => ReactNode;
   rowLabel?: (row: T) => string;
+  /** Order used while no header sort is active, and after it is cleared. */
+  defaultOrder?: (left: T, right: T) => number;
   selection?: {
     selectedIds: number[];
     onChange: (ids: number[]) => void;
@@ -69,6 +77,7 @@ export function EntitySection<T extends { id: number }>({
   rowHref,
   rowActions,
   rowLabel,
+  defaultOrder,
   selection,
   headerActions,
   createLabel,
@@ -82,6 +91,7 @@ export function EntitySection<T extends { id: number }>({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [sort, setSort] = useState<SortState>(null);
+  const [filters, setFilters] = useState<Record<string, string>>({});
   const uid = useId();
   const firstField = useRef<HTMLElement | null>(null);
 
@@ -97,13 +107,32 @@ export function EntitySection<T extends { id: number }>({
     onCreateValuesUsed?.();
   }, [createValues, empty, onCreateValuesUsed]);
 
-  const ordered = sortedRows(rows, sort);
-  const paginated = usePagination(ordered);
+  const activeFilters = columns.flatMap((column) => {
+    if (!column.filter) return [];
+    const value = (filters[column.key] ?? "").trim().toLowerCase();
+    return value ? [{ key: column.key, filter: column.filter, value }] : [];
+  });
+  const filterKey = activeFilters
+    .map((entry) => `${entry.key}=${entry.value}`)
+    .join("&");
+  const filtered =
+    rows === undefined || activeFilters.length === 0
+      ? rows
+      : rows.filter((row) =>
+          activeFilters.every((entry) => entry.filter(row, entry.value)),
+        );
+  const ordered = !sort
+    ? defaultOrder && filtered
+      ? [...filtered].sort(defaultOrder)
+      : filtered
+    : sortedRows(filtered, sort);
+  const paginated = usePagination(ordered, 20, filterKey);
   const widths = columnWidths(
     columns,
     rows,
     rowHref || rowActions || canWrite ? 18 : 3,
   );
+  const hasFilterRow = columns.some((column) => column.filter);
 
   const startCreate = () => {
     setValues(empty);
@@ -218,16 +247,16 @@ export function EntitySection<T extends { id: number }>({
                       type="checkbox"
                       aria-label={t("common.selectAll")}
                       checked={
-                        rows !== undefined &&
-                        rows.length > 0 &&
-                        rows.every((row) =>
+                        ordered !== undefined &&
+                        ordered.length > 0 &&
+                        ordered.every((row) =>
                           selection.selectedIds.includes(row.id),
                         )
                       }
                       onChange={(event) =>
                         selection.onChange(
                           event.target.checked
-                            ? (rows ?? []).map((row) => row.id)
+                            ? (ordered ?? []).map((row) => row.id)
                             : [],
                         )
                       }
@@ -254,6 +283,49 @@ export function EntitySection<T extends { id: number }>({
                   <span className="sr-only">{t("common.actions")}</span>
                 </th>
               </tr>
+              {hasFilterRow && (
+                <tr>
+                  {selection && (
+                    <th scope="col" className="bg-slate-50 px-2 py-1" />
+                  )}
+                  {columns.map((column) => (
+                    <th
+                      key={column.key}
+                      scope="col"
+                      className="bg-slate-50 px-2 py-1"
+                    >
+                      {column.filter && (
+                        <input
+                          type="search"
+                          value={filters[column.key] ?? ""}
+                          onChange={(event) =>
+                            setFilters((current) => ({
+                              ...current,
+                              [column.key]: event.target.value,
+                            }))
+                          }
+                          placeholder={column.filterPlaceholder ?? column.label}
+                          aria-label={t("common.filterColumn", {
+                            column: column.label,
+                          })}
+                          className="w-full min-w-0 rounded border border-slate-300 bg-white px-2 py-1 text-xs font-normal normal-case tracking-normal text-slate-700 placeholder:text-slate-400"
+                        />
+                      )}
+                    </th>
+                  ))}
+                  <th scope="col" className="bg-slate-50 px-2 py-1 text-right">
+                    {activeFilters.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setFilters({})}
+                        className="whitespace-nowrap text-xs font-normal normal-case tracking-normal text-slate-600 underline"
+                      >
+                        {t("common.clearFilters")}
+                      </button>
+                    )}
+                  </th>
+                </tr>
+              )}
             </thead>
             <tbody>
               {(paginated.items ?? []).map((row) => {
@@ -318,6 +390,16 @@ export function EntitySection<T extends { id: number }>({
                   </tr>
                 );
               })}
+              {paginated.total === 0 && (
+                <tr>
+                  <td
+                    colSpan={columns.length + 1 + (selection ? 1 : 0)}
+                    className="px-4 py-6 text-sm text-slate-500"
+                  >
+                    {t("common.noItems")}
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

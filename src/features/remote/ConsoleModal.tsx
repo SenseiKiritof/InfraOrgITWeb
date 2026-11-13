@@ -6,6 +6,8 @@ import "@xterm/xterm/css/xterm.css";
 
 type ConsoleStatus = "connecting" | "connected" | "error";
 
+const PANE_INDEXES = [0, 1, 2] as const;
+
 const STATUS_KEYS: Record<ConsoleStatus, TranslationKey> = {
   connecting: "console.connecting",
   connected: "console.connected",
@@ -19,6 +21,9 @@ export function ConsoleModal({
   active,
   closing,
   resumeId,
+  pane,
+  paneCount,
+  onMovePane,
   onSessionId,
   onData,
   onActivate,
@@ -31,6 +36,9 @@ export function ConsoleModal({
   active: boolean;
   closing?: boolean;
   resumeId?: string;
+  pane?: number;
+  paneCount?: number;
+  onMovePane?: (pane: number) => void;
   onSessionId?: (id: string) => void;
   onData?: () => void;
   onActivate?: () => void;
@@ -111,18 +119,27 @@ export function ConsoleModal({
     };
   }, [send, sendResize]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: il cambio pannello deve rifare il fit
   useEffect(() => {
     visibleRef.current = visible;
     if (!visible) return;
-    requestAnimationFrame(() => {
+    const fitNow = () => {
       try {
         fit.current?.fit();
       } catch {
         // il pannello non è ancora dimensionato
       }
-    });
+    };
+    // Il cambio di pannello ridimensiona il terminale: riadatta subito e
+    // dopo la transizione, senza aspettare il solo ResizeObserver.
+    const frame = requestAnimationFrame(fitNow);
+    const timer = window.setTimeout(fitNow, 180);
     if (active) terminal.current?.focus();
-  }, [visible, active]);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(timer);
+    };
+  }, [visible, active, pane, paneCount]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: reconnectKey forza una nuova connessione
   useEffect(() => {
@@ -183,7 +200,7 @@ export function ConsoleModal({
   return (
     <div
       hidden={!visible}
-      className="pointer-events-auto flex h-full min-h-0 w-full flex-col rounded-lg border border-slate-700 bg-slate-950 p-3 shadow-xl"
+      className="pointer-events-auto flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-lg border border-slate-700 bg-slate-950 p-3 shadow-xl"
     >
       <div className="mb-2 flex items-center justify-between gap-2 text-sm text-slate-200">
         <p className="min-w-0 truncate">
@@ -199,6 +216,24 @@ export function ConsoleModal({
           </span>
         </p>
         <div className="flex shrink-0 items-center gap-1.5 text-xs">
+          {paneCount !== undefined &&
+            paneCount > 1 &&
+            pane !== undefined &&
+            onMovePane && (
+              <select
+                aria-label={t("console.paneFor")}
+                title={t("console.paneFor")}
+                value={pane}
+                onChange={(event) => onMovePane(Number(event.target.value))}
+                className="rounded border border-slate-600 bg-slate-900 px-1 py-1 text-xs text-slate-100"
+              >
+                {PANE_INDEXES.slice(0, paneCount).map((index) => (
+                  <option key={index} value={index}>
+                    {t("console.paneLabel", { index: index + 1 })}
+                  </option>
+                ))}
+              </select>
+            )}
           {disconnected && (
             <button
               type="button"

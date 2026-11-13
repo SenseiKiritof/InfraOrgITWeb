@@ -17,12 +17,11 @@ export function compareValues(left: unknown, right: unknown): number {
   });
 }
 
+/** asc -> desc -> none, so a third click restores the table default order. */
 export function nextSort(current: SortState, key: string): SortState {
   if (current?.key !== key) return { key, direction: "asc" };
-  return {
-    key,
-    direction: current.direction === "asc" ? "desc" : "asc",
-  };
+  if (current.direction === "asc") return { key, direction: "desc" };
+  return null;
 }
 
 export function sortedRows<T>(

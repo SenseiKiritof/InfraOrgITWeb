@@ -63,6 +63,7 @@ export {
   ArrowsPointingInIcon,
   ArrowsPointingOutIcon,
   Bars3Icon,
+  ComputerDesktopIcon,
   HomeIcon,
   KeyIcon,
   MagnifyingGlassIcon,

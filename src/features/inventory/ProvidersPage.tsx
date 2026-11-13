@@ -8,6 +8,7 @@ import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import { SearchForm } from "../../components/page";
 import { RecordCard } from "../../components/RecordCard";
 import { apiFetch } from "../../lib/api";
+import { includesText, startsWithValue } from "../../lib/filter";
 import { useI18n } from "../../lib/i18n";
 import type { Paged, Provider, ProviderEnvironment } from "../../lib/inventory";
 import { deleteEntity, paged, saveEntity } from "../../lib/inventory";
@@ -56,11 +57,18 @@ export function ProvidersPage() {
       <EntitySection
         rows={providers.data?.items}
         columns={[
-          { key: "name", label: t("common.name"), render: (row) => row.name },
+          {
+            key: "name",
+            label: t("common.name"),
+            render: (row) => row.name,
+            filter: (row, value) => includesText(row.name, value),
+          },
           {
             key: "environmentCount",
             label: t("common.environments"),
             render: (row) => row.environmentCount,
+            filter: (row, value) =>
+              startsWithValue(row.environmentCount, value),
           },
         ]}
         fields={[{ name: "name", label: t("common.name"), required: true }]}
