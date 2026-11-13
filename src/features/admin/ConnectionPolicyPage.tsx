@@ -83,6 +83,11 @@ export function ConnectionPolicyPage() {
             <span className="space-y-1">
               <span className="block font-medium text-slate-900">
                 {label(value)}
+                {value === "Auto" && (
+                  <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs font-normal text-slate-600">
+                    {t("connectionPolicy.default")}
+                  </span>
+                )}
               </span>
               <span className="block text-sm text-slate-600">
                 {hint(value)}

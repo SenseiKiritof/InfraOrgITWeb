@@ -1,5 +1,7 @@
 /** Bridge exposed by the Photino desktop through `window.external`. */
 export interface DesktopBridge {
+  /** True when this build implements direct console/files messages. */
+  remote?: boolean;
   sendMessage(message: string): void;
   receiveMessage(handler: (message: string) => void): void;
 }

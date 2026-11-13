@@ -89,11 +89,20 @@ active-session view.
 
 ### Choose the connection mode
 
-`/settings` (SystemAdmin) chooses whether the installation opens tunnels through
-the API (`Server`), directly from the desktop (`Client`) or automatically
-(`Auto`, direct when the client reaches the SSH host). The value is stored in
-the shared database, so every API node in a cluster reports the same mode; the
-`/tunnels` page shows the transport of each active session.
+`/settings` (SystemAdmin) chooses how the installation opens tunnels. The
+default is **Auto**.
+
+| Mode | Behaviour |
+|---|---|
+| **Auto** (default) | Tunnels, console, files and actions use the desktop when the client reaches the first SSH hop; otherwise they use the server. |
+| **Server** | Tunnels go through the API; console, files and actions run on the server. Only `Local` services and deployments with a fixed target port are relayed. |
+| **Client** | Tunnels, console, files and actions use the desktop SSH agent; `Local`, `Dynamic` and `Remote` tunnels are available. |
+
+The value is stored in the shared `ConnectionPolicies` row, so every API node
+in a cluster reports the same mode. Relay connections are node-local; the load
+balancer needs WebSocket upgrades but no sticky sessions. The `/tunnels` page
+shows the transport of each active session; direct console/actions and file
+operations appear in the execution and audit logs.
 
 ### Keep an audit trail
 

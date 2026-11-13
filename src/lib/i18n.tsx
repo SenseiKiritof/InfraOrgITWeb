@@ -528,22 +528,23 @@ const it = {
 
   "connectionPolicy.title": "Connessioni",
   "connectionPolicy.description":
-    "Modalità delle connessioni remote per questa installazione: tunnel SSH e, nelle fasi successive, console, file e azioni.",
+    "Modalità delle connessioni remote per questa installazione: tunnel SSH, console, file e azioni.",
   "connectionPolicy.cluster":
     "L'impostazione è salvata nel database condiviso: tutte le istanze API del cluster applicano lo stesso valore. I tunnel relay restano legati al nodo che accetta la connessione.",
   "connectionPolicy.server": "Solo tramite server",
   "connectionPolicy.client": "Dirette sul client",
   "connectionPolicy.auto": "Automatica",
+  "connectionPolicy.default": "Predefinita",
   "connectionPolicy.serverHint":
-    "Il server InfraOrgIT apre la connessione SSH e inoltra i byte al desktop. Supporta i servizi tunnel Local.",
+    "Il server apre SSH per tunnel Local e deployment; console, file e azioni restano sul server. Il desktop riceve solo i byte dei tunnel.",
   "connectionPolicy.clientHint":
-    "Il desktop apre SSH con l'agente locale. Supporta Local, Dynamic e Remote; servono OpenSSH e un agente SSH.",
+    "Tunnel, console, file e azioni usano l'agente SSH del desktop. Servono OpenSSH e un agente SSH; nessuna connessione SSH parte dal server.",
   "connectionPolicy.autoHint":
-    "Il desktop prova la connessione diretta e usa il relay del server solo se il target non è raggiungibile dal client.",
+    "Il desktop usa la connessione diretta quando raggiunge il primo hop; altrimenti usa il server. È la modalità predefinita.",
   "connectionPolicy.serverWarning":
-    "In questa modalità i servizi Dynamic e Remote non sono disponibili: il relay server accetta solo servizi Local.",
+    "I tunnel Dynamic e Remote non sono disponibili in questa modalità: il relay server accetta solo servizi Local. Console, file e azioni usano il server.",
   "connectionPolicy.clientWarning":
-    "I tunnel restano disponibili solo dal desktop: un browser non può aprire porte locali. Le connessioni dirette richiedono un agente SSH sul client.",
+    "Le operazioni server-side sono disabilitate: console, file e azioni richiedono l'app desktop. Gli upload diretti sono limitati a 8 MB; oltre, usa Auto o Server per il percorso server.",
   "connectionPolicy.current": "Modalità connessioni: {mode}",
   "connectionPolicy.save": "Salva",
   "connectionPolicy.saved": "Impostazione salvata.",
@@ -1320,22 +1321,23 @@ const en: Record<TranslationKey, string> = {
 
   "connectionPolicy.title": "Connections",
   "connectionPolicy.description":
-    "Remote connection mode for this installation: SSH tunnels and, in later phases, console, files and actions.",
+    "Remote connection mode for this installation: SSH tunnels, console, files and actions.",
   "connectionPolicy.cluster":
     "The setting is stored in the shared database: every API node in the cluster applies the same value. Relay tunnels stay bound to the node that accepts the connection.",
   "connectionPolicy.server": "Server only",
   "connectionPolicy.client": "Direct on the client",
   "connectionPolicy.auto": "Automatic",
+  "connectionPolicy.default": "Default",
   "connectionPolicy.serverHint":
-    "The InfraOrgIT server opens the SSH connection and relays bytes to the desktop. Supports Local tunnel services.",
+    "The server opens SSH for Local tunnels and deployments; console, files and actions stay on the server. The desktop only receives tunnel bytes.",
   "connectionPolicy.clientHint":
-    "The desktop opens SSH with the local agent. Supports Local, Dynamic and Remote; OpenSSH and an SSH agent are required.",
+    "Tunnels, console, files and actions use the desktop SSH agent. OpenSSH and an SSH agent are required; no SSH connection starts from the server.",
   "connectionPolicy.autoHint":
-    "The desktop tries the direct connection and uses the server relay only when the client cannot reach the target.",
+    "The desktop uses a direct connection when it reaches the first hop; otherwise it uses the server. This is the default mode.",
   "connectionPolicy.serverWarning":
-    "Dynamic and Remote services are unavailable in this mode: the server relay accepts Local services only.",
+    "Dynamic and Remote tunnels are unavailable in this mode: the server relay accepts Local services only. Console, files and actions use the server.",
   "connectionPolicy.clientWarning":
-    "Tunnels remain desktop-only: a browser cannot open local ports. Direct connections require an SSH agent on the client.",
+    "Server-side operations are disabled: console, files and actions require the desktop app. Direct uploads are limited to 8 MB; larger files need Auto or Server.",
   "connectionPolicy.current": "Connection mode: {mode}",
   "connectionPolicy.save": "Save",
   "connectionPolicy.saved": "Setting saved.",
