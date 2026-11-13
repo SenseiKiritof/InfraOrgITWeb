@@ -1041,9 +1041,9 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
         </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-700 bg-slate-900 text-slate-100">
+      <div className="console-footer fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white text-slate-900">
         <div className="relative flex h-11 items-center gap-1 px-2">
-          <span className="shrink-0 px-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+          <span className="shrink-0 px-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
             {t("console.label")}
           </span>
           <button
@@ -1057,8 +1057,8 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
             title={t("console.add")}
             className={`rounded p-1 ${
               launcherOpen
-                ? "bg-slate-700 text-slate-100"
-                : "text-slate-400 hover:text-slate-100"
+                ? "bg-slate-200 text-slate-900"
+                : "text-slate-500 hover:text-slate-900"
             }`}
           >
             <PlusIcon className="h-4 w-4" aria-hidden="true" />
@@ -1142,7 +1142,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                 <div
                   key={session.id}
                   className={`flex shrink-0 items-center rounded ${
-                    session.id === activeSession?.id ? "bg-slate-800" : ""
+                    session.id === activeSession?.id ? "bg-slate-100" : ""
                   }`}
                 >
                   <button
@@ -1164,7 +1164,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                       name: session.serverName,
                     })}
                     onClick={() => close(session.id)}
-                    className="px-1.5 py-1 text-slate-400 hover:text-slate-100"
+                    className="px-1.5 py-1 text-slate-500 hover:text-slate-900"
                   >
                     ×
                   </button>
@@ -1180,7 +1180,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                   data-testid={`file-tab-${session.serverId}`}
                   className={`flex shrink-0 items-center rounded ${
                     session.serverId === activeFileServerId
-                      ? "bg-slate-800"
+                      ? "bg-slate-100"
                       : ""
                   }`}
                 >
@@ -1199,7 +1199,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                     />
                     <span
                       className={`max-w-[16rem] truncate ${
-                        session.visible ? "" : "text-slate-400"
+                        session.visible ? "" : "text-slate-500"
                       }`}
                     >
                       {label}
@@ -1210,7 +1210,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                     aria-label={t("files.closeSession", { name })}
                     title={t("files.closeSession", { name })}
                     onClick={() => closeFileSession(session.serverId)}
-                    className="px-1.5 py-1 text-slate-400 hover:text-slate-100"
+                    className="px-1.5 py-1 text-slate-500 hover:text-slate-900"
                   >
                     ×
                   </button>
@@ -1224,7 +1224,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
               onClick={() => openFiles(null)}
               aria-label={t("files.open")}
               title={t("files.open")}
-              className="flex items-center gap-1 rounded px-1.5 py-1 text-xs text-slate-400 hover:text-slate-100"
+              className="flex items-center gap-1 rounded px-1.5 py-1 text-xs text-slate-500 hover:text-slate-900"
             >
               <FolderArrowDownIcon className="h-4 w-4" aria-hidden="true" />
               <span className="hidden sm:inline">{t("files.label")}</span>
@@ -1233,7 +1233,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
               <>
                 <fieldset
                   aria-label={t("console.layout")}
-                  className="m-0 flex items-center gap-0.5 rounded border border-slate-700 p-0.5"
+                  className="m-0 flex items-center gap-0.5 rounded border border-slate-300 p-0.5"
                 >
                   {([1, 2, 3] as const).map((count) => (
                     <button
@@ -1250,8 +1250,8 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                       onClick={() => changeLayout(count)}
                       className={`h-5 w-5 rounded text-[11px] ${
                         layout === count
-                          ? "bg-slate-700 text-slate-100"
-                          : "text-slate-400 hover:text-slate-100"
+                          ? "bg-slate-200 text-slate-900"
+                          : "text-slate-500 hover:text-slate-900"
                       }`}
                     >
                       {count}
@@ -1271,8 +1271,8 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                   title={expanded ? t("console.collapse") : t("console.expand")}
                   className={`rounded p-1 ${
                     expanded
-                      ? "bg-slate-700 text-slate-100"
-                      : "text-slate-400 hover:text-slate-100"
+                      ? "bg-slate-200 text-slate-900"
+                      : "text-slate-500 hover:text-slate-900"
                   }`}
                 >
                   {expanded ? (
@@ -1304,7 +1304,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                     else setConsoleCollapsed(true);
                   }}
                   disabled={renderedSessions.length === 0}
-                  className="rounded p-1 text-slate-400 hover:text-slate-100 disabled:opacity-40"
+                  className="rounded p-1 text-slate-500 hover:text-slate-900 disabled:opacity-40"
                 >
                   {consoleCollapsed ? (
                     <ChevronUpIcon className="h-4 w-4" aria-hidden="true" />
