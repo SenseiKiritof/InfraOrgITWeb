@@ -150,6 +150,48 @@ describe("DesktopTunnelsPanel", () => {
     });
   });
 
+  it("con la sessione web attiva nasconde il login e non offre un logout finto", async () => {
+    const bridge = installBridge();
+    render(<DesktopTunnelsPanel />);
+
+    bridge.emit({
+      type: "tunnels.auth",
+      status: "restored",
+      url: origin,
+      saved: false,
+    });
+    bridge.emit(targetsMessage);
+
+    expect(await screen.findByText("srv-prod")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Accedi con Keycloak" }),
+    ).toBeNull();
+    expect(screen.queryByLabelText("Token personale")).toBeNull();
+    expect(
+      screen.getByText("Sessione attiva · ripristinata."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Dimentica token" }),
+    ).toBeNull();
+  });
+
+  it("con un token salvato offre solo Dimentica token", async () => {
+    const bridge = installBridge();
+    render(<DesktopTunnelsPanel />);
+
+    bridge.emit({
+      type: "tunnels.auth",
+      status: "restored",
+      url: origin,
+      saved: true,
+    });
+    bridge.emit(targetsMessage);
+
+    expect(await screen.findByText("srv-prod")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Dimentica token" }));
+    expect(sentType(bridge, "tunnels.logout")).toMatchObject({ url: origin });
+  });
+
   it("mostra target, avvia, apre e chiude i tunnel", async () => {
     const bridge = installBridge();
     render(<DesktopTunnelsPanel />);
@@ -229,9 +271,11 @@ describe("DesktopTunnelsPanel", () => {
       saved: true,
     });
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Esci" })).toBeInTheDocument(),
+      expect(
+        screen.getByRole("button", { name: "Dimentica token" }),
+      ).toBeInTheDocument(),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Esci" }));
+    fireEvent.click(screen.getByRole("button", { name: "Dimentica token" }));
     expect(sentType(bridge, "tunnels.logout")).toMatchObject({ url: origin });
   });
 

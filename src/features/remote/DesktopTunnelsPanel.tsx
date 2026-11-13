@@ -211,62 +211,66 @@ function DesktopTunnelsPanelContent() {
       </div>
 
       <div className="flex flex-wrap items-end gap-2">
-        <form
-          className="flex flex-wrap items-end gap-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const value = token.trim();
-            if (!value) {
-              setStatus({
-                tone: "error",
-                message: t("desktopTunnels.tokenRequired"),
-              });
-              return;
-            }
-            setToken("");
-            setTargets([]);
-            setAuth(null);
-            lastToken.current = value;
-            setStatus({
-              tone: "log",
-              message: t("desktopTunnels.loadingTargets"),
-            });
-            requestDesktopTunnelTargets(value);
-          }}
-        >
-          <label className="flex flex-col gap-1 text-xs text-slate-600">
-            {t("desktopTunnels.token")}
-            <input
-              type="password"
-              autoComplete="off"
-              value={token}
-              onChange={(event) => setToken(event.target.value)}
-              placeholder={t("desktopTunnels.tokenPlaceholder")}
-              className="w-52 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-            />
-          </label>
-          <button
-            type="submit"
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
-          >
-            {t("desktopTunnels.loadTargets")}
-          </button>
-        </form>
-        <button
-          type="button"
-          onClick={() => {
-            setTargets([]);
-            setAuth(null);
-            setStatus(null);
-            lastToken.current = null;
-            loginDesktopTunnels();
-          }}
-          disabled={auth?.status === "pending"}
-          className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
-        >
-          {t("desktopTunnels.keycloakLogin")}
-        </button>
-        {sessionActive && (
+        {!sessionActive && (
+          <>
+            <form
+              className="flex flex-wrap items-end gap-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const value = token.trim();
+                if (!value) {
+                  setStatus({
+                    tone: "error",
+                    message: t("desktopTunnels.tokenRequired"),
+                  });
+                  return;
+                }
+                setToken("");
+                setTargets([]);
+                setAuth(null);
+                lastToken.current = value;
+                setStatus({
+                  tone: "log",
+                  message: t("desktopTunnels.loadingTargets"),
+                });
+                requestDesktopTunnelTargets(value);
+              }}
+            >
+              <label className="flex flex-col gap-1 text-xs text-slate-600">
+                {t("desktopTunnels.token")}
+                <input
+                  type="password"
+                  autoComplete="off"
+                  value={token}
+                  onChange={(event) => setToken(event.target.value)}
+                  placeholder={t("desktopTunnels.tokenPlaceholder")}
+                  className="w-52 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                />
+              </label>
+              <button
+                type="submit"
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+              >
+                {t("desktopTunnels.loadTargets")}
+              </button>
+            </form>
+            <button
+              type="button"
+              onClick={() => {
+                setTargets([]);
+                setAuth(null);
+                setStatus(null);
+                lastToken.current = null;
+                loginDesktopTunnels();
+              }}
+              disabled={auth?.status === "pending"}
+              className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
+            >
+              {t("desktopTunnels.keycloakLogin")}
+            </button>
+          </>
+        )}
+        {sessionActive && auth?.saved && (
           <button
             type="button"
             onClick={() => {
@@ -277,7 +281,7 @@ function DesktopTunnelsPanelContent() {
             }}
             className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
           >
-            {t("desktopTunnels.logout")}
+            {t("desktopTunnels.forgetToken")}
           </button>
         )}
       </div>

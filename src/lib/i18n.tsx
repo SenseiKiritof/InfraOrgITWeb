@@ -533,7 +533,7 @@ const it = {
   "desktopTunnels.loadTargets": "Carica target",
   "desktopTunnels.loadingTargets": "Caricamento target…",
   "desktopTunnels.keycloakLogin": "Accedi con Keycloak",
-  "desktopTunnels.logout": "Esci",
+  "desktopTunnels.forgetToken": "Dimentica token",
   "desktopTunnels.cancel": "Annulla",
   "desktopTunnels.sessionActive": "Sessione attiva.",
   "desktopTunnels.sessionRestored": "Sessione attiva · ripristinata.",
@@ -669,6 +669,7 @@ const it = {
   "files.protocol": "Protocollo",
   "files.port": "Porta",
   "files.credential": "Credenziale",
+  "files.credentialSsh": "Usa la credenziale SSH",
   "files.credentialPlaceholder": "Scegli una credenziale…",
   "files.credentialLoading": "Caricamento credenziali…",
   "files.credentialEmpty":
@@ -1280,7 +1281,7 @@ const en: Record<TranslationKey, string> = {
   "desktopTunnels.loadTargets": "Load targets",
   "desktopTunnels.loadingTargets": "Loading targets…",
   "desktopTunnels.keycloakLogin": "Sign in with Keycloak",
-  "desktopTunnels.logout": "Sign out",
+  "desktopTunnels.forgetToken": "Forget token",
   "desktopTunnels.cancel": "Cancel",
   "desktopTunnels.sessionActive": "Active session.",
   "desktopTunnels.sessionRestored": "Active session, restored.",
@@ -1413,6 +1414,7 @@ const en: Record<TranslationKey, string> = {
   "files.protocol": "Protocol",
   "files.port": "Port",
   "files.credential": "Credential",
+  "files.credentialSsh": "Use the SSH credential",
   "files.credentialPlaceholder": "Choose a credential…",
   "files.credentialLoading": "Loading credentials…",
   "files.credentialEmpty":
