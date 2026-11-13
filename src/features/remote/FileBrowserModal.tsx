@@ -322,6 +322,7 @@ export function FileBrowserModal({
     );
     setConfigError(null);
     setConfigOpen(true);
+    setCredentials([]);
     setCredentialsLoading(true);
     getCredentials()
       .then((page) => setCredentials(page.items))
