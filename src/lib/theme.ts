@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { patchSessionTheme, type Session, type ThemePreference } from "./api";
-import { sendDesktopMessage, subscribeDesktopMessages } from "./desktopBridge";
+import { sendDesktopMessage } from "./desktopBridge";
 
 export type { ThemePreference } from "./api";
 
@@ -8,12 +8,6 @@ export const THEME_STORAGE_KEY = "infraorgit-theme";
 export const THEME_PENDING_KEY = "infraorgit-theme-pending";
 
 const PREFERENCES: ThemePreference[] = ["light", "dark", "system"];
-
-function themeValue(value: unknown): ThemePreference | null {
-  return PREFERENCES.includes(value as ThemePreference)
-    ? (value as ThemePreference)
-    : null;
-}
 
 function notifyDesktopTheme(theme: ThemePreference) {
   sendDesktopMessage({ type: "theme.changed", theme });
@@ -98,23 +92,6 @@ export function useTheme(session: Session | null) {
     applyTheme(theme);
     setResolved(resolvedTheme(theme));
   }, [theme]);
-
-  // The desktop shell follows the account theme; its shortcut sends the
-  // already-persisted preference here so the SPA updates without a round trip.
-  useEffect(
-    () =>
-      subscribeDesktopMessages((message) => {
-        if (message.type !== "theme.apply") return;
-        const next = themeValue(message.theme);
-        if (!next) return;
-        clearPendingThemePreference();
-        storeThemePreference(next);
-        setThemeState(next);
-        applyTheme(next);
-        setResolved(resolvedTheme(next));
-      }),
-    [],
-  );
 
   useEffect(() => {
     if (theme !== "system" || typeof window.matchMedia !== "function") return;

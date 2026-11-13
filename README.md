@@ -69,9 +69,17 @@ and cannot be approved by the AI client itself.
 
 Tunnels opened by InfraOrgIT Desktop are projected on `/tunnels`: local port,
 target, server, user and last contact. The page refreshes every 15 seconds, so
-the team can see which forwards are active.
+the team can see which forwards are active. The desktop reuses the instance
+BFF session, so a user already signed in to the Web app does not need a second
+tunnel login.
 
 ![Active tunnel with local port, target and last contact](docs/screenshots/tunnels.png)
+
+When nothing is running, the page explains that tunnels are opened from the
+desktop app or from the server's Tunnel section; the browser page is only the
+active-session view.
+
+![Empty active tunnels page with guidance to the desktop and server tunnel section](docs/screenshots/tunnels-empty.png)
 
 ### Keep an audit trail
 

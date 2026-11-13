@@ -166,17 +166,11 @@ describe("theme", () => {
     await waitFor(() => expect(result.current.theme).toBe("light"));
   });
 
-  it("sincronizza il tema con la shell desktop senza un secondo stato", async () => {
+  it("notifica la shell desktop del tema account", async () => {
     const sendMessage = vi.fn();
-    let receive: ((raw: string) => void) | undefined;
     Object.defineProperty(window, "infraorgitDesktop", {
       configurable: true,
-      value: {
-        sendMessage,
-        receiveMessage: (handler: (raw: string) => void) => {
-          receive = handler;
-        },
-      },
+      value: { sendMessage, receiveMessage: vi.fn() },
     });
     const fetchMock = vi.fn(async () => new Response(null, { status: 204 }));
     vi.stubGlobal("fetch", fetchMock);
@@ -192,11 +186,5 @@ describe("theme", () => {
       type: "theme.changed",
       theme: "light",
     });
-
-    act(() =>
-      receive?.(JSON.stringify({ type: "theme.apply", theme: "dark" })),
-    );
-    await waitFor(() => expect(result.current.theme).toBe("dark"));
-    expect(darkApplied()).toBe(true);
   });
 });
