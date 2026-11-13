@@ -3,7 +3,10 @@ import {
   ArrowPathIcon,
   ArrowUpTrayIcon,
   ChevronDownIcon,
+  ClipboardDocumentIcon,
   DocumentIcon,
+  EyeIcon,
+  EyeSlashIcon,
   FolderIcon,
   FolderPlusIcon,
   MagnifyingGlassIcon,
@@ -71,6 +74,13 @@ function fileExtension(name: string): string {
   return dot > 0 ? name.slice(dot + 1).toLocaleLowerCase() : "";
 }
 
+/** Cartella che contiene il percorso indicato ("/" se è già la radice). */
+function parentOf(path: string): string {
+  const parts = path.split("/").filter(Boolean);
+  parts.pop();
+  return parts.length === 0 ? "/" : `/${parts.join("/")}`;
+}
+
 function serverMatches(server: Server, rawQuery: string): boolean {
   const query = rawQuery.trim().toLocaleLowerCase();
   if (!query) return true;
@@ -84,6 +94,18 @@ function serverMatches(server: Server, rawQuery: string): boolean {
     .some((field) => field.toLocaleLowerCase().includes(query));
 }
 
+/** Preferenza locale: i file che iniziano con "." sono visibili di default. */
+export const HIDDEN_FILES_STORAGE_KEY = "infraorgit-files-show-hidden";
+
+function storedShowHidden(): boolean {
+  try {
+    return localStorage.getItem(HIDDEN_FILES_STORAGE_KEY) !== "0";
+  } catch {
+    // storage non disponibile: restano visibili
+    return true;
+  }
+}
+
 /** Pannello file SFTP/FTPS/FTP dei server configurati. */
 export function FileBrowserModal({
   open,
@@ -93,6 +115,12 @@ export function FileBrowserModal({
   onServerSelected,
   onClose,
   onCloseSession,
+  embedded = false,
+  pane,
+  paneCount,
+  onMovePane,
+  onActivate,
+  active = false,
 }: {
   open: boolean;
   serverId: number | null;
@@ -105,6 +133,18 @@ export function FileBrowserModal({
   onClose: () => void;
   /** Chiude e distrugge la sessione file. */
   onCloseSession?: () => void;
+  /** Renderizza il pannello dentro un contenitore del padre invece della barra console. */
+  embedded?: boolean;
+  /** Indice del pannello occupato dalla sessione file. */
+  pane?: number;
+  /** Numero di pannelli disponibili quando il pannello è agganciato. */
+  paneCount?: number;
+  /** Sposta la sessione file nel pannello indicato. */
+  onMovePane?: (pane: number) => void;
+  /** Segnala al padre che il pannello è stato attivato. */
+  onActivate?: () => void;
+  /** Evidenzia il pannello attivo. */
+  active?: boolean;
 }) {
   const { t, language } = useI18n();
   const { session } = useAuth();
@@ -128,6 +168,8 @@ export function FileBrowserModal({
   const [loadingServers, setLoadingServers] = useState(false);
   const [entries, setEntries] = useState<RemoteFileEntry[]>([]);
   const [sort, setSort] = useState<SortState>(null);
+  const [showHidden, setShowHidden] = useState(storedShowHidden);
+  const [selectedPaths, setSelectedPaths] = useState<string[]>([]);
   const [draggingFiles, setDraggingFiles] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<{
     done: number;
@@ -155,6 +197,14 @@ export function FileBrowserModal({
   }, [open, serverId]);
 
   useEffect(() => {
+    try {
+      localStorage.setItem(HIDDEN_FILES_STORAGE_KEY, showHidden ? "1" : "0");
+    } catch {
+      // storage non disponibile: la preferenza vale per la sessione
+    }
+  }, [showHidden]);
+
+  useEffect(() => {
     if (open) setSelectedId(serverId);
   }, [open, serverId]);
 
@@ -164,17 +214,55 @@ export function FileBrowserModal({
     setConfigError(null);
   }, [open]);
 
-  // Esc chiude il pannello in cima: intercetta prima della console espansa.
+  // Esc svuota prima il filtro, poi chiude il pannello. Backspace risale di
+  // una cartella, tranne quando il focus è in un campo di testo.
   useEffect(() => {
     if (!open) return;
+    // Nel dock solo il pannello attivo riceve Esc/Backspace: quelli nascosti
+    // restano montati e non devono reagire alle scorciatoie globali.
+    if (embedded && !active) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        if (!configOpen && serverId !== null && filter) {
+          event.preventDefault();
+          setFilter("");
+          return;
+        }
+        onClose();
+        return;
+      }
+      if (event.key !== "Backspace" || configOpen) return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target;
+      const tag =
+        target instanceof HTMLElement ? target.tagName.toLocaleLowerCase() : "";
+      if (
+        tag === "input" ||
+        tag === "select" ||
+        tag === "textarea" ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return;
+      }
+      if (path === null || path === "/" || busy) return;
+      event.preventDefault();
       event.stopPropagation();
-      onClose();
+      setPath(parentOf(path));
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [open, onClose]);
+  }, [
+    open,
+    embedded,
+    active,
+    onClose,
+    filter,
+    path,
+    busy,
+    configOpen,
+    serverId,
+  ]);
 
   const previousServer = useRef(selectedId);
   useEffect(() => {
@@ -182,6 +270,7 @@ export function FileBrowserModal({
     let cancelled = false;
     setDownloadRoute("normal");
     setDownloadNote(null);
+    setSelectedPaths([]);
     void desktopDownloads
       .resolveRoute()
       .then((route) => {
@@ -241,6 +330,8 @@ export function FileBrowserModal({
     // Cambiando server si riparte dalla home, non dal percorso del precedente.
     setPath(null);
     setFilter("");
+    setEntries([]);
+    setSelectedPaths([]);
     setLoadError(null);
     setLoadErrorCode(null);
     setActionError(null);
@@ -252,6 +343,22 @@ export function FileBrowserModal({
   useEffect(() => {
     if (path !== null) notifyPath.current?.(path);
   }, [path]);
+
+  // La selezione vale per la cartella aperta: cambiando percorso o server
+  // riparte vuota, e non sopravvive alle righe sparite da un nuovo elenco.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: si azzera al cambio di percorso/server
+  useEffect(() => {
+    setSelectedPaths([]);
+  }, [path, selectedId]);
+
+  useEffect(() => {
+    setSelectedPaths((current) => {
+      if (current.length === 0) return current;
+      const present = new Set(entries.map((entry) => entry.path));
+      const next = current.filter((value) => present.has(value));
+      return next.length === current.length ? current : next;
+    });
+  }, [entries]);
 
   useEffect(() => {
     if (!open) return;
@@ -292,8 +399,13 @@ export function FileBrowserModal({
   );
   const server = available.find((item) => item.id === selectedId) ?? null;
   const visibleEntries = useMemo(
-    () => entries.filter((entry) => matchesFileFilter(entry, filter)),
-    [entries, filter],
+    () =>
+      entries.filter(
+        (entry) =>
+          (showHidden || !entry.name.startsWith(".")) &&
+          matchesFileFilter(entry, filter),
+      ),
+    [entries, filter, showHidden],
   );
   const orderedEntries = useMemo(
     () =>
@@ -305,6 +417,14 @@ export function FileBrowserModal({
       }) ?? [],
     [visibleEntries, sort],
   );
+  const selectedSet = useMemo(() => new Set(selectedPaths), [selectedPaths]);
+  const selectedEntries = useMemo(
+    () => entries.filter((entry) => selectedSet.has(entry.path)),
+    [entries, selectedSet],
+  );
+  const allSelected =
+    orderedEntries.length > 0 &&
+    orderedEntries.every((entry) => selectedSet.has(entry.path));
   const protocolMissing =
     Boolean(server && !server.fileTransferProtocol) ||
     loadErrorCode === "file_transfer_not_configured";
@@ -348,7 +468,7 @@ export function FileBrowserModal({
       })
       .catch((cause: unknown) => {
         if (cancelled) return;
-        setEntries([]);
+        // Un refresh fallito non deve svuotare la lista già visibile.
         setLoadErrorCode(cause instanceof ApiError ? cause.code : null);
         setLoadError(
           cause instanceof Error ? cause.message : t("files.failed"),
@@ -361,12 +481,6 @@ export function FileBrowserModal({
       cancelled = true;
     };
   }, [open, selectedId, path, server?.fileTransferProtocol, reloadKey]);
-
-  const parentPath = () => {
-    const parts = (path ?? "/").split("/").filter(Boolean);
-    parts.pop();
-    return parts.length === 0 ? "/" : `/${parts.join("/")}`;
-  };
 
   const refresh = async () => {
     setReloadKey((value) => value + 1);
@@ -590,9 +704,76 @@ export function FileBrowserModal({
   const remove = (entry: RemoteFileEntry) => {
     if (selectedId === null) return;
     if (!window.confirm(t("files.deleteConfirm", { name: entry.name }))) return;
+    setSelectedPaths((current) =>
+      current.filter((value) => value !== entry.path),
+    );
     void run(() =>
       deleteServerFile(selectedId, entry.path, entry.isDirectory, csrf),
     );
+  };
+
+  const toggleSelected = (value: string) => {
+    setSelectedPaths((current) =>
+      current.includes(value)
+        ? current.filter((item) => item !== value)
+        : [...current, value],
+    );
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedPaths((current) => {
+      const visible = orderedEntries.map((entry) => entry.path);
+      const all =
+        visible.length > 0 && visible.every((value) => current.includes(value));
+      return all
+        ? current.filter((value) => !visible.includes(value))
+        : Array.from(new Set([...current, ...visible]));
+    });
+  };
+
+  const removeSelected = () => {
+    if (selectedId === null || selectedEntries.length === 0) return;
+    if (
+      !window.confirm(
+        t("files.bulkDeleteConfirm", { count: selectedEntries.length }),
+      )
+    ) {
+      return;
+    }
+    const targets = [...selectedEntries];
+    setSelectedPaths([]);
+    void (async () => {
+      setBusy(true);
+      setActionError(null);
+      try {
+        // Un DELETE per riga, in sequenza: l'API non ha un endpoint di massa.
+        for (const entry of targets) {
+          await deleteServerFile(
+            selectedId,
+            entry.path,
+            entry.isDirectory,
+            csrf,
+          );
+        }
+      } catch (cause) {
+        setActionError(
+          cause instanceof Error ? cause.message : t("files.failed"),
+        );
+      } finally {
+        // Aggiorna anche dopo un errore parziale, senza svuotare la tabella.
+        setBusy(false);
+        await refresh();
+      }
+    })();
+  };
+
+  const copyPath = async () => {
+    if (path === null) return;
+    try {
+      await navigator.clipboard?.writeText(path);
+    } catch {
+      // clipboard non disponibile: nessun errore all'utente
+    }
   };
 
   const downloadEntry = async (entry: RemoteFileEntry) => {
@@ -620,13 +801,26 @@ export function FileBrowserModal({
 
   if (!open) return null;
 
+  const segments = (path ?? "/").split("/").filter(Boolean);
+
+  const frameClass = embedded
+    ? "h-full min-h-0 w-full"
+    : "fixed inset-x-0 bottom-11 z-40 px-2";
+  const panelClass = [
+    "relative flex w-full flex-col rounded-lg border bg-white text-slate-900",
+    embedded ? "h-full min-h-0" : "h-[60vh] shadow-2xl",
+    active
+      ? "border-emerald-400 ring-1 ring-emerald-400/60"
+      : "border-slate-200",
+  ].join(" ");
+
   if (serverId === null) {
     return (
-      <div className="fixed inset-x-0 bottom-11 z-40 px-2">
+      <div className={frameClass}>
         <div
           role="dialog"
           aria-label={t("files.chooseServer")}
-          className="flex h-[60vh] w-full flex-col rounded-lg border border-slate-200 bg-white shadow-2xl"
+          className={panelClass}
         >
           <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-600">
@@ -723,16 +917,17 @@ export function FileBrowserModal({
   }
 
   return (
-    <div className="fixed inset-x-0 bottom-11 z-40 px-2">
+    <div className={frameClass}>
       <div
         role="dialog"
         aria-label={t("files.title")}
         data-download-route={downloadRoute}
+        onPointerDown={onActivate}
         onDragEnter={onDragEnter}
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
         onDrop={onDrop}
-        className="relative flex h-[60vh] w-full flex-col rounded-lg border border-slate-200 bg-white text-slate-900 shadow-2xl"
+        className={panelClass}
       >
         <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
           <h2 className="min-w-0 truncate text-sm font-semibold uppercase tracking-wide text-slate-600">
@@ -745,7 +940,26 @@ export function FileBrowserModal({
               </span>
             )}
           </h2>
-          <div className="flex items-center gap-1">
+          <div className="flex shrink-0 items-center gap-1">
+            {paneCount !== undefined && paneCount > 1 && onMovePane && (
+              <label className="mr-1 flex items-center gap-1 text-xs text-slate-500">
+                <span className="whitespace-nowrap">
+                  {t("console.paneFor")}
+                </span>
+                <select
+                  value={pane ?? 0}
+                  onChange={(event) => onMovePane(Number(event.target.value))}
+                  className="rounded-md border border-slate-300 bg-white px-1.5 py-1 text-xs text-slate-700"
+                >
+                  {Array.from({ length: paneCount }, (_, index) => (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: i pannelli sono slot stabili identificati dall'indice
+                    <option key={index} value={index}>
+                      {t("console.paneLabel", { index: index + 1 })}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             {onCloseSession && (
               <button
                 type="button"
@@ -824,7 +1038,7 @@ export function FileBrowserModal({
           <div className="flex items-center gap-1">
             <button
               type="button"
-              onClick={() => setPath(parentPath())}
+              onClick={() => setPath(parentOf(path ?? "/"))}
               disabled={path === null || path === "/"}
               className="rounded-md border border-slate-300 px-2 py-1.5 disabled:opacity-40"
             >
@@ -833,16 +1047,26 @@ export function FileBrowserModal({
             <button
               type="button"
               onClick={() => void refresh()}
-              disabled={selectedId === null}
-              title={t("files.refresh")}
-              className="rounded-md border border-slate-300 p-1.5 disabled:opacity-40"
+              disabled={selectedId === null || loadingFiles}
+              title={loadingFiles ? t("files.refreshing") : t("files.refresh")}
+              aria-label={
+                loadingFiles ? t("files.refreshing") : t("files.refresh")
+              }
+              className="flex items-center gap-1 rounded-md border border-slate-300 p-1.5 text-sm disabled:opacity-40"
             >
-              <ArrowPathIcon className="h-4 w-4" aria-hidden="true" />
+              <ArrowPathIcon
+                className={`h-4 w-4 ${loadingFiles ? "animate-spin" : ""}`}
+                aria-hidden="true"
+              />
+              {loadingFiles && (
+                <span className="px-0.5 text-xs">{t("files.refreshing")}</span>
+              )}
             </button>
             <button
               type="button"
               onClick={addDirectory}
               disabled={selectedId === null || path === null || busy}
+              aria-label={t("files.newFolder")}
               title={t("files.newFolder")}
               className="rounded-md border border-slate-300 p-1.5 disabled:opacity-40"
             >
@@ -852,10 +1076,29 @@ export function FileBrowserModal({
               type="button"
               onClick={() => upload.current?.click()}
               disabled={selectedId === null || path === null || busy}
+              aria-label={t("files.upload")}
               title={t("files.upload")}
               className="rounded-md border border-slate-300 p-1.5 disabled:opacity-40"
             >
               <ArrowUpTrayIcon className="h-4 w-4" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowHidden((value) => !value)}
+              aria-pressed={showHidden}
+              aria-label={t("files.showHidden")}
+              title={t("files.showHidden")}
+              className={`rounded-md border p-1.5 ${
+                showHidden
+                  ? "border-slate-400 bg-slate-100 text-slate-900"
+                  : "border-slate-300 text-slate-500"
+              }`}
+            >
+              {showHidden ? (
+                <EyeIcon className="h-4 w-4" aria-hidden="true" />
+              ) : (
+                <EyeSlashIcon className="h-4 w-4" aria-hidden="true" />
+              )}
             </button>
             <input
               ref={upload}
@@ -904,208 +1147,305 @@ export function FileBrowserModal({
           </div>
         )}
 
-        <div className="flex items-center gap-1 overflow-x-auto border-b border-slate-100 px-4 py-2 font-mono text-xs text-slate-600">
-          <button
-            type="button"
-            onClick={() => setPath("/")}
-            className="hover:text-slate-900"
+        <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-2 text-xs text-slate-600">
+          <nav
+            aria-label={t("files.breadcrumb")}
+            className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto font-mono"
           >
-            /
-          </button>
-          {path
-            ?.split("/")
-            .filter(Boolean)
-            .map((segment, index, all) => {
-              const target = `/${all.slice(0, index + 1).join("/")}`;
+            <button
+              type="button"
+              onClick={() => setPath("/")}
+              aria-current={segments.length === 0 ? "page" : undefined}
+              className={`shrink-0 rounded px-0.5 hover:text-slate-900 ${
+                segments.length === 0 ? "font-semibold text-slate-900" : ""
+              }`}
+            >
+              /
+            </button>
+            {segments.map((segment, index) => {
+              const target = `/${segments.slice(0, index + 1).join("/")}`;
+              const current = index === segments.length - 1;
               return (
-                <span key={target} className="flex items-center gap-1">
+                <span
+                  key={target}
+                  className="flex shrink-0 items-center gap-1 whitespace-nowrap"
+                >
                   <button
                     type="button"
                     onClick={() => setPath(target)}
-                    className="hover:text-slate-900"
+                    aria-current={current ? "page" : undefined}
+                    className={`rounded px-0.5 hover:text-slate-900 ${
+                      current ? "font-semibold text-slate-900" : ""
+                    }`}
                   >
                     {segment}
                   </button>
-                  {index < all.length - 1 && <span>/</span>}
+                  {!current && <span aria-hidden="true">/</span>}
                 </span>
               );
             })}
+          </nav>
+          <button
+            type="button"
+            onClick={() => void copyPath()}
+            disabled={path === null}
+            aria-label={t("files.copyPath")}
+            title={t("files.copyPath")}
+            className="shrink-0 rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40"
+          >
+            <ClipboardDocumentIcon className="h-4 w-4" aria-hidden="true" />
+          </button>
         </div>
 
+        {loadError && !fileConfigNeeded && entries.length > 0 && (
+          <p
+            role="alert"
+            className="border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700"
+          >
+            {loadError}
+          </p>
+        )}
+
+        {loadingFiles && entries.length > 0 && (
+          <p
+            role="status"
+            className="border-b border-slate-200 bg-slate-50 px-4 py-1.5 text-xs text-slate-600"
+          >
+            {t("files.refreshing")}
+          </p>
+        )}
+
+        {selectedEntries.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700">
+            <span aria-live="polite">
+              {t("files.selectedCount", { count: selectedEntries.length })}
+            </span>
+            <button
+              type="button"
+              onClick={removeSelected}
+              disabled={busy}
+              className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
+            >
+              {t("files.bulkDelete")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedPaths([])}
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+            >
+              {t("files.clearSelection")}
+            </button>
+          </div>
+        )}
+
         <div className="min-h-0 flex-1 overflow-auto">
-          {loadingFiles && (
+          {loadingFiles && entries.length === 0 && (
             <p className="p-6 text-sm text-slate-500">{t("common.loading")}</p>
           )}
-          {!loadingFiles && loadError && !fileConfigNeeded && (
-            <p className="p-6 text-sm text-red-700">{loadError}</p>
-          )}
-          {server?.fileTransferProtocol &&
-            selectedId !== null &&
-            !loadingFiles && (
-              <table className="w-full text-left text-sm text-slate-900">
-                <thead className="sticky top-0 bg-slate-50 text-xs uppercase text-slate-500">
-                  <tr>
-                    <SortableTh
-                      label={t("common.name")}
-                      sortKey="name"
-                      sort={sort}
-                      onSort={(key) =>
-                        setSort((current) => nextSort(current, key))
-                      }
+          {!loadingFiles &&
+            loadError &&
+            entries.length === 0 &&
+            !fileConfigNeeded && (
+              <p className="p-6 text-sm text-red-700">{loadError}</p>
+            )}
+          {server?.fileTransferProtocol && selectedId !== null && (
+            <table className="w-full text-left text-sm text-slate-900">
+              <thead className="sticky top-0 bg-slate-50 text-xs uppercase text-slate-500">
+                <tr>
+                  <th scope="col" className="w-10 px-4 py-2">
+                    <input
+                      type="checkbox"
+                      aria-label={t("files.selectAll")}
+                      checked={allSelected}
+                      ref={(node) => {
+                        if (node) {
+                          node.indeterminate =
+                            selectedEntries.length > 0 && !allSelected;
+                        }
+                      }}
+                      onChange={toggleSelectAll}
+                      disabled={orderedEntries.length === 0}
+                      className="h-4 w-4 accent-slate-900 disabled:opacity-40"
                     />
-                    <SortableTh
-                      label={t("files.size")}
-                      sortKey="size"
-                      sort={sort}
-                      onSort={(key) =>
-                        setSort((current) => nextSort(current, key))
-                      }
-                    />
-                    <SortableTh
-                      label={t("files.modified")}
-                      sortKey="modified"
-                      sort={sort}
-                      onSort={(key) =>
-                        setSort((current) => nextSort(current, key))
-                      }
-                    />
-                    <th className="px-4 py-2 text-right">
-                      {t("common.actions")}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {orderedEntries.map((entry) => (
-                    <tr
-                      key={entry.path}
-                      className="border-t border-slate-100 hover:bg-slate-50"
+                  </th>
+                  <SortableTh
+                    label={t("common.name")}
+                    sortKey="name"
+                    sort={sort}
+                    onSort={(key) =>
+                      setSort((current) => nextSort(current, key))
+                    }
+                  />
+                  <SortableTh
+                    label={t("files.size")}
+                    sortKey="size"
+                    sort={sort}
+                    onSort={(key) =>
+                      setSort((current) => nextSort(current, key))
+                    }
+                  />
+                  <SortableTh
+                    label={t("files.modified")}
+                    sortKey="modified"
+                    sort={sort}
+                    onSort={(key) =>
+                      setSort((current) => nextSort(current, key))
+                    }
+                  />
+                  <th className="px-4 py-2 text-right">
+                    {t("common.actions")}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {orderedEntries.map((entry) => (
+                  <tr
+                    key={entry.path}
+                    className={`border-t border-slate-100 hover:bg-slate-50 ${
+                      selectedSet.has(entry.path) ? "bg-slate-50" : ""
+                    }`}
+                  >
+                    <td className="px-4 py-2">
+                      <input
+                        type="checkbox"
+                        aria-label={t("files.selectRow", { name: entry.name })}
+                        checked={selectedSet.has(entry.path)}
+                        onChange={() => toggleSelected(entry.path)}
+                        className="h-4 w-4 accent-slate-900"
+                      />
+                    </td>
+                    <td
+                      className="px-4 py-2"
+                      onDoubleClick={() => {
+                        // Un file si scarica già al singolo clic; il doppio
+                        // clic serve solo ad aprire una cartella.
+                        if (entry.isDirectory) setPath(entry.path);
+                      }}
                     >
-                      <td className="px-4 py-2">
-                        <button
-                          type="button"
-                          draggable={!entry.isDirectory}
-                          title={
-                            entry.isDirectory ? entry.name : t("files.download")
+                      <button
+                        type="button"
+                        draggable={!entry.isDirectory}
+                        title={
+                          entry.isDirectory ? entry.name : t("files.download")
+                        }
+                        onDragStart={(event) => {
+                          if (entry.isDirectory || selectedId === null) return;
+                          const url = serverFileDownloadUrl(
+                            selectedId,
+                            entry.path,
+                          );
+                          event.dataTransfer.effectAllowed = "copy";
+                          event.dataTransfer.setData("text/uri-list", url);
+                          event.dataTransfer.setData(
+                            "DownloadURL",
+                            `application/octet-stream:${entry.name}:${url}`,
+                          );
+                        }}
+                        onClick={() => {
+                          if (entry.isDirectory) {
+                            setPath(entry.path);
+                          } else {
+                            void downloadEntry(entry);
                           }
-                          onDragStart={(event) => {
-                            if (entry.isDirectory || selectedId === null)
-                              return;
-                            const url = serverFileDownloadUrl(
-                              selectedId,
-                              entry.path,
-                            );
-                            event.dataTransfer.effectAllowed = "copy";
-                            event.dataTransfer.setData("text/uri-list", url);
-                            event.dataTransfer.setData(
-                              "DownloadURL",
-                              `application/octet-stream:${entry.name}:${url}`,
-                            );
-                          }}
-                          onClick={() => {
-                            if (entry.isDirectory) {
-                              setPath(entry.path);
-                            } else {
+                        }}
+                        className="flex max-w-[28rem] items-center gap-2 truncate text-left text-slate-900 hover:underline"
+                      >
+                        {entry.isDirectory ? (
+                          <FolderIcon
+                            className="h-4 w-4 shrink-0 text-amber-500"
+                            aria-hidden="true"
+                          />
+                        ) : (
+                          <DocumentIcon
+                            className="h-4 w-4 shrink-0 text-slate-400"
+                            aria-hidden="true"
+                          />
+                        )}
+                        <span className="truncate">{entry.name}</span>
+                      </button>
+                    </td>
+                    <td className="px-4 py-2 text-slate-500">
+                      {entry.isDirectory
+                        ? "—"
+                        : formatBytes(entry.size, language)}
+                    </td>
+                    <td className="px-4 py-2 text-slate-500">
+                      {entry.modifiedUtc
+                        ? formatDateTime(entry.modifiedUtc, language)
+                        : "—"}
+                    </td>
+                    <td className="px-4 py-2">
+                      <div className="flex justify-end gap-1">
+                        {!entry.isDirectory && (
+                          <a
+                            href={serverFileDownloadUrl(selectedId, entry.path)}
+                            aria-label={t("files.download")}
+                            title={t("files.download")}
+                            onClick={(event) => {
+                              // Solo il bridge possiede il file: native e web
+                              // lasciano la navigazione normale al webview.
+                              if (downloadRoute !== "bridge") return;
+                              event.preventDefault();
                               void downloadEntry(entry);
-                            }
-                          }}
-                          className="flex max-w-[28rem] items-center gap-2 truncate text-left text-slate-900 hover:underline"
-                        >
-                          {entry.isDirectory ? (
-                            <FolderIcon
-                              className="h-4 w-4 shrink-0 text-amber-500"
-                              aria-hidden="true"
-                            />
-                          ) : (
-                            <DocumentIcon
-                              className="h-4 w-4 shrink-0 text-slate-400"
-                              aria-hidden="true"
-                            />
-                          )}
-                          <span className="truncate">{entry.name}</span>
-                        </button>
-                      </td>
-                      <td className="px-4 py-2 text-slate-500">
-                        {entry.isDirectory
-                          ? "—"
-                          : formatBytes(entry.size, language)}
-                      </td>
-                      <td className="px-4 py-2 text-slate-500">
-                        {entry.modifiedUtc
-                          ? formatDateTime(entry.modifiedUtc, language)
-                          : "—"}
-                      </td>
-                      <td className="px-4 py-2">
-                        <div className="flex justify-end gap-1">
-                          {!entry.isDirectory && (
-                            <a
-                              href={serverFileDownloadUrl(
-                                selectedId,
-                                entry.path,
-                              )}
-                              title={t("files.download")}
-                              onClick={(event) => {
-                                // Solo il bridge possiede il file: native e web
-                                // lasciano la navigazione normale al webview.
-                                if (downloadRoute !== "bridge") return;
-                                event.preventDefault();
-                                void downloadEntry(entry);
-                              }}
-                              className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-                            >
-                              <ArrowDownTrayIcon
-                                className="h-4 w-4"
-                                aria-hidden="true"
-                              />
-                            </a>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => rename(entry)}
-                            disabled={busy}
-                            title={t("common.edit")}
-                            className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40"
+                            }}
+                            className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
                           >
-                            <PencilSquareIcon
+                            <ArrowDownTrayIcon
                               className="h-4 w-4"
                               aria-hidden="true"
                             />
-                          </button>
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => rename(entry)}
+                          disabled={busy}
+                          aria-label={t("files.rename")}
+                          title={t("files.rename")}
+                          className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40"
+                        >
+                          <PencilSquareIcon
+                            className="h-4 w-4"
+                            aria-hidden="true"
+                          />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => remove(entry)}
+                          disabled={busy}
+                          aria-label={t("common.delete")}
+                          title={t("common.delete")}
+                          className="rounded p-1 text-red-500 hover:bg-red-50 disabled:opacity-40"
+                        >
+                          <TrashIcon className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {visibleEntries.length === 0 && !loadingFiles && !loadError && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-6 text-slate-500">
+                      <span className="flex flex-wrap items-center gap-2">
+                        {filter
+                          ? t("files.noMatches", { query: filter })
+                          : t("files.emptyFolder")}
+                        {filter && (
                           <button
                             type="button"
-                            onClick={() => remove(entry)}
-                            disabled={busy}
-                            title={t("common.delete")}
-                            className="rounded p-1 text-red-500 hover:bg-red-50 disabled:opacity-40"
+                            onClick={() => setFilter("")}
+                            className="rounded border border-slate-300 px-2 py-0.5 text-xs hover:bg-slate-100"
                           >
-                            <TrashIcon className="h-4 w-4" aria-hidden="true" />
+                            {t("files.clearFilter")}
                           </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {visibleEntries.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="px-4 py-6 text-slate-500">
-                        <span className="flex flex-wrap items-center gap-2">
-                          {filter
-                            ? t("files.noMatches", { query: filter })
-                            : t("files.emptyFolder")}
-                          {filter && (
-                            <button
-                              type="button"
-                              onClick={() => setFilter("")}
-                              className="rounded border border-slate-300 px-2 py-0.5 text-xs hover:bg-slate-100"
-                            >
-                              {t("files.clearFilter")}
-                            </button>
-                          )}
-                        </span>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            )}
+                        )}
+                      </span>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
 
         {downloadNote && (

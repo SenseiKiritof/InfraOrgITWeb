@@ -10,10 +10,17 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FakeSocket, stubWebSocket } from "../../test/fakeSocket";
 
+const { terminals } = vi.hoisted(() => ({
+  terminals: [] as Array<{ focus: ReturnType<typeof vi.fn> }>,
+}));
+
 vi.mock("@xterm/xterm", () => ({
   Terminal: class {
     cols = 100;
     rows = 30;
+    constructor() {
+      terminals.push(this);
+    }
     open = vi.fn();
     loadAddon = vi.fn();
     focus = vi.fn();
@@ -187,11 +194,27 @@ const visiblePanes = () =>
     .getAllByTestId(/console-pane-/)
     .filter((pane) => !pane.hasAttribute("hidden"));
 
+const visibleFilePanes = () =>
+  screen
+    .getAllByTestId(/^file-pane-/)
+    .filter((pane) => !pane.hasAttribute("hidden"));
+
 const consoleTab = (label: string) =>
   screen.getByRole("button", { name: `Apri la console di ${label}` });
 
-const fileTab = (serverId: number) =>
-  screen.getByTestId(`file-tab-${serverId}`);
+const fileTabButton = (name: string) =>
+  screen.getByRole("button", { name: `Apri la sessione file di ${name}` });
+
+const queryFileTab = (name: string) =>
+  screen.queryByRole("button", { name: `Apri la sessione file di ${name}` });
+
+const fileTab = (name: string) =>
+  fileTabButton(name).closest("div") as HTMLElement;
+
+const fileDialog = (name: string) =>
+  screen
+    .getAllByRole("dialog")
+    .find((dialog) => dialog.textContent?.includes(name)) ?? null;
 
 describe("ConsoleProvider", () => {
   afterEach(() => {
@@ -205,6 +228,7 @@ describe("ConsoleProvider", () => {
     sessionStorage.clear();
     localStorage.clear();
     localStorage.setItem("infraorgit-console-height", "320");
+    terminals.length = 0;
     stubWebSocket();
     vi.stubGlobal("PointerEvent", class extends MouseEvent {});
     vi.stubGlobal(
@@ -339,7 +363,7 @@ describe("ConsoleProvider", () => {
     );
     expect(chooser).toBeTruthy();
     const betaOption = within(chooser).getByRole("option", {
-      name: "srv-beta",
+      name: "Console · srv-beta",
     }) as HTMLOptionElement;
     fireEvent.change(chooser, { target: { value: betaOption.value } });
 
@@ -366,6 +390,156 @@ describe("ConsoleProvider", () => {
     expect(alphaPane.hasAttribute("hidden")).toBe(false);
     expect(screen.getByTestId("console-empty-pane-0")).toBeTruthy();
     expect(visiblePanes()).toHaveLength(2);
+  });
+
+  it("apre due console dello stesso server in due pannelli", () => {
+    renderWithProvider();
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
+
+    expect(screen.getByLabelText("2 pannelli")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(visiblePanes()).toHaveLength(2);
+    expect(FakeSocket.instances).toHaveLength(2);
+    expect(consoleTab("srv-alpha")).toBeTruthy();
+    expect(consoleTab("srv-alpha · #2")).toBeTruthy();
+  });
+
+  it("apre i file accanto alla console senza chiuderla", async () => {
+    stubFilesFetch();
+    render(
+      <ConsoleProvider>
+        <Opener serverId={44} serverName="srv-alpha" />
+        <FilesOpener serverId={44} />
+      </ConsoleProvider>,
+    );
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
+    fireEvent.click(screen.getByText("Apri file 44"));
+
+    await screen.findByRole("button", {
+      name: "Apri la sessione file di srv-alpha",
+    });
+    expect(screen.getByLabelText("2 pannelli")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    // Console e pannello file restano visibili affiancati.
+    expect(visiblePanes()).toHaveLength(1);
+    expect(visibleFilePanes()).toHaveLength(1);
+    expect(terminalHidden()).toBe(false);
+    expect(FakeSocket.instances).toHaveLength(1);
+    expect(FakeSocket.instances[0].readyState).toBe(FakeSocket.OPEN);
+    expect(
+      screen.getByRole("button", { name: /Apri la console di srv-alpha/ }),
+    ).toBeTruthy();
+  });
+
+  it("chiude una sola sessione file lasciando console e altra sessione", async () => {
+    stubFilesFetch();
+    render(
+      <ConsoleProvider>
+        <Opener serverId={44} serverName="srv-alpha" />
+        <FilesOpener serverId={44} />
+        <FilesOpener serverId={45} />
+      </ConsoleProvider>,
+    );
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
+    fireEvent.click(screen.getByText("Apri file 44"));
+    await screen.findByRole("button", {
+      name: "Apri la sessione file di srv-alpha",
+    });
+    fireEvent.click(screen.getByText("Apri file 45"));
+    await screen.findByRole("button", {
+      name: "Apri la sessione file di srv-beta",
+    });
+    expect(visibleFilePanes()).toHaveLength(2);
+
+    fireEvent.click(
+      within(fileDialog("srv-alpha") as HTMLElement).getByLabelText(
+        "Chiudi la sessione file di srv-alpha",
+      ),
+    );
+
+    await waitFor(() => expect(queryFileTab("srv-alpha")).toBeNull());
+    expect(fileTabButton("srv-beta")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /Apri la console di srv-alpha/ }),
+    ).toBeTruthy();
+    expect(visibleFilePanes()).toHaveLength(1);
+    expect(FakeSocket.instances[0].readyState).toBe(FakeSocket.OPEN);
+    await waitFor(() =>
+      expect(
+        fileRequests.some((url) => url.includes("/api/servers/45/files")),
+      ).toBe(true),
+    );
+  });
+
+  it("chiudendo la sessione file attiva attiva il pannello rimasto", async () => {
+    stubFilesFetch();
+    render(
+      <ConsoleProvider>
+        <Opener serverId={44} serverName="srv-alpha" />
+        <FilesOpener serverId={44} />
+      </ConsoleProvider>,
+    );
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
+    fireEvent.click(screen.getByText("Apri file 44"));
+    await screen.findByRole("button", {
+      name: "Apri la sessione file di srv-alpha",
+    });
+
+    const terminal = terminals[0];
+    const focused = terminal.focus.mock.calls.length;
+    fireEvent.click(
+      within(fileDialog("srv-alpha") as HTMLElement).getByLabelText(
+        "Chiudi la sessione file di srv-alpha",
+      ),
+    );
+
+    await waitFor(() =>
+      expect(terminal.focus.mock.calls.length).toBeGreaterThan(focused),
+    );
+  });
+
+  it("il pannello vuoto elenca console e sessioni file", async () => {
+    stubFilesFetch();
+    render(
+      <ConsoleProvider>
+        <Opener serverId={44} serverName="srv-alpha" />
+        <FilesOpener serverId={44} />
+      </ConsoleProvider>,
+    );
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
+    fireEvent.click(screen.getByText("Apri file 44"));
+    await screen.findByRole("button", {
+      name: "Apri la sessione file di srv-alpha",
+    });
+    await waitFor(() =>
+      expect(
+        within(fileTab("srv-alpha")).getByText(
+          "File · srv-alpha · 10.0.0.44 · SFTP",
+        ),
+      ).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByLabelText("3 pannelli"));
+
+    const chooser = screen.getByLabelText(
+      "Scegli la console per questo pannello",
+    );
+    expect(
+      within(chooser).getByRole("option", { name: /Console · srv-alpha/ }),
+    ).toBeTruthy();
+    const fileOption = within(chooser).getByRole("option", {
+      name: "File · srv-alpha",
+    }) as HTMLOptionElement;
+    fireEvent.change(chooser, { target: { value: fileOption.value } });
+
+    // Il pannello 1 torna vuoto, il file ora occupa il pannello 3.
+    expect(screen.getByTestId("console-empty-pane-1")).toBeTruthy();
+    expect(visibleFilePanes()).toHaveLength(1);
+    expect(visiblePanes()).toHaveLength(1);
   });
 
   it("espande la console, torna all'altezza scelta e la persiste", () => {
@@ -462,15 +636,10 @@ describe("ConsoleProvider", () => {
 
   it("segnala l'output non visto anche con il pannello minimizzato", () => {
     vi.useFakeTimers();
-    render(
-      <ConsoleProvider>
-        <Opener serverId={44} serverName="srv-alpha" />
-        <Opener serverId={45} serverName="srv-beta" />
-      </ConsoleProvider>,
-    );
+    renderWithProvider();
     fireEvent.click(screen.getByText("Apri console srv-alpha"));
-    fireEvent.click(screen.getByText("Apri console srv-beta"));
-    // srv-alpha è stato sostituito nel pannello unico: il suo output è non visto.
+    // Il "Riduci" del pannello sposta la console nella barra.
+    fireEvent.click(screen.getByText("Riduci"));
     const socket = FakeSocket.instances[0];
 
     act(() => {
@@ -521,10 +690,14 @@ describe("ConsoleProvider", () => {
     renderFiles();
     fireEvent.click(screen.getByText("Apri file 44"));
 
-    await screen.findByTestId("file-tab-44");
+    await screen.findByRole("button", {
+      name: "Apri la sessione file di srv-alpha",
+    });
     await waitFor(() =>
       expect(
-        within(fileTab(44)).getByText("File · srv-alpha · 10.0.0.44 · SFTP"),
+        within(fileTab("srv-alpha")).getByText(
+          "File · srv-alpha · 10.0.0.44 · SFTP",
+        ),
       ).toBeTruthy(),
     );
     fireEvent.click(await screen.findByText("sub"));
@@ -540,7 +713,7 @@ describe("ConsoleProvider", () => {
       await screen.findByLabelText("Riduci la sessione file di srv-alpha"),
     );
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(fileTab(44)).toBeTruthy();
+    expect(fileTabButton("srv-alpha")).toBeTruthy();
 
     const before = fileRequests.length;
     fireEvent.click(screen.getByText("Apri file 44"));
@@ -557,7 +730,9 @@ describe("ConsoleProvider", () => {
     );
     const reopened = fileRequests.length;
     fireEvent.click(
-      within(fileTab(44)).getByLabelText(/Apri la sessione file di srv-alpha/),
+      within(fileTab("srv-alpha")).getByLabelText(
+        /Apri la sessione file di srv-alpha/,
+      ),
     );
     await waitFor(() =>
       expect(
@@ -572,7 +747,9 @@ describe("ConsoleProvider", () => {
     stubFilesFetch();
     renderFiles();
     fireEvent.click(screen.getByText("Apri file 44"));
-    await screen.findByTestId("file-tab-44");
+    await screen.findByRole("button", {
+      name: "Apri la sessione file di srv-alpha",
+    });
     await screen.findByText("sub");
 
     const dialog = screen.getByRole("dialog");
@@ -580,7 +757,7 @@ describe("ConsoleProvider", () => {
       within(dialog).getByLabelText("Chiudi la sessione file di srv-alpha"),
     );
 
-    await waitFor(() => expect(screen.queryByTestId("file-tab-44")).toBeNull());
+    await waitFor(() => expect(queryFileTab("srv-alpha")).toBeNull());
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
@@ -588,7 +765,9 @@ describe("ConsoleProvider", () => {
     stubFilesFetch();
     renderFiles();
     fireEvent.click(screen.getByText("Apri file 44"));
-    await screen.findByTestId("file-tab-44");
+    await screen.findByRole("button", {
+      name: "Apri la sessione file di srv-alpha",
+    });
     fireEvent.click(await screen.findByText("sub"));
     await waitFor(() =>
       expect(
@@ -602,10 +781,14 @@ describe("ConsoleProvider", () => {
     );
 
     fireEvent.click(screen.getByText("Apri file 45"));
-    await screen.findByTestId("file-tab-45");
+    await screen.findByRole("button", {
+      name: "Apri la sessione file di srv-beta",
+    });
     await waitFor(() =>
       expect(
-        within(fileTab(45)).getByText("File · srv-beta · 10.0.0.45 · FTP"),
+        within(fileTab("srv-beta")).getByText(
+          "File · srv-beta · 10.0.0.45 · FTP",
+        ),
       ).toBeTruthy(),
     );
     fireEvent.click(await screen.findByText("docs"));
@@ -621,16 +804,18 @@ describe("ConsoleProvider", () => {
     );
 
     fireEvent.click(
-      within(fileTab(44)).getByLabelText(
+      within(fileTab("srv-alpha")).getByLabelText(
         "Chiudi la sessione file di srv-alpha",
       ),
     );
-    await waitFor(() => expect(screen.queryByTestId("file-tab-44")).toBeNull());
-    expect(fileTab(45)).toBeTruthy();
+    await waitFor(() => expect(queryFileTab("srv-alpha")).toBeNull());
+    expect(fileTabButton("srv-beta")).toBeTruthy();
 
     const before = fileRequests.length;
     fireEvent.click(
-      within(fileTab(45)).getByLabelText(/Apri la sessione file di srv-beta/),
+      within(fileTab("srv-beta")).getByLabelText(
+        /Apri la sessione file di srv-beta/,
+      ),
     );
     await waitFor(() =>
       expect(
@@ -645,38 +830,42 @@ describe("ConsoleProvider", () => {
     stubFilesFetch();
     renderFiles();
     fireEvent.click(screen.getByText("Apri file 44"));
-    await screen.findByTestId("file-tab-44");
+    await screen.findByRole("button", {
+      name: "Apri la sessione file di srv-alpha",
+    });
     await screen.findByText("sub");
     fireEvent.click(screen.getByText("Apri file 45"));
-    await screen.findByTestId("file-tab-45");
+    await screen.findByRole("button", {
+      name: "Apri la sessione file di srv-beta",
+    });
     await screen.findByText("docs");
 
-    const activeDialog = screen.getByRole("dialog");
+    const activeDialog = fileDialog("srv-beta");
+    expect(activeDialog).not.toBeNull();
     fireEvent.click(
-      within(activeDialog).getByLabelText(
+      within(activeDialog as HTMLElement).getByLabelText(
         "Chiudi la sessione file di srv-beta",
       ),
     );
 
-    await waitFor(() => expect(screen.queryByTestId("file-tab-45")).toBeNull());
-    expect(fileTab(44)).toBeTruthy();
+    await waitFor(() => expect(queryFileTab("srv-beta")).toBeNull());
+    expect(fileTabButton("srv-alpha")).toBeTruthy();
+    // La sessione 44 non è stata toccata: torna visibile con la sua lista.
+    expect(fileDialog("srv-alpha")).not.toBeNull();
     expect(await screen.findByText("sub")).toBeInTheDocument();
-    expect(
-      fileRequests.some((url) =>
-        url.includes("/api/servers/44/files?path=%2Fhome%2Falpha"),
-      ),
-    ).toBe(true);
   });
 
   it("chiude le sessioni file al logout", async () => {
     stubFilesFetch();
     renderFiles();
     fireEvent.click(screen.getByText("Apri file 44"));
-    await screen.findByTestId("file-tab-44");
+    await screen.findByRole("button", {
+      name: "Apri la sessione file di srv-alpha",
+    });
 
     act(() => clearConsoleSessions());
 
-    await waitFor(() => expect(screen.queryByTestId("file-tab-44")).toBeNull());
+    await waitFor(() => expect(queryFileTab("srv-alpha")).toBeNull());
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
@@ -711,7 +900,11 @@ describe("ConsoleProvider", () => {
     fireEvent.change(search, { target: { value: "beta.acme.example" } });
     fireEvent.click(screen.getByText("srv-beta"));
 
-    expect(await screen.findByTestId("file-tab-45")).toBeTruthy();
+    expect(
+      await screen.findByRole("button", {
+        name: "Apri la sessione file di srv-beta",
+      }),
+    ).toBeTruthy();
     await waitFor(() =>
       expect(
         fileRequests.some((url) => url.includes("/api/servers/45/files")),

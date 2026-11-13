@@ -50,10 +50,14 @@ type Session = {
 type Activity = "idle" | "receiving" | "unread";
 
 type FileSession = {
+  id: string;
   serverId: number;
   serverName: string | null;
   path: string | null;
-  visible: boolean;
+  /** Indice del pannello (0-2), null quando la sessione è ridotta. */
+  pane: number | null;
+  /** Cambia a ogni riapertura per forzare una nuova connessione. */
+  epoch: number;
 };
 
 type ConsoleApi = {
@@ -169,15 +173,45 @@ function loadSessions(): Session[] {
   }
 }
 
-function nextFreePane(
+function usedPanes(sessions: Session[], files: FileSession[]): Set<number> {
+  const used = new Set<number>();
+  for (const session of sessions)
+    if (session.pane !== null) used.add(session.pane);
+  for (const session of files)
+    if (session.pane !== null) used.add(session.pane);
+  return used;
+}
+
+/** Primo pannello occupato da una console o da una sessione file. */
+function firstRenderedPane(
   sessions: Session[],
+  files: FileSession[],
   layout: PaneCount,
-  fallback: number,
-): number {
-  for (let index = 0; index < layout; index += 1) {
-    if (!sessions.some((session) => session.pane === index)) return index;
+): number | null {
+  let first: number | null = null;
+  for (const item of [...sessions, ...files]) {
+    if (item.pane === null || item.pane >= layout) continue;
+    if (first === null || item.pane < first) first = item.pane;
   }
-  return Math.min(Math.max(fallback, 0), layout - 1);
+  return first;
+}
+
+/** ` · #2`, ` · #3`… per la seconda console/file dello stesso server. */
+function ordinalSuffix(index: number): string {
+  return index > 0 ? ` · #${index + 1}` : "";
+}
+
+/** Primo pannello libero; allarga il layout fino a 3 prima di sostituire. */
+function choosePane(
+  layout: PaneCount,
+  used: Set<number>,
+  fallback: number,
+): { pane: number; layout: PaneCount } {
+  for (let index = 0; index < layout; index += 1) {
+    if (!used.has(index)) return { pane: index, layout };
+  }
+  if (layout < 3) return { pane: layout, layout: (layout + 1) as PaneCount };
+  return { pane: Math.min(Math.max(fallback, 0), layout - 1), layout };
 }
 
 function detailsOf(info?: ConsoleServerInfo) {
@@ -210,8 +244,9 @@ function persistDockHeight(height: number) {
 const ConsoleContext = createContext<ConsoleApi | null>(null);
 
 /**
- * Console SSH in un dock in basso: tab per server, 1-3 pannelli scelti
- * dall'utente, divisori ridimensionabili e avvisi di output non visto.
+ * Console SSH e pannelli file in un dock in basso: tab per sessione, 1-3
+ * pannelli condivisi tra console e SFTP, divisori ridimensionabili e avvisi
+ * di output non visto.
  */
 export function ConsoleProvider({ children }: { children: ReactNode }) {
   const { t } = useI18n();
@@ -231,12 +266,8 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
   const [launcherQuery, setLauncherQuery] = useState("");
   const [filesOpen, setFilesOpen] = useState(false);
   const [fileSessions, setFileSessions] = useState<FileSession[]>([]);
-  const [activeFileServerId, setActiveFileServerId] = useState<number | null>(
-    null,
-  );
   const [expanded, setExpanded] = useState(false);
   const [consoleCollapsed, setConsoleCollapsed] = useState(false);
-  const [fileSessionEpoch, setFileSessionEpoch] = useState(0);
   const [dockHeight, setDockHeight] = useState(storedDockHeight);
   const [paneWidths, setPaneWidths] = useState<PaneWidths>([
     100 / 3,
@@ -244,6 +275,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
     100 / 3,
   ]);
   const sessionsRef = useRef(sessions);
+  const fileSessionsRef = useRef(fileSessions);
   const layoutRef = useRef(layout);
   const activePaneRef = useRef(activePane);
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
@@ -349,6 +381,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     sessionsRef.current = sessions;
+    fileSessionsRef.current = fileSessions;
     layoutRef.current = layout;
     activePaneRef.current = activePane;
     setActivity((current) => {
@@ -362,21 +395,19 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
       }
       return next;
     });
-  }, [sessions, layout, activePane]);
+  }, [sessions, fileSessions, layout, activePane]);
 
   useEffect(() => {
-    const current = sessions.some(
+    const occupant = [...sessions, ...fileSessions].some(
       (session) =>
         session.pane === activePane &&
         session.pane !== null &&
         session.pane < layout,
     );
-    if (current) return;
-    const rendered = sessions.find(
-      (session) => session.pane !== null && session.pane < layout,
-    );
-    if (rendered && rendered.pane !== null) setActivePane(rendered.pane);
-  }, [sessions, layout, activePane]);
+    if (occupant) return;
+    const next = firstRenderedPane(sessions, fileSessions, layout);
+    if (next !== null) setActivePane(next);
+  }, [sessions, fileSessions, layout, activePane]);
 
   useEffect(() => {
     if (!expanded) return;
@@ -433,76 +464,69 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
   const focusConsole = useCallback(() => {
     setConsoleCollapsed(false);
     setFilesOpen(false);
-    setFileSessions((current) =>
-      current.map((session) => ({ ...session, visible: false })),
-    );
   }, []);
 
   const open = useCallback(
     (serverId: number, serverName: string, info?: ConsoleServerInfo) => {
       focusConsole();
-      const current = sessionsRef.current;
       const details = detailsOf(info);
-      const existing = current.find((session) => session.serverId === serverId);
-      if (existing) {
-        const target =
-          existing.pane !== null && existing.pane < layoutRef.current
-            ? existing.pane
-            : nextFreePane(current, layoutRef.current, activePaneRef.current);
-        setSessions((previous) =>
-          previous.map((session) => {
-            if (session.id === existing.id)
-              return {
-                ...session,
-                serverName,
-                ipAddress: details.ipAddress ?? session.ipAddress,
-                hostname: details.hostname ?? session.hostname,
-                environment: details.environment ?? session.environment,
-                pane: target,
-              };
-            return session.pane === target
-              ? { ...session, pane: null }
-              : session;
-          }),
-        );
-        setActivePane(target);
-        return;
-      }
-
-      const target = nextFreePane(
-        current,
+      const choice = choosePane(
         layoutRef.current,
+        usedPanes(sessionsRef.current, fileSessionsRef.current),
         activePaneRef.current,
       );
-      const id = newSessionId();
+      setLayout(choice.layout);
       setSessions((previous) => [
         ...previous.map((session) =>
-          session.pane === target ? { ...session, pane: null } : session,
+          session.pane === choice.pane ? { ...session, pane: null } : session,
         ),
         {
-          id,
+          id: newSessionId(),
           serverId,
           serverName,
           ipAddress: details.ipAddress,
           hostname: details.hostname,
           environment: details.environment,
-          pane: target,
+          pane: choice.pane,
         },
       ]);
-      setActivePane(target);
+      setFileSessions((previous) =>
+        previous.map((session) =>
+          session.pane === choice.pane ? { ...session, pane: null } : session,
+        ),
+      );
+      setActivePane(choice.pane);
     },
     [focusConsole],
   );
 
-  const assignToPane = useCallback((id: string, pane: number) => {
-    setSessions((current) =>
-      current.map((session) => {
-        if (session.id === id) return { ...session, pane };
-        return session.pane === pane ? { ...session, pane: null } : session;
-      }),
-    );
-    setActivePane(pane);
-  }, []);
+  /** Mette una console o una sessione file in un pannello, liberando l'occupante. */
+  const assignPane = useCallback(
+    (kind: "console" | "files", id: string, pane: number) => {
+      setSessions((current) =>
+        current.map((session) => {
+          if (kind === "console" && session.id === id)
+            return { ...session, pane };
+          return session.pane === pane ? { ...session, pane: null } : session;
+        }),
+      );
+      setFileSessions((current) =>
+        current.map((session) => {
+          if (kind === "files" && session.id === id)
+            return {
+              ...session,
+              pane,
+              // Riaprire una sessione ridotta rinnova la connessione.
+              epoch: session.pane === null ? session.epoch + 1 : session.epoch,
+            };
+          return session.pane === pane ? { ...session, pane: null } : session;
+        }),
+      );
+      setActivePane(pane);
+      setConsoleCollapsed(false);
+    },
+    [],
+  );
 
   const select = useCallback(
     (id: string) => {
@@ -514,20 +538,15 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
         setActivePane(session.pane);
         return;
       }
-      const target = nextFreePane(
-        current,
+      const choice = choosePane(
         layoutRef.current,
+        usedPanes(current, fileSessionsRef.current),
         activePaneRef.current,
       );
-      setSessions((previous) =>
-        previous.map((item) => {
-          if (item.id === id) return { ...item, pane: target };
-          return item.pane === target ? { ...item, pane: null } : item;
-        }),
-      );
-      setActivePane(target);
+      setLayout(choice.layout);
+      assignPane("console", id, choice.pane);
     },
-    [focusConsole],
+    [focusConsole, assignPane],
   );
 
   const minimize = useCallback((id: string) => {
@@ -538,14 +557,13 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
         session.id === id ? { ...session, pane: null } : session,
       ),
     );
-    if (target?.pane !== activePaneRef.current) return;
-    const remaining = current.find(
-      (session) =>
-        session.id !== id &&
-        session.pane !== null &&
-        session.pane < layoutRef.current,
+    if (target?.pane == null || target.pane !== activePaneRef.current) return;
+    const next = firstRenderedPane(
+      current.filter((session) => session.id !== id),
+      fileSessionsRef.current,
+      layoutRef.current,
     );
-    if (remaining?.pane != null) setActivePane(remaining.pane);
+    if (next !== null) setActivePane(next);
   }, []);
 
   const close = useCallback((id: string) => {
@@ -568,14 +586,13 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
       delete next[id];
       return next;
     });
-    if (target?.pane === activePaneRef.current) {
-      const remaining = sessionsRef.current.find(
-        (session) =>
-          session.id !== id &&
-          session.pane !== null &&
-          session.pane < layoutRef.current,
+    if (target?.pane != null && target.pane === activePaneRef.current) {
+      const next = firstRenderedPane(
+        sessionsRef.current.filter((session) => session.id !== id),
+        fileSessionsRef.current,
+        layoutRef.current,
       );
-      if (remaining?.pane != null) setActivePane(remaining.pane);
+      if (next !== null) setActivePane(next);
     }
   }, []);
 
@@ -597,6 +614,9 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
     const removed = sessionsRef.current.filter(
       (session) => session.serverId === serverId,
     );
+    const removedFiles = fileSessionsRef.current.filter(
+      (session) => session.serverId === serverId,
+    );
     for (const session of removed) {
       const timer = timers.current.get(session.id);
       if (timer) clearTimeout(timer);
@@ -611,79 +631,154 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
       for (const session of removed) delete next[session.id];
       return next;
     });
-    if (removed.some((session) => session.pane === activePaneRef.current)) {
-      const remaining = sessionsRef.current.find(
-        (session) =>
-          session.serverId !== serverId &&
-          session.pane !== null &&
-          session.pane < layoutRef.current,
-      );
-      if (remaining?.pane != null) setActivePane(remaining.pane);
-    }
     setFileSessions((current) =>
       current.filter((session) => session.serverId !== serverId),
     );
+    if (
+      [...removed, ...removedFiles].some(
+        (session) => session.pane === activePaneRef.current,
+      )
+    ) {
+      const next = firstRenderedPane(
+        sessionsRef.current.filter((session) => session.serverId !== serverId),
+        fileSessionsRef.current.filter(
+          (session) => session.serverId !== serverId,
+        ),
+        layoutRef.current,
+      );
+      if (next !== null) setActivePane(next);
+    }
   }, []);
 
   const showFileSession = useCallback(
-    (serverId: number, serverName?: string) => {
-      setConsoleCollapsed(true);
-      setFileSessionEpoch((value) => value + 1);
-      setFileSessions((current) => {
-        const existing = current.some(
-          (session) => session.serverId === serverId,
-        );
-        const hidden = current.map((session) => ({
-          ...session,
-          visible: false,
-        }));
-        if (!existing) {
-          return [
-            ...hidden,
-            {
-              serverId,
-              serverName: serverName ?? null,
-              path: null,
-              visible: true,
-            },
-          ];
-        }
-        return hidden.map((session) =>
-          session.serverId === serverId
-            ? {
+    (serverId: number, serverName?: string, forceNew = true) => {
+      setConsoleCollapsed(false);
+      setFilesOpen(false);
+      const current = fileSessionsRef.current;
+      const used = usedPanes(sessionsRef.current, current);
+      const existing = forceNew
+        ? undefined
+        : current.find((session) => session.serverId === serverId);
+      if (existing) {
+        const choice =
+          existing.pane !== null && existing.pane < layoutRef.current
+            ? { pane: existing.pane, layout: layoutRef.current }
+            : choosePane(layoutRef.current, used, activePaneRef.current);
+        setLayout(choice.layout);
+        setFileSessions((previous) =>
+          previous.map((session) => {
+            if (session.id === existing.id)
+              return {
                 ...session,
                 serverName: session.serverName ?? serverName ?? null,
-                visible: true,
-              }
-            : session,
+                pane: choice.pane,
+                epoch: session.epoch + 1,
+              };
+            return session.pane === choice.pane
+              ? { ...session, pane: null }
+              : session;
+          }),
         );
-      });
-      setActiveFileServerId(serverId);
+        setSessions((previous) =>
+          previous.map((session) =>
+            session.pane === choice.pane ? { ...session, pane: null } : session,
+          ),
+        );
+        setActivePane(choice.pane);
+        return;
+      }
+
+      const choice = choosePane(layoutRef.current, used, activePaneRef.current);
+      setLayout(choice.layout);
+      setSessions((previous) =>
+        previous.map((session) =>
+          session.pane === choice.pane ? { ...session, pane: null } : session,
+        ),
+      );
+      setFileSessions((previous) => [
+        ...previous.map((session) =>
+          session.pane === choice.pane ? { ...session, pane: null } : session,
+        ),
+        {
+          id: newSessionId(),
+          serverId,
+          serverName: serverName ?? null,
+          path: null,
+          pane: choice.pane,
+          epoch: 0,
+        },
+      ]);
+      setActivePane(choice.pane);
     },
     [],
   );
 
-  const hideFileSession = useCallback((serverId: number) => {
-    setFileSessions((current) =>
-      current.map((session) =>
-        session.serverId === serverId
-          ? { ...session, visible: false }
-          : session,
+  /** Riporta in primo piano una sessione file ridotta, ricaricandola. */
+  const selectFile = useCallback((id: string) => {
+    const current = fileSessionsRef.current;
+    const session = current.find((item) => item.id === id);
+    if (!session) return;
+    const choice =
+      session.pane !== null && session.pane < layoutRef.current
+        ? { pane: session.pane, layout: layoutRef.current }
+        : choosePane(
+            layoutRef.current,
+            usedPanes(sessionsRef.current, current),
+            activePaneRef.current,
+          );
+    setLayout(choice.layout);
+    setSessions((previous) =>
+      previous.map((item) =>
+        item.pane === choice.pane ? { ...item, pane: null } : item,
       ),
     );
-  }, []);
-
-  const closeFileSession = useCallback((serverId: number) => {
-    setFileSessions((current) =>
-      current.filter((session) => session.serverId !== serverId),
+    setFileSessions((previous) =>
+      previous.map((item) => {
+        if (item.id === id)
+          return { ...item, pane: choice.pane, epoch: item.epoch + 1 };
+        return item.pane === choice.pane ? { ...item, pane: null } : item;
+      }),
     );
+    setActivePane(choice.pane);
+    setConsoleCollapsed(false);
+    setFilesOpen(false);
   }, []);
 
-  const updateFilePath = useCallback((serverId: number, path: string) => {
-    setFileSessions((current) => {
-      const index = current.findIndex(
-        (session) => session.serverId === serverId,
+  const minimizeFileSession = useCallback((id: string) => {
+    const current = fileSessionsRef.current;
+    const target = current.find((session) => session.id === id);
+    setFileSessions((previous) =>
+      previous.map((session) =>
+        session.id === id ? { ...session, pane: null } : session,
+      ),
+    );
+    if (target?.pane == null || target.pane !== activePaneRef.current) return;
+    const next = firstRenderedPane(
+      sessionsRef.current,
+      current.filter((session) => session.id !== id),
+      layoutRef.current,
+    );
+    if (next !== null) setActivePane(next);
+  }, []);
+
+  const closeFileSession = useCallback((id: string) => {
+    const target = fileSessionsRef.current.find((session) => session.id === id);
+    setFileSessions((current) =>
+      current.filter((session) => session.id !== id),
+    );
+    if (target?.pane != null && target.pane === activePaneRef.current) {
+      const next = firstRenderedPane(
+        sessionsRef.current,
+        fileSessionsRef.current.filter((session) => session.id !== id),
+        layoutRef.current,
       );
+      if (next !== null) setActivePane(next);
+    }
+  }, []);
+
+  const updateFilePath = useCallback((id: string, path: string) => {
+    setFileSessions((current) => {
+      const index = current.findIndex((session) => session.id === id);
       if (index < 0 || current[index].path === path) return current;
       const next = [...current];
       next[index] = { ...next[index], path };
@@ -694,11 +789,10 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
   const openFiles = useCallback(
     (serverId: number | null) => {
       if (serverId === null) {
-        setConsoleCollapsed(true);
         setFilesOpen(true);
         return;
       }
-      showFileSession(serverId);
+      showFileSession(serverId, undefined, false);
     },
     [showFileSession],
   );
@@ -712,25 +806,6 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    if (
-      activeFileServerId !== null &&
-      fileSessions.some((session) => session.serverId === activeFileServerId)
-    )
-      return;
-    const next = fileSessions[0] ?? null;
-    setActiveFileServerId(next?.serverId ?? null);
-    if (next && !next.visible) {
-      setFileSessions((current) =>
-        current.map((session) =>
-          session.serverId === next.serverId
-            ? { ...session, visible: true }
-            : session,
-        ),
-      );
-    }
-  }, [fileSessions, activeFileServerId]);
-
-  useEffect(() => {
     const clear = () => {
       for (const timer of timers.current.values()) clearTimeout(timer);
       timers.current.clear();
@@ -740,7 +815,6 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
       setLauncherOpen(false);
       setExpanded(false);
       setFileSessions([]);
-      setActiveFileServerId(null);
       setFilesOpen(false);
     };
     window.addEventListener(FILE_SESSIONS_CLEAR_EVENT, clear);
@@ -755,8 +829,16 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
   const changeLayout = useCallback((next: PaneCount) => {
     setLayout(next);
     setActivePane((current) => Math.min(current, next - 1));
-    // Le console dei pannelli rimossi restano nelle tab, pronte a riaprirsi.
+    // Console e sessioni file dei pannelli rimossi restano nella barra,
+    // pronte a riaprirsi.
     setSessions((current) =>
+      current.map((session) =>
+        session.pane !== null && session.pane >= next
+          ? { ...session, pane: null }
+          : session,
+      ),
+    );
+    setFileSessions((current) =>
       current.map((session) =>
         session.pane !== null && session.pane >= next
           ? { ...session, pane: null }
@@ -862,13 +944,18 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
   const renderedSessions = sessions.filter(
     (session) => session.pane !== null && session.pane < layout,
   );
+  const renderedFiles = fileSessions.filter(
+    (session) => session.pane !== null && session.pane < layout,
+  );
   const activeSession = sessions.find(
     (session) =>
       session.pane === activePane &&
       session.pane !== null &&
       session.pane < layout,
   );
-  const dockOpen = renderedSessions.length > 0 && !consoleCollapsed;
+  const dockOpen =
+    (renderedSessions.length > 0 || renderedFiles.length > 0) &&
+    !consoleCollapsed;
   const paddedHeight = dockOpen
     ? expanded
       ? "calc(100vh - 4rem)"
@@ -877,30 +964,39 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
   const panelHeight = expanded
     ? "calc(100vh - 4rem - 2.75rem)"
     : `${dockHeight}px`;
-  const activeFileSession =
-    fileSessions.find((session) => session.serverId === activeFileServerId) ??
-    null;
   const serverById = (serverId: number) =>
     serverList.find((server) => server.id === serverId) ?? null;
   const fileSessionName = (session: FileSession) =>
     session.serverName ??
     serverById(session.serverId)?.name ??
     `#${session.serverId}`;
+  const fileOrdinal = (session: FileSession) =>
+    ordinalSuffix(
+      fileSessions
+        .filter((item) => item.serverId === session.serverId)
+        .findIndex((item) => item.id === session.id),
+    );
   const fileSessionLabel = (session: FileSession) => {
     const server = serverById(session.serverId);
     return [
       t("files.tabPrefix"),
-      fileSessionName(session),
+      `${fileSessionName(session)}${fileOrdinal(session)}`,
       server?.ipAddress,
       server?.fileTransferProtocol?.toUpperCase(),
     ]
       .filter(Boolean)
       .join(" · ");
   };
+  const consoleOrdinal = (session: Session) =>
+    ordinalSuffix(
+      sessions
+        .filter((item) => item.serverId === session.serverId)
+        .findIndex((item) => item.id === session.id),
+    );
   const sessionLabel = (session: Session) =>
     [session.serverName, session.ipAddress, session.hostname]
       .filter(Boolean)
-      .join(" · ");
+      .join(" · ") + consoleOrdinal(session);
 
   useEffect(() => {
     document.documentElement.style.setProperty(
@@ -940,7 +1036,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
             className="pointer-events-auto relative min-h-0 flex-1"
           >
             {Array.from({ length: layout }, (_, index) => {
-              const occupied = renderedSessions.some(
+              const occupied = [...renderedSessions, ...renderedFiles].some(
                 (session) => session.pane === index,
               );
               if (occupied) return null;
@@ -963,15 +1059,33 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                       aria-label={t("console.choosePane")}
                       value=""
                       onChange={(event) => {
-                        if (event.target.value)
-                          assignToPane(event.target.value, index);
+                        const value = event.target.value;
+                        if (!value) return;
+                        const separator = value.indexOf(":");
+                        const kind =
+                          value.slice(0, separator) === "files"
+                            ? "files"
+                            : "console";
+                        assignPane(kind, value.slice(separator + 1), index);
                       }}
                       className="max-w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-xs text-slate-100"
                     >
                       <option value="">{t("console.choosePane")}</option>
                       {sessions.map((session) => (
-                        <option key={session.id} value={session.id}>
-                          {sessionLabel(session)}
+                        <option
+                          key={`console-${session.id}`}
+                          value={`console:${session.id}`}
+                        >
+                          {t("console.label")} · {sessionLabel(session)}
+                        </option>
+                      ))}
+                      {fileSessions.map((session) => (
+                        <option
+                          key={`files-${session.id}`}
+                          value={`files:${session.id}`}
+                        >
+                          {t("files.label")} · {fileSessionName(session)}
+                          {fileOrdinal(session)}
                         </option>
                       ))}
                     </select>
@@ -987,6 +1101,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                   key={session.id}
                   data-testid={`console-pane-${session.id}`}
                   hidden={!shown}
+                  className="min-w-0 overflow-hidden"
                   style={
                     shown
                       ? {
@@ -1002,19 +1117,60 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                 >
                   <ConsoleModal
                     serverId={session.serverId}
-                    serverName={session.serverName}
+                    serverName={`${session.serverName}${consoleOrdinal(session)}`}
                     visible={shown}
                     active={shown && session.id === activeSession?.id}
                     closing={session.closing}
                     resumeId={session.resumeId}
                     pane={session.pane ?? 0}
                     paneCount={layout}
-                    onMovePane={(pane) => assignToPane(session.id, pane)}
+                    onMovePane={(pane) =>
+                      assignPane("console", session.id, pane)
+                    }
                     onSessionId={(resumeId) => attach(session.id, resumeId)}
                     onData={() => observeData(session.id)}
                     onActivate={() => setActivePane(session.pane ?? 0)}
                     onMinimize={() => minimize(session.id)}
                     onClose={() => remove(session.id)}
+                  />
+                </div>
+              );
+            })}
+
+            {fileSessions.map((session) => {
+              const shown = session.pane !== null && session.pane < layout;
+              return (
+                <div
+                  key={`${session.id}-${session.epoch}`}
+                  data-testid={`file-pane-${session.id}`}
+                  hidden={!shown}
+                  className="min-w-0 overflow-hidden"
+                  style={
+                    shown
+                      ? {
+                          position: "absolute",
+                          left: `${paneLeft(session.pane ?? 0)}%`,
+                          width: `${paneWidth(session.pane ?? 0)}%`,
+                          top: 0,
+                          bottom: 0,
+                          padding: "0 0.25rem",
+                        }
+                      : undefined
+                  }
+                >
+                  <FileBrowserModal
+                    embedded
+                    open
+                    serverId={session.serverId}
+                    initialPath={session.path}
+                    active={shown && session.pane === activePane}
+                    pane={session.pane ?? 0}
+                    paneCount={layout}
+                    onMovePane={(pane) => assignPane("files", session.id, pane)}
+                    onActivate={() => setActivePane(session.pane ?? 0)}
+                    onPathChange={(path) => updateFilePath(session.id, path)}
+                    onClose={() => minimizeFileSession(session.id)}
+                    onCloseSession={() => closeFileSession(session.id)}
                   />
                 </div>
               );
@@ -1157,12 +1313,8 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                   </button>
                   <button
                     type="button"
-                    aria-label={t("console.closeSession", {
-                      name: session.serverName,
-                    })}
-                    title={t("console.closeSession", {
-                      name: session.serverName,
-                    })}
+                    aria-label={t("console.closeSession", { name: label })}
+                    title={t("console.closeSession", { name: label })}
                     onClick={() => close(session.id)}
                     className="px-1.5 py-1 text-slate-500 hover:text-slate-900"
                   >
@@ -1172,34 +1324,33 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
               );
             })}
             {fileSessions.map((session) => {
-              const name = fileSessionName(session);
+              const name = `${fileSessionName(session)}${fileOrdinal(session)}`;
               const label = fileSessionLabel(session);
+              const shown = session.pane !== null && session.pane < layout;
               return (
                 <div
-                  key={`files-${session.serverId}`}
-                  data-testid={`file-tab-${session.serverId}`}
+                  key={`files-${session.id}`}
+                  data-testid={`file-tab-${session.id}`}
                   className={`flex shrink-0 items-center rounded ${
-                    session.serverId === activeFileServerId
-                      ? "bg-slate-100"
-                      : ""
+                    shown && session.pane === activePane ? "bg-slate-100" : ""
                   }`}
                 >
                   <button
                     type="button"
-                    onClick={() => showFileSession(session.serverId)}
+                    onClick={() => selectFile(session.id)}
                     title={label}
                     aria-label={t("files.openSession", { name })}
                     className="flex items-center gap-1.5 py-1.5 pr-1 pl-2 text-xs"
                   >
                     <FolderIcon
                       className={`h-3.5 w-3.5 shrink-0 ${
-                        session.visible ? "text-amber-400" : "text-slate-500"
+                        shown ? "text-amber-400" : "text-slate-500"
                       }`}
                       aria-hidden="true"
                     />
                     <span
                       className={`max-w-[16rem] truncate ${
-                        session.visible ? "" : "text-slate-500"
+                        shown ? "" : "text-slate-500"
                       }`}
                     >
                       {label}
@@ -1209,7 +1360,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                     type="button"
                     aria-label={t("files.closeSession", { name })}
                     title={t("files.closeSession", { name })}
-                    onClick={() => closeFileSession(session.serverId)}
+                    onClick={() => closeFileSession(session.id)}
                     className="px-1.5 py-1 text-slate-500 hover:text-slate-900"
                   >
                     ×
@@ -1229,7 +1380,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
               <FolderArrowDownIcon className="h-4 w-4" aria-hidden="true" />
               <span className="hidden sm:inline">{t("files.label")}</span>
             </button>
-            {sessions.length > 0 && (
+            {sessions.length + fileSessions.length > 0 && (
               <>
                 <fieldset
                   aria-label={t("console.layout")}
@@ -1303,7 +1454,9 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                     if (consoleCollapsed) focusConsole();
                     else setConsoleCollapsed(true);
                   }}
-                  disabled={renderedSessions.length === 0}
+                  disabled={
+                    renderedSessions.length === 0 && renderedFiles.length === 0
+                  }
                   className="rounded p-1 text-slate-500 hover:text-slate-900 disabled:opacity-40"
                 >
                   {consoleCollapsed ? (
@@ -1324,19 +1477,6 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
           serverId={null}
           onServerSelected={selectFileServer}
           onClose={() => setFilesOpen(false)}
-        />
-      )}
-      {activeFileSession && (
-        <FileBrowserModal
-          key={`${activeFileSession.serverId}-${fileSessionEpoch}`}
-          open={activeFileSession.visible}
-          serverId={activeFileSession.serverId}
-          initialPath={activeFileSession.path}
-          onPathChange={(path) =>
-            updateFilePath(activeFileSession.serverId, path)
-          }
-          onClose={() => hideFileSession(activeFileSession.serverId)}
-          onCloseSession={() => closeFileSession(activeFileSession.serverId)}
         />
       )}
       {storageError && (

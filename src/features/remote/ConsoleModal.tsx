@@ -119,18 +119,27 @@ export function ConsoleModal({
     };
   }, [send, sendResize]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: il cambio pannello deve rifare il fit
   useEffect(() => {
     visibleRef.current = visible;
     if (!visible) return;
-    requestAnimationFrame(() => {
+    const fitNow = () => {
       try {
         fit.current?.fit();
       } catch {
         // il pannello non è ancora dimensionato
       }
-    });
+    };
+    // Il cambio di pannello ridimensiona il terminale: riadatta subito e
+    // dopo la transizione, senza aspettare il solo ResizeObserver.
+    const frame = requestAnimationFrame(fitNow);
+    const timer = window.setTimeout(fitNow, 180);
     if (active) terminal.current?.focus();
-  }, [visible, active]);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(timer);
+    };
+  }, [visible, active, pane, paneCount]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: reconnectKey forza una nuova connessione
   useEffect(() => {
@@ -191,7 +200,7 @@ export function ConsoleModal({
   return (
     <div
       hidden={!visible}
-      className="pointer-events-auto flex h-full min-h-0 w-full flex-col rounded-lg border border-slate-700 bg-slate-950 p-3 shadow-xl"
+      className="pointer-events-auto flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-lg border border-slate-700 bg-slate-950 p-3 shadow-xl"
     >
       <div className="mb-2 flex items-center justify-between gap-2 text-sm text-slate-200">
         <p className="min-w-0 truncate">
