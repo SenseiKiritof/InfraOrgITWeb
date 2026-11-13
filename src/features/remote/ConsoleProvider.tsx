@@ -78,6 +78,7 @@ type PaneWidths = [number, number, number];
 const PANE_KEYS = ["first", "second", "third"] as const;
 
 const STORAGE_KEY = "ds-console-sessions";
+const FILE_STORAGE_KEY = "ds-file-sessions";
 const HEIGHT_STORAGE_KEY = "infraorgit-console-height";
 const FILE_SESSIONS_CLEAR_EVENT = "infraorgit:file-sessions-clear";
 const ACTIVITY_QUIET_MS = 600;
@@ -90,10 +91,10 @@ const MIN_PANE_PERCENT = 15;
 export function clearConsoleSessions() {
   try {
     sessionStorage.removeItem(STORAGE_KEY);
+    sessionStorage.removeItem(FILE_STORAGE_KEY);
   } catch {
     // storage non disponibile
   }
-  // Le sessioni file vivono solo in memoria: il provider le distrugge al logout.
   window.dispatchEvent(new Event(FILE_SESSIONS_CLEAR_EVENT));
 }
 
@@ -173,6 +174,50 @@ function loadSessions(): Session[] {
   }
 }
 
+function loadFileSessions(consoles: Session[]): FileSession[] {
+  try {
+    const raw = sessionStorage.getItem(FILE_STORAGE_KEY);
+    if (!raw) return [];
+    const value: unknown = JSON.parse(raw);
+    if (!Array.isArray(value)) return [];
+    const used = new Set<number>();
+    for (const session of consoles)
+      if (session.pane !== null) used.add(session.pane);
+    const ids = new Set<string>();
+    const sessions: FileSession[] = [];
+    for (const item of value) {
+      if (!item || typeof item !== "object") continue;
+      const saved = item as Record<string, unknown>;
+      if (typeof saved.serverId !== "number") continue;
+      const pane =
+        typeof saved.pane === "number" &&
+        saved.pane >= 0 &&
+        saved.pane <= 2 &&
+        !used.has(saved.pane)
+          ? saved.pane
+          : null;
+      if (pane !== null) used.add(pane);
+      const id =
+        typeof saved.id === "string" && saved.id && !ids.has(saved.id)
+          ? saved.id
+          : newSessionId();
+      ids.add(id);
+      sessions.push({
+        id,
+        serverId: saved.serverId,
+        serverName:
+          typeof saved.serverName === "string" ? saved.serverName : null,
+        path: typeof saved.path === "string" ? saved.path : null,
+        pane,
+        epoch: 0,
+      });
+    }
+    return sessions;
+  } catch {
+    return [];
+  }
+}
+
 function usedPanes(sessions: Session[], files: FileSession[]): Set<number> {
   const used = new Set<number>();
   for (const session of sessions)
@@ -199,6 +244,17 @@ function firstRenderedPane(
 /** ` · #2`, ` · #3`… per la seconda console/file dello stesso server. */
 function ordinalSuffix(index: number): string {
   return index > 0 ? ` · #${index + 1}` : "";
+}
+
+function ordinalFor<T extends { id: string; serverId: number }>(
+  items: T[],
+  item: T,
+): string {
+  return ordinalSuffix(
+    items
+      .filter((candidate) => candidate.serverId === item.serverId)
+      .findIndex((candidate) => candidate.id === item.id),
+  );
 }
 
 /** Primo pannello libero; allarga il layout fino a 3 prima di sostituire. */
@@ -250,22 +306,30 @@ const ConsoleContext = createContext<ConsoleApi | null>(null);
  */
 export function ConsoleProvider({ children }: { children: ReactNode }) {
   const { t } = useI18n();
-  const [initialSessions] = useState(loadSessions);
-  const [sessions, setSessions] = useState<Session[]>(initialSessions);
-  const [layout, setLayout] = useState<PaneCount>(() => {
-    const highest = initialSessions.reduce(
+  const [initialState] = useState(() => {
+    const initialSessions = loadSessions();
+    const initialFiles = loadFileSessions(initialSessions);
+    const highest = [...initialSessions, ...initialFiles].reduce(
       (max, session) =>
         session.pane === null ? max : Math.max(max, session.pane),
       -1,
     );
-    return Math.min(3, Math.max(1, highest + 1)) as PaneCount;
+    return {
+      sessions: initialSessions,
+      files: initialFiles,
+      layout: Math.min(3, Math.max(1, highest + 1)) as PaneCount,
+    };
   });
+  const [sessions, setSessions] = useState<Session[]>(initialState.sessions);
+  const [layout, setLayout] = useState<PaneCount>(initialState.layout);
   const [activePane, setActivePane] = useState(0);
   const [activity, setActivity] = useState<Record<string, Activity>>({});
   const [launcherOpen, setLauncherOpen] = useState(false);
   const [launcherQuery, setLauncherQuery] = useState("");
   const [filesOpen, setFilesOpen] = useState(false);
-  const [fileSessions, setFileSessions] = useState<FileSession[]>([]);
+  const [fileSessions, setFileSessions] = useState<FileSession[]>(
+    initialState.files,
+  );
   const [expanded, setExpanded] = useState(false);
   const [consoleCollapsed, setConsoleCollapsed] = useState(false);
   const [dockHeight, setDockHeight] = useState(storedDockHeight);
@@ -285,16 +349,12 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
   const [serverList, setServerList] = useState<Server[]>([]);
   const [serversLoading, setServersLoading] = useState(false);
   const [adminEnvironmentIds, setAdminEnvironmentIds] = useState<number[]>([]);
+  const [isSystemAdmin, setIsSystemAdmin] = useState(false);
   const hasSessions = sessions.length > 0;
+  const hasFileSessions = fileSessions.length > 0;
 
   useEffect(() => {
-    if (
-      !launcherOpen &&
-      !filesOpen &&
-      fileSessions.length === 0 &&
-      !hasSessions
-    )
-      return;
+    if (!launcherOpen && !filesOpen && !hasFileSessions && !hasSessions) return;
     let cancelled = false;
     setServersLoading(true);
     Promise.all([paged<Server>("/api/servers"), fetchServerAccess()])
@@ -302,11 +362,13 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
         setServerList(page.items);
         setAdminEnvironmentIds(serverAccess.adminEnvironmentIds);
+        setIsSystemAdmin(serverAccess.isSystemAdmin);
       })
       .catch(() => {
         if (!cancelled) {
           setServerList([]);
           setAdminEnvironmentIds([]);
+          setIsSystemAdmin(false);
         }
       })
       .finally(() => {
@@ -315,7 +377,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [launcherOpen, filesOpen, fileSessions.length, hasSessions]);
+  }, [launcherOpen, filesOpen, hasFileSessions, hasSessions]);
 
   const availableServers = useMemo(
     () =>
@@ -378,6 +440,25 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
       setStorageError(true);
     }
   }, [sessions]);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        FILE_STORAGE_KEY,
+        JSON.stringify(
+          fileSessions.map(({ id, serverId, serverName, path, pane }) => ({
+            id,
+            serverId,
+            serverName,
+            path,
+            pane,
+          })),
+        ),
+      );
+    } catch {
+      setStorageError(true);
+    }
+  }, [fileSessions]);
 
   useEffect(() => {
     sessionsRef.current = sessions;
@@ -606,8 +687,9 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
 
   const hasSession = useCallback(
     (serverId: number) =>
-      sessionsRef.current.some((session) => session.serverId === serverId),
-    [],
+      sessions.some((session) => session.serverId === serverId) ||
+      fileSessions.some((session) => session.serverId === serverId),
+    [sessions, fileSessions],
   );
 
   const closeServer = useCallback((serverId: number) => {
@@ -776,6 +858,17 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const updateServer = useCallback(
+    (serverId: number, patch: Partial<Server>) => {
+      setServerList((current) =>
+        current.map((server) =>
+          server.id === serverId ? { ...server, ...patch } : server,
+        ),
+      );
+    },
+    [],
+  );
+
   const updateFilePath = useCallback((id: string, path: string) => {
     setFileSessions((current) => {
       const index = current.findIndex((session) => session.id === id);
@@ -941,6 +1034,21 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
     window.addEventListener("pointerup", stop);
   };
 
+  const focusConsolePane = useCallback(() => {
+    const visible =
+      sessions.find(
+        (session) =>
+          session.pane === activePane &&
+          session.pane !== null &&
+          session.pane < layout,
+      ) ??
+      sessions.find(
+        (session) => session.pane !== null && session.pane < layout,
+      );
+    if (visible?.pane !== undefined && visible.pane !== null)
+      setActivePane(visible.pane);
+  }, [sessions, activePane, layout]);
+
   const renderedSessions = sessions.filter(
     (session) => session.pane !== null && session.pane < layout,
   );
@@ -971,11 +1079,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
     serverById(session.serverId)?.name ??
     `#${session.serverId}`;
   const fileOrdinal = (session: FileSession) =>
-    ordinalSuffix(
-      fileSessions
-        .filter((item) => item.serverId === session.serverId)
-        .findIndex((item) => item.id === session.id),
-    );
+    ordinalFor(fileSessions, session);
   const fileSessionLabel = (session: FileSession) => {
     const server = serverById(session.serverId);
     return [
@@ -987,12 +1091,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
       .filter(Boolean)
       .join(" · ");
   };
-  const consoleOrdinal = (session: Session) =>
-    ordinalSuffix(
-      sessions
-        .filter((item) => item.serverId === session.serverId)
-        .findIndex((item) => item.id === session.id),
-    );
+  const consoleOrdinal = (session: Session) => ordinalFor(sessions, session);
   const sessionLabel = (session: Session) =>
     [session.serverName, session.ipAddress, session.hostname]
       .filter(Boolean)
@@ -1100,7 +1199,9 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                 <div
                   key={session.id}
                   data-testid={`console-pane-${session.id}`}
+                  data-active={shown && session.pane === activePane}
                   hidden={!shown}
+                  onPointerDown={() => setActivePane(session.pane ?? 0)}
                   className="min-w-0 overflow-hidden"
                   style={
                     shown
@@ -1143,6 +1244,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                 <div
                   key={`${session.id}-${session.epoch}`}
                   data-testid={`file-pane-${session.id}`}
+                  data-active={shown && session.pane === activePane}
                   hidden={!shown}
                   className="min-w-0 overflow-hidden"
                   style={
@@ -1163,7 +1265,12 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                     open
                     serverId={session.serverId}
                     initialPath={session.path}
-                    active={shown && session.pane === activePane}
+                    active={
+                      dockOpen &&
+                      !expanded &&
+                      shown &&
+                      session.pane === activePane
+                    }
                     pane={session.pane ?? 0}
                     paneCount={layout}
                     onMovePane={(pane) => assignPane("files", session.id, pane)}
@@ -1171,6 +1278,11 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                     onPathChange={(path) => updateFilePath(session.id, path)}
                     onClose={() => minimizeFileSession(session.id)}
                     onCloseSession={() => closeFileSession(session.id)}
+                    serverList={serverList}
+                    adminEnvironmentIds={adminEnvironmentIds}
+                    serverListLoading={serversLoading}
+                    systemAdmin={isSystemAdmin}
+                    onServerUpdated={updateServer}
                   />
                 </div>
               );
@@ -1413,6 +1525,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                   type="button"
                   onClick={() => {
                     focusConsole();
+                    if (!expanded) focusConsolePane();
                     setExpanded((value) => !value);
                   }}
                   aria-label={
@@ -1477,6 +1590,10 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
           serverId={null}
           onServerSelected={selectFileServer}
           onClose={() => setFilesOpen(false)}
+          serverList={serverList}
+          adminEnvironmentIds={adminEnvironmentIds}
+          serverListLoading={serversLoading}
+          systemAdmin={isSystemAdmin}
         />
       )}
       {storageError && (

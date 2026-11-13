@@ -49,7 +49,8 @@ opens an SFTP/FTPS browser in the same 1/2/3 panes, so a console and a file
 browser can stay side by side, and one height handle resizes both. The file
 browser offers breadcrumb navigation, hidden-file toggle, sorting, filtering,
 multi-select bulk delete, drag-and-drop upload and download; refresh keeps the
-current rows visible while the new listing loads. If the server has no file
+current rows visible while the new listing loads, and both console and SFTP tabs
+come back after a page refresh. If the server has no file
 protocol or no usable credential, the browser shows a warning and lets a
 SystemAdmin configure protocol, port and credential inline (or open the
 Credentials page) before retrying. Command templates and application actions

@@ -121,6 +121,11 @@ export function FileBrowserModal({
   onMovePane,
   onActivate,
   active = false,
+  serverList,
+  adminEnvironmentIds,
+  serverListLoading,
+  systemAdmin,
+  onServerUpdated,
 }: {
   open: boolean;
   serverId: number | null;
@@ -145,6 +150,13 @@ export function FileBrowserModal({
   onActivate?: () => void;
   /** Evidenzia il pannello attivo. */
   active?: boolean;
+  /** Inventario già caricato dal provider: evita richieste duplicate. */
+  serverList?: Server[];
+  adminEnvironmentIds?: number[];
+  serverListLoading?: boolean;
+  systemAdmin?: boolean;
+  /** Notifica il provider dopo un salvataggio della configurazione file. */
+  onServerUpdated?: (serverId: number, patch: Partial<Server>) => void;
 }) {
   const { t, language } = useI18n();
   const { session } = useAuth();
@@ -162,10 +174,14 @@ export function FileBrowserModal({
     text: string;
     tone: "info" | "warning";
   } | null>(null);
-  const [servers, setServers] = useState<Server[]>([]);
-  const [adminIds, setAdminIds] = useState<number[]>([]);
-  const [isSystemAdmin, setIsSystemAdmin] = useState(false);
-  const [loadingServers, setLoadingServers] = useState(false);
+  const [localServers, setLocalServers] = useState<Server[]>([]);
+  const [localAdminIds, setLocalAdminIds] = useState<number[]>([]);
+  const [localSystemAdmin, setLocalSystemAdmin] = useState(false);
+  const [localLoadingServers, setLocalLoadingServers] = useState(false);
+  const servers = serverList ?? localServers;
+  const adminIds = adminEnvironmentIds ?? localAdminIds;
+  const isSystemAdmin = systemAdmin ?? localSystemAdmin;
+  const loadingServers = serverListLoading ?? localLoadingServers;
   const [entries, setEntries] = useState<RemoteFileEntry[]>([]);
   const [sort, setSort] = useState<SortState>(null);
   const [showHidden, setShowHidden] = useState(storedShowHidden);
@@ -191,6 +207,7 @@ export function FileBrowserModal({
   const upload = useRef<HTMLInputElement | null>(null);
   const filterInput = useRef<HTMLInputElement | null>(null);
   const adoptedPath = useRef<string | null>(null);
+  const loadedPath = useRef<string | null>(null);
 
   useEffect(() => {
     if (open && serverId !== null) filterInput.current?.focus();
@@ -332,6 +349,7 @@ export function FileBrowserModal({
     setFilter("");
     setEntries([]);
     setSelectedPaths([]);
+    loadedPath.current = null;
     setLoadError(null);
     setLoadErrorCode(null);
     setActionError(null);
@@ -360,31 +378,41 @@ export function FileBrowserModal({
     });
   }, [entries]);
 
+  // Filtro e file nascosti cambiano ciò che l'utente vede: una selezione
+  // invisibile non deve finire in un'eliminazione di massa.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: si azzera quando cambia ciò che è visibile
+  useEffect(() => {
+    setSelectedPaths([]);
+  }, [filter, showHidden]);
+
   useEffect(() => {
     if (!open) return;
+    // Il provider del dock passa già inventario e permessi: niente richieste
+    // duplicate per ogni pannello file.
+    if (serverList !== undefined) return;
     let cancelled = false;
-    setLoadingServers(true);
+    setLocalLoadingServers(true);
     Promise.all([paged<Server>("/api/servers"), fetchServerAccess()])
       .then(([page, serverAccess]) => {
         if (cancelled) return;
-        setServers(page.items);
-        setAdminIds(serverAccess.adminEnvironmentIds);
-        setIsSystemAdmin(serverAccess.isSystemAdmin);
+        setLocalServers(page.items);
+        setLocalAdminIds(serverAccess.adminEnvironmentIds);
+        setLocalSystemAdmin(serverAccess.isSystemAdmin);
       })
       .catch(() => {
         if (!cancelled) {
-          setServers([]);
-          setAdminIds([]);
-          setIsSystemAdmin(false);
+          setLocalServers([]);
+          setLocalAdminIds([]);
+          setLocalSystemAdmin(false);
         }
       })
       .finally(() => {
-        if (!cancelled) setLoadingServers(false);
+        if (!cancelled) setLocalLoadingServers(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [open]);
+  }, [open, serverList]);
 
   const available = useMemo(
     () =>
@@ -445,6 +473,7 @@ export function FileBrowserModal({
       setEntries([]);
       setLoadError(null);
       setLoadErrorCode(null);
+      loadedPath.current = null;
       return;
     }
     // La home appena restituita dal server è già stata elencata: non serve
@@ -454,12 +483,16 @@ export function FileBrowserModal({
       return;
     }
     let cancelled = false;
+    // Un refresh mantiene le righe; un cambio cartella no, altrimenti si
+    // vedrebbero i file vecchi sotto il nuovo percorso.
+    if (loadedPath.current !== path) setEntries([]);
     setLoadingFiles(true);
     setLoadError(null);
     setLoadErrorCode(null);
     listServerFiles(selectedId, path)
       .then((listing) => {
         if (cancelled) return;
+        loadedPath.current = listing.path;
         setEntries(listing.items);
         if (listing.path !== path) {
           adoptedPath.current = listing.path;
@@ -482,7 +515,7 @@ export function FileBrowserModal({
     };
   }, [open, selectedId, path, server?.fileTransferProtocol, reloadKey]);
 
-  const refresh = async () => {
+  const refresh = () => {
     setReloadKey((value) => value + 1);
   };
 
@@ -561,19 +594,18 @@ export function FileBrowserModal({
         },
         csrf,
       );
-      setServers((current) =>
+      const patch = {
+        fileTransferProtocol: configProtocol,
+        fileTransferPort: port,
+        fileTransferCredentialId: credentialId,
+        fileTransferCredentialName: credential?.name ?? null,
+      };
+      setLocalServers((current) =>
         current.map((item) =>
-          item.id === server.id
-            ? {
-                ...item,
-                fileTransferProtocol: configProtocol,
-                fileTransferPort: port,
-                fileTransferCredentialId: credentialId,
-                fileTransferCredentialName: credential?.name ?? null,
-              }
-            : item,
+          item.id === server.id ? { ...item, ...patch } : item,
         ),
       );
+      onServerUpdated?.(server.id, patch);
       setConfigOpen(false);
       setLoadError(null);
       setLoadErrorCode(null);
@@ -593,7 +625,7 @@ export function FileBrowserModal({
     setActionError(null);
     try {
       await action();
-      await refresh();
+      refresh();
     } catch (cause) {
       setActionError(
         cause instanceof Error ? cause.message : t("files.failed"),
@@ -604,7 +636,7 @@ export function FileBrowserModal({
   };
 
   const addDirectory = () => {
-    if (selectedId === null || path === null) return;
+    if (selectedId === null || path === null || loadingFiles) return;
     const name = window.prompt(t("files.newFolderPrompt"));
     if (!name?.trim()) return;
     void run(() =>
@@ -616,7 +648,8 @@ export function FileBrowserModal({
     Boolean(server?.fileTransferProtocol) &&
     selectedId !== null &&
     path !== null &&
-    !busy;
+    !busy &&
+    !loadingFiles;
 
   const uploadFiles = async (files: File[]) => {
     if (
@@ -741,13 +774,14 @@ export function FileBrowserModal({
       return;
     }
     const targets = [...selectedEntries];
-    setSelectedPaths([]);
     void (async () => {
       setBusy(true);
       setActionError(null);
+      let failedAt = targets.length;
       try {
         // Un DELETE per riga, in sequenza: l'API non ha un endpoint di massa.
-        for (const entry of targets) {
+        for (const [index, entry] of targets.entries()) {
+          failedAt = index;
           await deleteServerFile(
             selectedId,
             entry.path,
@@ -755,14 +789,21 @@ export function FileBrowserModal({
             csrf,
           );
         }
+        failedAt = targets.length;
       } catch (cause) {
         setActionError(
           cause instanceof Error ? cause.message : t("files.failed"),
         );
       } finally {
+        // Tieni selezionati il file fallito e quelli non ancora tentati.
+        setSelectedPaths(
+          failedAt === targets.length
+            ? []
+            : targets.slice(failedAt).map((entry) => entry.path),
+        );
         // Aggiorna anche dopo un errore parziale, senza svuotare la tabella.
         setBusy(false);
-        await refresh();
+        refresh();
       }
     })();
   };
@@ -1065,7 +1106,9 @@ export function FileBrowserModal({
             <button
               type="button"
               onClick={addDirectory}
-              disabled={selectedId === null || path === null || busy}
+              disabled={
+                selectedId === null || path === null || busy || loadingFiles
+              }
               aria-label={t("files.newFolder")}
               title={t("files.newFolder")}
               className="rounded-md border border-slate-300 p-1.5 disabled:opacity-40"
@@ -1075,7 +1118,9 @@ export function FileBrowserModal({
             <button
               type="button"
               onClick={() => upload.current?.click()}
-              disabled={selectedId === null || path === null || busy}
+              disabled={
+                selectedId === null || path === null || busy || loadingFiles
+              }
               aria-label={t("files.upload")}
               title={t("files.upload")}
               className="rounded-md border border-slate-300 p-1.5 disabled:opacity-40"

@@ -10,6 +10,7 @@ import {
 import { BrowserRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LanguageProvider } from "../../lib/i18n";
+import type { Server } from "../../lib/inventory";
 import { FileBrowserModal, HIDDEN_FILES_STORAGE_KEY } from "./FileBrowserModal";
 
 vi.mock("../../app/AuthProvider", () => ({
@@ -1154,6 +1155,9 @@ describe("FileBrowserModal", () => {
     await waitFor(() =>
       expect(screen.queryByText(/Elementi selezionati:/)).toBeNull(),
     );
+    fireEvent.change(screen.getByPlaceholderText("Filtra i file…"), {
+      target: { value: "" },
+    });
     expect(
       (screen.getByLabelText("Seleziona hello.txt") as HTMLInputElement)
         .checked,
@@ -1208,5 +1212,140 @@ describe("FileBrowserModal", () => {
         "/api/servers/7/files?path=%2Fhome%2Ftest%2Flogs",
       ),
     );
+  });
+
+  it("una navigazione fallita non lascia i file della cartella precedente", async () => {
+    const baseFetch = global.fetch;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes("/api/servers/7/files?path=%2Fhome%2Ftest%2Flogs")) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                code: "forbidden",
+                detail: "Accesso negato alla cartella.",
+              }),
+              {
+                status: 403,
+                headers: { "Content-Type": "application/json" },
+              },
+            ),
+          );
+        }
+        return baseFetch(input, init);
+      }),
+    );
+
+    renderPanel();
+    await screen.findByText("hello.txt");
+    fireEvent.click(screen.getByText("logs"));
+
+    expect(
+      await screen.findByText("Accesso negato alla cartella."),
+    ).toBeTruthy();
+    expect(screen.queryByText("hello.txt")).toBeNull();
+    expect(screen.queryByText("report.pdf")).toBeNull();
+  });
+
+  it("cambiare filtro o file nascosti azzera la selezione", async () => {
+    renderPanel();
+    await screen.findByText("hello.txt");
+
+    fireEvent.click(screen.getByLabelText("Seleziona hello.txt"));
+    expect(screen.getByText("Elementi selezionati: 1")).toBeTruthy();
+
+    fireEvent.change(screen.getByPlaceholderText("Filtra i file…"), {
+      target: { value: "report" },
+    });
+    await waitFor(() =>
+      expect(screen.queryByText(/Elementi selezionati:/)).toBeNull(),
+    );
+    fireEvent.change(screen.getByPlaceholderText("Filtra i file…"), {
+      target: { value: "" },
+    });
+    expect(
+      (screen.getByLabelText("Seleziona hello.txt") as HTMLInputElement)
+        .checked,
+    ).toBe(false);
+  });
+
+  it("un errore nel bulk mantiene selezionati i file non eliminati", async () => {
+    const baseFetch = global.fetch;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (init?.method === "DELETE" && url.includes("hello.txt")) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({ code: "conflict", detail: "File bloccato." }),
+              {
+                status: 409,
+                headers: { "Content-Type": "application/json" },
+              },
+            ),
+          );
+        }
+        if (init?.method === "DELETE") {
+          return Promise.resolve(new Response(null, { status: 204 }));
+        }
+        return baseFetch(input, init);
+      }),
+    );
+
+    renderPanel();
+    await screen.findByText("hello.txt");
+    fireEvent.click(screen.getByLabelText("Seleziona hello.txt"));
+    fireEvent.click(screen.getByLabelText("Seleziona report.pdf"));
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Elimina selezionati" }),
+    );
+
+    expect(await screen.findByText("File bloccato.")).toBeTruthy();
+    expect(screen.getByText("Elementi selezionati: 2")).toBeTruthy();
+    expect(
+      (screen.getByLabelText("Seleziona hello.txt") as HTMLInputElement)
+        .checked,
+    ).toBe(true);
+  });
+
+  it("usa l'inventario del provider senza richiedere i server", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/servers/7/files")) {
+        return json({
+          path: "/home/test",
+          items: [fileEntry("hello.txt")],
+        });
+      }
+      throw new Error(`richiesta inattesa: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <BrowserRouter>
+        <LanguageProvider initialLanguage="it">
+          <FileBrowserModal
+            open
+            serverId={7}
+            onClose={() => undefined}
+            serverList={[sftpServer as unknown as Server]}
+            adminEnvironmentIds={[1]}
+            systemAdmin={false}
+            serverListLoading={false}
+          />
+        </LanguageProvider>
+      </BrowserRouter>,
+    );
+
+    expect(await screen.findByText("hello.txt")).toBeTruthy();
+    expect(
+      fetchMock.mock.calls.some((call) =>
+        String(call[0]).includes("/api/servers?"),
+      ),
+    ).toBe(false);
   });
 });

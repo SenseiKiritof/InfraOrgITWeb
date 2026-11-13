@@ -82,6 +82,15 @@ function FilesOpener({ serverId }: { serverId: number }) {
   );
 }
 
+function HasSession({ serverId }: { serverId: number }) {
+  const consoleApi = useConsole();
+  return (
+    <span data-testid={`has-session-${serverId}`}>
+      {String(consoleApi.hasSession(serverId))}
+    </span>
+  );
+}
+
 const json = (body: unknown) =>
   new Response(JSON.stringify(body), {
     status: 200,
@@ -114,9 +123,11 @@ const SERVERS = [
 ];
 
 let fileRequests: string[] = [];
+let serverRequests = 0;
 
 function stubFilesFetch() {
   fileRequests = [];
+  serverRequests = 0;
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: RequestInfo | URL) => {
@@ -161,7 +172,8 @@ function stubFilesFetch() {
               : [];
         return json({ path, items });
       }
-      if (url.includes("/api/servers")) {
+      if (/^\/api\/servers(\?|$)/.test(url)) {
+        serverRequests += 1;
         return json({
           items: SERVERS,
           total: SERVERS.length,
@@ -910,5 +922,116 @@ describe("ConsoleProvider", () => {
         fileRequests.some((url) => url.includes("/api/servers/45/files")),
       ).toBe(true),
     );
+  });
+
+  it("conta anche una sessione file in hasSession", async () => {
+    stubFilesFetch();
+    render(
+      <ConsoleProvider>
+        <FilesOpener serverId={44} />
+        <HasSession serverId={44} />
+      </ConsoleProvider>,
+    );
+    expect(screen.getByTestId("has-session-44").textContent).toBe("false");
+    fireEvent.click(screen.getByText("Apri file 44"));
+    await screen.findByTestId(/^file-tab-/);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("has-session-44").textContent).toBe("true"),
+    );
+  });
+
+  it("ripristina le sessioni file dopo un refresh", async () => {
+    stubFilesFetch();
+    const first = renderFiles();
+    fireEvent.click(screen.getByText("Apri file 44"));
+    await screen.findByText("sub");
+    await waitFor(() =>
+      expect(sessionStorage.getItem("ds-file-sessions")).not.toBeNull(),
+    );
+
+    first.unmount();
+    stubFilesFetch();
+    renderFiles();
+
+    expect(await screen.findByText("sub")).toBeTruthy();
+    expect(fileTabButton("srv-alpha")).toBeTruthy();
+  });
+
+  it("non manda Esc/Backspace alla sessione file quando il dock è ridotto", async () => {
+    stubFilesFetch();
+    render(
+      <ConsoleProvider>
+        <Opener serverId={44} serverName="srv-alpha" />
+        <FilesOpener serverId={44} />
+      </ConsoleProvider>,
+    );
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
+    fireEvent.click(screen.getByText("Apri file 44"));
+    await screen.findByText("sub");
+    expect(visibleFilePanes()).toHaveLength(1);
+
+    fireEvent.click(screen.getByTitle("Riduci"));
+    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.click(screen.getByTitle("Ripristina console"));
+
+    expect(visibleFilePanes()).toHaveLength(1);
+  });
+
+  it("Esc esce dalla console espansa anche con un pannello file attivo", async () => {
+    stubFilesFetch();
+    render(
+      <ConsoleProvider>
+        <Opener serverId={44} serverName="srv-alpha" />
+        <FilesOpener serverId={44} />
+      </ConsoleProvider>,
+    );
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
+    fireEvent.click(screen.getByText("Apri file 44"));
+    await screen.findByText("sub");
+
+    fireEvent.click(screen.getByLabelText("Espandi la console"));
+    await waitFor(() =>
+      expect(
+        screen.getByLabelText("Riporta la console all'altezza precedente"),
+      ).toBeTruthy(),
+    );
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("Espandi la console")).toBeTruthy(),
+    );
+  });
+
+  it("attiva il pannello console cliccandone l'intestazione", async () => {
+    render(
+      <ConsoleProvider>
+        <Opener serverId={44} serverName="srv-alpha" />
+        <Opener serverId={45} serverName="srv-beta" />
+      </ConsoleProvider>,
+    );
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
+    fireEvent.click(screen.getByLabelText("2 pannelli"));
+    fireEvent.click(screen.getByText("Apri console srv-beta"));
+
+    const panes = screen.getAllByTestId(/^console-pane-/);
+    expect(panes[1].getAttribute("data-active")).toBe("true");
+    fireEvent.pointerDown(
+      within(panes[0]).getByText(/Console SSH · srv-alpha/),
+    );
+
+    expect(panes[0].getAttribute("data-active")).toBe("true");
+    expect(panes[1].getAttribute("data-active")).toBe("false");
+  });
+
+  it("carica l'inventario una volta per più pannelli file", async () => {
+    stubFilesFetch();
+    renderFiles();
+    fireEvent.click(screen.getByText("Apri file 44"));
+    await screen.findByText("sub");
+    fireEvent.click(screen.getByText("Apri file 45"));
+    await screen.findByText("docs");
+
+    await waitFor(() => expect(serverRequests).toBe(1));
   });
 });
