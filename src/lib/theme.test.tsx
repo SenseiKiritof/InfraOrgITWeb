@@ -54,6 +54,7 @@ describe("theme", () => {
     cleanup();
     localStorage.clear();
     document.documentElement.classList.remove("dark");
+    Reflect.deleteProperty(window, "infraorgitDesktop");
     vi.unstubAllGlobals();
   });
 
@@ -163,5 +164,39 @@ describe("theme", () => {
     expect(darkApplied()).toBe(false);
     expect(readPendingThemePreference()).toBe("light");
     await waitFor(() => expect(result.current.theme).toBe("light"));
+  });
+
+  it("sincronizza il tema con la shell desktop senza un secondo stato", async () => {
+    const sendMessage = vi.fn();
+    let receive: ((raw: string) => void) | undefined;
+    Object.defineProperty(window, "infraorgitDesktop", {
+      configurable: true,
+      value: {
+        sendMessage,
+        receiveMessage: (handler: (raw: string) => void) => {
+          receive = handler;
+        },
+      },
+    });
+    const fetchMock = vi.fn(async () => new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useTheme(session("dark")));
+    await waitFor(() => expect(result.current.theme).toBe("dark"));
+
+    act(() => result.current.setTheme("light"));
+    const outgoing = sendMessage.mock.calls
+      .map(([raw]) => JSON.parse(String(raw)) as Record<string, unknown>)
+      .filter((message) => message.type === "theme.changed");
+    expect(outgoing.at(-1)).toEqual({
+      type: "theme.changed",
+      theme: "light",
+    });
+
+    act(() =>
+      receive?.(JSON.stringify({ type: "theme.apply", theme: "dark" })),
+    );
+    await waitFor(() => expect(result.current.theme).toBe("dark"));
+    expect(darkApplied()).toBe(true);
   });
 });
