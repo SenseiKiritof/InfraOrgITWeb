@@ -653,7 +653,28 @@ const it = {
   "files.chooseServer": "Scegli un server…",
   "files.chooseServerHint": "Scegli un server per aprire i file.",
   "files.notConfigured":
-    "Accesso SFTP/FTPS/FTP non configurato per questo server: impostalo nella pagina del server.",
+    "Accesso SFTP/FTPS/FTP non configurato per questo server.",
+  "files.credentialMissing":
+    "Nessuna credenziale SFTP/FTPS/FTP disponibile per questo server.",
+  "files.configureAccess": "Configura accesso file",
+  "files.manageCredentials": "Gestisci credenziali",
+  "files.credentialAdminHint":
+    "Chiedi a un amministratore di sistema di configurare l'accesso file.",
+  "files.configTitle": "Accesso file del server",
+  "files.configDescription":
+    "Scegli protocollo, porta e credenziale per aprire i file.",
+  "files.protocol": "Protocollo",
+  "files.port": "Porta",
+  "files.credential": "Credenziale",
+  "files.credentialPlaceholder": "Scegli una credenziale…",
+  "files.credentialLoading": "Caricamento credenziali…",
+  "files.credentialEmpty":
+    "Nessuna credenziale disponibile. Creane una dalla pagina Credenziali.",
+  "files.credentialRequired":
+    "Scegli una credenziale per il trasferimento file.",
+  "files.portInvalid": "Inserisci una porta valida (1-65535).",
+  "files.configSave": "Salva e apri",
+  "files.configCancel": "Annulla",
   "files.filterPlaceholder": "Filtra i file…",
   "files.up": "Su",
   "files.refresh": "Aggiorna",
@@ -1373,7 +1394,27 @@ const en: Record<TranslationKey, string> = {
   "files.chooseServer": "Choose a server…",
   "files.chooseServerHint": "Choose a server to open its files.",
   "files.notConfigured":
-    "SFTP/FTPS/FTP access is not configured for this server: set it on the server page.",
+    "SFTP/FTPS/FTP access is not configured for this server.",
+  "files.credentialMissing":
+    "No SFTP/FTPS/FTP credential is available for this server.",
+  "files.configureAccess": "Configure file access",
+  "files.manageCredentials": "Manage credentials",
+  "files.credentialAdminHint":
+    "Ask a system administrator to configure file access.",
+  "files.configTitle": "Server file access",
+  "files.configDescription":
+    "Choose protocol, port and credential to open the files.",
+  "files.protocol": "Protocol",
+  "files.port": "Port",
+  "files.credential": "Credential",
+  "files.credentialPlaceholder": "Choose a credential…",
+  "files.credentialLoading": "Loading credentials…",
+  "files.credentialEmpty":
+    "No credentials available. Create one from the Credentials page.",
+  "files.credentialRequired": "Choose a credential for file transfer.",
+  "files.portInvalid": "Enter a valid port (1-65535).",
+  "files.configSave": "Save and open",
+  "files.configCancel": "Cancel",
   "files.filterPlaceholder": "Filter files…",
   "files.up": "Up",
   "files.refresh": "Refresh",

@@ -5,6 +5,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import { BrowserRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LanguageProvider } from "../../lib/i18n";
 import { FileBrowserModal } from "./FileBrowserModal";
@@ -96,9 +97,11 @@ describe("FileBrowserModal", () => {
 
   it("carica server, protocollo e file", async () => {
     render(
-      <LanguageProvider initialLanguage="it">
-        <FileBrowserModal open serverId={7} onClose={() => undefined} />
-      </LanguageProvider>,
+      <BrowserRouter>
+        <LanguageProvider initialLanguage="it">
+          <FileBrowserModal open serverId={7} onClose={() => undefined} />
+        </LanguageProvider>
+      </BrowserRouter>,
     );
 
     expect(await screen.findByText("hello.txt")).toBeTruthy();
@@ -110,11 +113,187 @@ describe("FileBrowserModal", () => {
     );
   });
 
+  it("mostra l'avviso e configura accesso e credenziale mancanti", async () => {
+    let saved: unknown = null;
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes("/api/server-access/me")) {
+          return json({
+            isSystemAdmin: true,
+            adminEnvironmentIds: [1],
+            operatorEnvironmentIds: [1],
+          });
+        }
+        if (url.includes("/api/server-credentials")) {
+          return json({
+            items: [
+              {
+                id: 3,
+                name: "sftp-prod",
+                username: "deploy",
+                authType: "Password",
+                hasSecret: true,
+                serversCount: 1,
+                needsReauth: false,
+              },
+            ],
+            total: 1,
+            page: 1,
+            pageSize: 200,
+          });
+        }
+        if (url.includes("/api/servers/7/file-transfer")) {
+          saved = JSON.parse(String(init?.body));
+          return new Response(null, { status: 204 });
+        }
+        if (url.includes("/api/servers/7/files")) {
+          return json({
+            path: "/home/test",
+            items: [
+              {
+                name: "hello.txt",
+                path: "/home/test/hello.txt",
+                isDirectory: false,
+                size: 12,
+                modifiedUtc: null,
+              },
+            ],
+          });
+        }
+        return json({
+          items: [
+            {
+              id: 7,
+              name: "srv-alpha",
+              providerEnvironmentId: 1,
+              providerEnvironmentLabel: "ACME / PROD",
+              ipAddress: "10.0.0.5",
+              sshPort: 22,
+              fileTransferProtocol: null,
+              fileTransferPort: null,
+              fileTransferCredentialId: null,
+              credentialId: null,
+            },
+          ],
+          total: 1,
+          page: 1,
+          pageSize: 200,
+        });
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <BrowserRouter>
+        <LanguageProvider initialLanguage="it">
+          <FileBrowserModal open serverId={7} onClose={() => undefined} />
+        </LanguageProvider>
+      </BrowserRouter>,
+    );
+
+    expect(
+      await screen.findByText(
+        "Accesso SFTP/FTPS/FTP non configurato per questo server.",
+      ),
+    ).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Configura accesso file" }),
+    );
+
+    await screen.findByRole("dialog", { name: "Accesso file del server" });
+    await waitFor(() =>
+      expect(screen.getByLabelText("Credenziale")).toBeTruthy(),
+    );
+    fireEvent.change(screen.getByLabelText("Credenziale"), {
+      target: { value: "3" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Salva e apri" }));
+
+    await waitFor(() =>
+      expect(saved).toEqual({
+        protocol: "Sftp",
+        port: 22,
+        credentialId: 3,
+      }),
+    );
+    expect(await screen.findByText("hello.txt")).toBeTruthy();
+  });
+
+  it("mostra l'avviso quando la credenziale file non è disponibile", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/api/server-access/me")) {
+          return json({
+            isSystemAdmin: true,
+            adminEnvironmentIds: [1],
+            operatorEnvironmentIds: [1],
+          });
+        }
+        if (url.includes("/api/servers/7/files")) {
+          return new Response(
+            JSON.stringify({
+              code: "credential_missing",
+              detail:
+                "Il server srv-alpha non ha una credenziale per il trasferimento file.",
+            }),
+            { status: 422, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        return json({
+          items: [
+            {
+              id: 7,
+              name: "srv-alpha",
+              providerEnvironmentId: 1,
+              providerEnvironmentLabel: "ACME / PROD",
+              ipAddress: "10.0.0.5",
+              sshPort: 22,
+              fileTransferProtocol: "Sftp",
+              fileTransferPort: 22,
+              fileTransferCredentialId: null,
+              credentialId: null,
+            },
+          ],
+          total: 1,
+          page: 1,
+          pageSize: 200,
+        });
+      }),
+    );
+
+    render(
+      <BrowserRouter>
+        <LanguageProvider initialLanguage="it">
+          <FileBrowserModal open serverId={7} onClose={() => undefined} />
+        </LanguageProvider>
+      </BrowserRouter>,
+    );
+
+    expect(
+      await screen.findByText(
+        "Nessuna credenziale SFTP/FTPS/FTP disponibile per questo server.",
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Configura accesso file" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByText(
+        "Il server srv-alpha non ha una credenziale per il trasferimento file.",
+      ),
+    ).toBeNull();
+  });
+
   it("parte senza path e adotta la home restituita dal server", async () => {
     render(
-      <LanguageProvider initialLanguage="it">
-        <FileBrowserModal open serverId={7} onClose={() => undefined} />
-      </LanguageProvider>,
+      <BrowserRouter>
+        <LanguageProvider initialLanguage="it">
+          <FileBrowserModal open serverId={7} onClose={() => undefined} />
+        </LanguageProvider>
+      </BrowserRouter>,
     );
 
     expect(await screen.findByText("hello.txt")).toBeTruthy();
@@ -203,9 +382,11 @@ describe("FileBrowserModal", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(
-      <LanguageProvider initialLanguage="it">
-        <FileBrowserModal open serverId={7} onClose={() => undefined} />
-      </LanguageProvider>,
+      <BrowserRouter>
+        <LanguageProvider initialLanguage="it">
+          <FileBrowserModal open serverId={7} onClose={() => undefined} />
+        </LanguageProvider>
+      </BrowserRouter>,
     );
 
     const dialog = await screen.findByRole("dialog", {
@@ -248,9 +429,11 @@ describe("FileBrowserModal", () => {
 
   it("filtra per nome, estensione e tipo e svuota il filtro", async () => {
     render(
-      <LanguageProvider initialLanguage="it">
-        <FileBrowserModal open serverId={7} onClose={() => undefined} />
-      </LanguageProvider>,
+      <BrowserRouter>
+        <LanguageProvider initialLanguage="it">
+          <FileBrowserModal open serverId={7} onClose={() => undefined} />
+        </LanguageProvider>
+      </BrowserRouter>,
     );
 
     await screen.findByText("hello.txt");
@@ -318,14 +501,16 @@ describe("FileBrowserModal", () => {
     );
 
     render(
-      <LanguageProvider initialLanguage="it">
-        <FileBrowserModal
-          open
-          serverId={null}
-          onServerSelected={onServerSelected}
-          onClose={onClose}
-        />
-      </LanguageProvider>,
+      <BrowserRouter>
+        <LanguageProvider initialLanguage="it">
+          <FileBrowserModal
+            open
+            serverId={null}
+            onServerSelected={onServerSelected}
+            onClose={onClose}
+          />
+        </LanguageProvider>
+      </BrowserRouter>,
     );
 
     const search = await screen.findByPlaceholderText(

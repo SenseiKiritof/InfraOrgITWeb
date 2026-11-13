@@ -11,8 +11,17 @@ import {
   TrashIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
-import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ChangeEvent,
+  type FormEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../../app/AuthProvider";
+import { ApiError } from "../../lib/api";
 import {
   type DesktopDownloadRoute,
   desktopDownloads,
@@ -22,11 +31,16 @@ import { useI18n } from "../../lib/i18n";
 import type { Server } from "../../lib/inventory";
 import { paged } from "../../lib/inventory";
 import {
+  assignFileTransfer,
   createServerDirectory,
+  defaultFileTransferPort,
   deleteServerFile,
+  type FileTransferProtocol,
+  getCredentials,
   listServerFiles,
   type RemoteFileEntry,
   renameServerFile,
+  type ServerCredential,
   serverFileDownloadUrl,
   uploadServerFile,
 } from "../../lib/remote";
@@ -106,10 +120,21 @@ export function FileBrowserModal({
   } | null>(null);
   const [servers, setServers] = useState<Server[]>([]);
   const [adminIds, setAdminIds] = useState<number[]>([]);
+  const [isSystemAdmin, setIsSystemAdmin] = useState(false);
   const [loadingServers, setLoadingServers] = useState(false);
   const [entries, setEntries] = useState<RemoteFileEntry[]>([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
+  const [loadErrorCode, setLoadErrorCode] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [configOpen, setConfigOpen] = useState(false);
+  const [configProtocol, setConfigProtocol] =
+    useState<FileTransferProtocol>("Sftp");
+  const [configPort, setConfigPort] = useState("22");
+  const [configCredentialId, setConfigCredentialId] = useState("");
+  const [credentials, setCredentials] = useState<ServerCredential[]>([]);
+  const [credentialsLoading, setCredentialsLoading] = useState(false);
+  const [configError, setConfigError] = useState<string | null>(null);
+  const [configSaving, setConfigSaving] = useState(false);
   const upload = useRef<HTMLInputElement | null>(null);
   const filterInput = useRef<HTMLInputElement | null>(null);
   const adoptedPath = useRef<string | null>(null);
@@ -121,6 +146,12 @@ export function FileBrowserModal({
   useEffect(() => {
     if (open) setSelectedId(serverId);
   }, [open, serverId]);
+
+  useEffect(() => {
+    if (open) return;
+    setConfigOpen(false);
+    setConfigError(null);
+  }, [open]);
 
   // Esc chiude il pannello in cima: intercetta prima della console espansa.
   useEffect(() => {
@@ -160,7 +191,9 @@ export function FileBrowserModal({
     setPath(null);
     setFilter("");
     setLoadError(null);
+    setLoadErrorCode(null);
     setActionError(null);
+    setConfigOpen(false);
   }, [selectedId]);
 
   const notifyPath = useRef(onPathChange);
@@ -178,11 +211,13 @@ export function FileBrowserModal({
         if (cancelled) return;
         setServers(page.items);
         setAdminIds(serverAccess.adminEnvironmentIds);
+        setIsSystemAdmin(serverAccess.isSystemAdmin);
       })
       .catch(() => {
         if (!cancelled) {
           setServers([]);
           setAdminIds([]);
+          setIsSystemAdmin(false);
         }
       })
       .finally(() => {
@@ -209,6 +244,16 @@ export function FileBrowserModal({
     () => entries.filter((entry) => matchesFileFilter(entry, filter)),
     [entries, filter],
   );
+  const protocolMissing =
+    Boolean(server && !server.fileTransferProtocol) ||
+    loadErrorCode === "file_transfer_not_configured";
+  const credentialMissing =
+    !protocolMissing && loadErrorCode === "credential_missing";
+  const fileConfigNeeded = protocolMissing || credentialMissing;
+  const credentialChoices =
+    configProtocol === "Sftp"
+      ? credentials
+      : credentials.filter((item) => item.authType === "Password");
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: reloadKey ricarica la cartella
   useEffect(() => {
@@ -222,6 +267,7 @@ export function FileBrowserModal({
     let cancelled = false;
     setLoadingFiles(true);
     setLoadError(null);
+    setLoadErrorCode(null);
     listServerFiles(selectedId, path)
       .then((listing) => {
         if (cancelled) return;
@@ -234,6 +280,7 @@ export function FileBrowserModal({
       .catch((cause: unknown) => {
         if (cancelled) return;
         setEntries([]);
+        setLoadErrorCode(cause instanceof ApiError ? cause.code : null);
         setLoadError(
           cause instanceof Error ? cause.message : t("files.failed"),
         );
@@ -254,6 +301,96 @@ export function FileBrowserModal({
 
   const refresh = async () => {
     setReloadKey((value) => value + 1);
+  };
+
+  const openCredentials = () => {
+    setConfigOpen(false);
+    onClose();
+  };
+
+  const openFileConfig = () => {
+    if (!server) return;
+    const protocol = server.fileTransferProtocol ?? "Sftp";
+    setConfigProtocol(protocol);
+    setConfigPort(
+      String(server.fileTransferPort ?? defaultFileTransferPort(protocol)),
+    );
+    setConfigCredentialId(
+      server.fileTransferCredentialId
+        ? String(server.fileTransferCredentialId)
+        : "",
+    );
+    setConfigError(null);
+    setConfigOpen(true);
+    setCredentialsLoading(true);
+    getCredentials()
+      .then((page) => setCredentials(page.items))
+      .catch((cause) => {
+        setConfigError(
+          cause instanceof Error ? cause.message : t("common.operationError"),
+        );
+      })
+      .finally(() => setCredentialsLoading(false));
+  };
+
+  const saveFileConfig = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!server || !csrf) return;
+    const port = Number(configPort);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      setConfigError(t("files.portInvalid"));
+      return;
+    }
+    const credentialId = Number(configCredentialId);
+    if (!Number.isInteger(credentialId) || credentialId <= 0) {
+      setConfigError(t("files.credentialRequired"));
+      return;
+    }
+    const credential = credentialChoices.find(
+      (item) => item.id === credentialId,
+    );
+    if (!credential) {
+      setConfigError(t("files.credentialRequired"));
+      return;
+    }
+
+    setConfigSaving(true);
+    setConfigError(null);
+    try {
+      await assignFileTransfer(
+        server.id,
+        {
+          protocol: configProtocol,
+          port,
+          credentialId,
+        },
+        csrf,
+      );
+      setServers((current) =>
+        current.map((item) =>
+          item.id === server.id
+            ? {
+                ...item,
+                fileTransferProtocol: configProtocol,
+                fileTransferPort: port,
+                fileTransferCredentialId: credential.id,
+                fileTransferCredentialName: credential.name,
+              }
+            : item,
+        ),
+      );
+      setConfigOpen(false);
+      setLoadError(null);
+      setLoadErrorCode(null);
+      setPath(null);
+      setReloadKey((value) => value + 1);
+    } catch (cause) {
+      setConfigError(
+        cause instanceof Error ? cause.message : t("common.operationError"),
+      );
+    } finally {
+      setConfigSaving(false);
+    }
   };
 
   const run = async (action: () => Promise<unknown>) => {
@@ -577,6 +714,43 @@ export function FileBrowserModal({
           </div>
         </div>
 
+        {fileConfigNeeded && (
+          <div
+            role="alert"
+            className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+          >
+            <p>
+              {protocolMissing
+                ? t("files.notConfigured")
+                : t("files.credentialMissing")}
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              {isSystemAdmin ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={openFileConfig}
+                    className="rounded-md bg-amber-900 px-3 py-1.5 text-sm font-medium text-white"
+                  >
+                    {t("files.configureAccess")}
+                  </button>
+                  <Link
+                    to="/credentials"
+                    onClick={openCredentials}
+                    className="text-xs font-medium underline"
+                  >
+                    {t("files.manageCredentials")}
+                  </Link>
+                </>
+              ) : (
+                <span className="text-xs">
+                  {t("files.credentialAdminHint")}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center gap-1 overflow-x-auto border-b border-slate-100 px-4 py-2 font-mono text-xs text-slate-600">
           <button
             type="button"
@@ -606,15 +780,10 @@ export function FileBrowserModal({
         </div>
 
         <div className="min-h-0 flex-1 overflow-auto">
-          {!server?.fileTransferProtocol && (
-            <p className="p-6 text-sm text-slate-500">
-              {t("files.notConfigured")}
-            </p>
-          )}
           {loadingFiles && (
             <p className="p-6 text-sm text-slate-500">{t("common.loading")}</p>
           )}
-          {!loadingFiles && loadError && (
+          {!loadingFiles && loadError && !fileConfigNeeded && (
             <p className="p-6 text-sm text-red-700">{loadError}</p>
           )}
           {server?.fileTransferProtocol &&
@@ -769,6 +938,124 @@ export function FileBrowserModal({
           </p>
         )}
       </div>
+
+      {configOpen && server && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 p-4">
+          <form
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("files.configTitle")}
+            onSubmit={(event) => void saveFileConfig(event)}
+            className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl"
+          >
+            <h3 className="text-base font-semibold text-slate-900">
+              {t("files.configTitle")}
+            </h3>
+            <p className="mt-1 text-sm text-slate-500">
+              {t("files.configDescription")}
+            </p>
+
+            <div className="mt-4 grid gap-3">
+              <label className="grid gap-1 text-xs text-slate-600">
+                {t("files.protocol")}
+                <select
+                  value={configProtocol}
+                  onChange={(event) => {
+                    const protocol = event.target.value as FileTransferProtocol;
+                    setConfigProtocol(protocol);
+                    setConfigPort(String(defaultFileTransferPort(protocol)));
+                    setConfigCredentialId("");
+                  }}
+                  className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                >
+                  <option value="Sftp">SFTP</option>
+                  <option value="Ftp">FTP</option>
+                  <option value="Ftps">FTPS</option>
+                </select>
+              </label>
+
+              <label className="grid gap-1 text-xs text-slate-600">
+                {t("files.port")}
+                <input
+                  type="number"
+                  min={1}
+                  max={65535}
+                  value={configPort}
+                  onChange={(event) => setConfigPort(event.target.value)}
+                  className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                />
+              </label>
+
+              <label className="grid gap-1 text-xs text-slate-600">
+                {t("files.credential")}
+                <select
+                  value={configCredentialId}
+                  onChange={(event) =>
+                    setConfigCredentialId(event.target.value)
+                  }
+                  disabled={
+                    credentialsLoading || credentialChoices.length === 0
+                  }
+                  className="rounded-md border border-slate-300 px-2 py-1.5 text-sm disabled:opacity-60"
+                >
+                  <option value="">
+                    {credentialsLoading
+                      ? t("files.credentialLoading")
+                      : t("files.credentialPlaceholder")}
+                  </option>
+                  {credentialChoices.map((credential) => (
+                    <option key={credential.id} value={credential.id}>
+                      {credential.name} · {credential.username} ·{" "}
+                      {credential.authType}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {!credentialsLoading && credentialChoices.length === 0 && (
+                <p className="text-xs text-slate-500">
+                  {t("files.credentialEmpty")}{" "}
+                  <Link
+                    to="/credentials"
+                    onClick={openCredentials}
+                    className="font-medium underline"
+                  >
+                    {t("files.manageCredentials")}
+                  </Link>
+                </p>
+              )}
+            </div>
+
+            {configError && (
+              <p
+                role="alert"
+                className="mt-3 rounded bg-red-50 px-3 py-2 text-sm text-red-700"
+              >
+                {configError}
+              </p>
+            )}
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfigOpen(false)}
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+              >
+                {t("files.configCancel")}
+              </button>
+              <button
+                type="submit"
+                disabled={
+                  configSaving || credentialsLoading || !configCredentialId
+                }
+                className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
+              >
+                {t("files.configSave")}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
