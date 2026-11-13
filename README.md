@@ -126,8 +126,9 @@ Open the URL of your InfraOrgIT instance and sign in with the Keycloak account
 provided by your administrator. If the deployment enables MFA, Keycloak asks
 for the second factor before the app loads.
 
-Use the user menu to switch between Italian and English or between the light
-and dark theme. The menu labels stored in the database can be edited by an
+Use the user menu to switch between Italian and English or to cycle the light,
+dark and system theme (the system option keeps the operating-system
+appearance). The menu labels stored in the database can be edited by an
 administrator from **Menu**.
 
 ## Learn more

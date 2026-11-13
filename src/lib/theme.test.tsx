@@ -145,6 +145,22 @@ describe("theme", () => {
     expect(JSON.parse(String(init.body))).toEqual({ theme: "light" });
   });
 
+  it("cicla tra chiaro, scuro e tema di sistema", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status: 204 })),
+    );
+    const { result } = renderHook(() => useTheme(session("dark")));
+    await waitFor(() => expect(result.current.theme).toBe("dark"));
+
+    act(() => result.current.cycle());
+    expect(result.current.theme).toBe("system");
+    act(() => result.current.cycle());
+    expect(result.current.theme).toBe("light");
+    act(() => result.current.cycle());
+    expect(result.current.theme).toBe("dark");
+  });
+
   it("resta sul fallback locale se il PATCH fallisce", async () => {
     vi.stubGlobal(
       "fetch",

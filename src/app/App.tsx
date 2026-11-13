@@ -63,6 +63,7 @@ import { LanguageProvider, useI18n } from "../lib/i18n";
 import {
   ArrowLeftIcon,
   Bars3Icon,
+  ComputerDesktopIcon,
   iconForPath,
   MoonIcon,
   SunIcon,
@@ -211,7 +212,7 @@ function ShellLayout() {
   });
   const [logoutError, setLogoutError] = useState<string | null>(null);
   const [navOpen, setNavOpen] = useState(false);
-  const { resolved: dark, toggle: toggleTheme } = useTheme(session);
+  const { theme, cycle: cycleTheme } = useTheme(session);
   const location = useLocation();
   const navigate = useNavigate();
   const detailParent = DETAIL_ROUTE.exec(location.pathname)?.[1];
@@ -324,15 +325,30 @@ function ShellLayout() {
             <div ref={setActions} className="flex items-center gap-2" />
             <button
               type="button"
-              onClick={toggleTheme}
-              aria-label={dark ? t("app.switchLight") : t("app.switchDark")}
-              title={dark ? t("app.themeLight") : t("app.themeDark")}
+              onClick={cycleTheme}
+              aria-label={t("app.cycleTheme", {
+                theme:
+                  theme === "system"
+                    ? t("app.themeSystem")
+                    : theme === "dark"
+                      ? t("app.themeDark")
+                      : t("app.themeLight"),
+              })}
+              title={
+                theme === "system"
+                  ? t("app.themeSystem")
+                  : theme === "dark"
+                    ? t("app.themeDark")
+                    : t("app.themeLight")
+              }
               className="rounded-md border border-slate-300 p-1.5 text-slate-700 hover:bg-slate-100"
             >
-              {dark ? (
-                <SunIcon className="h-5 w-5" aria-hidden="true" />
-              ) : (
+              {theme === "system" ? (
+                <ComputerDesktopIcon className="h-5 w-5" aria-hidden="true" />
+              ) : theme === "dark" ? (
                 <MoonIcon className="h-5 w-5" aria-hidden="true" />
+              ) : (
+                <SunIcon className="h-5 w-5" aria-hidden="true" />
               )}
             </button>
             <UserMenu

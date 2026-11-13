@@ -150,5 +150,11 @@ export function useTheme(session: Session | null) {
     setTheme(resolved === "dark" ? "light" : "dark");
   }, [resolved, setTheme]);
 
-  return { theme, resolved, setTheme, toggle };
+  const cycle = useCallback(() => {
+    const next =
+      theme === "light" ? "dark" : theme === "dark" ? "system" : "light";
+    setTheme(next);
+  }, [theme, setTheme]);
+
+  return { theme, resolved, setTheme, toggle, cycle };
 }
