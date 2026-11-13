@@ -2,6 +2,7 @@ import { ArrowPathIcon } from "@heroicons/react/24/outline";
 import { useQuery } from "@tanstack/react-query";
 import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import { columnWidths } from "../../lib/columnWidths";
+import { getConnectionPolicy } from "../../lib/connectionPolicy";
 import { formatDateTime } from "../../lib/format";
 import { useI18n } from "../../lib/i18n";
 import type { TunnelSession } from "../../lib/tunnelSessions";
@@ -27,6 +28,17 @@ export function TunnelsPage() {
     refetchInterval: REFETCH_MS,
     retry: false,
   });
+  const policy = useQuery({
+    queryKey: ["connection-policy"],
+    queryFn: getConnectionPolicy,
+    retry: false,
+  });
+  const policyLabel = (mode?: string) =>
+    mode === "Server"
+      ? t("connectionPolicy.server")
+      : mode === "Client"
+        ? t("connectionPolicy.client")
+        : t("connectionPolicy.auto");
 
   const columns = [
     {
@@ -52,6 +64,15 @@ export function TunnelsPage() {
       label: t("tunnels.mode"),
       weight: 8,
       render: (row: TunnelSession) => modeLabel(row.mode),
+    },
+    {
+      key: "transport",
+      label: t("tunnels.transport"),
+      weight: 8,
+      render: (row: TunnelSession) =>
+        row.transport === "Server"
+          ? t("tunnels.transportServer")
+          : t("tunnels.transportClient"),
     },
     {
       key: "forward",
@@ -115,7 +136,14 @@ export function TunnelsPage() {
           </button>
         }
       />
-      <p className="text-xs text-slate-500">{t("tunnels.autoRefresh")}</p>
+      <p className="text-xs text-slate-500">
+        {t("tunnels.autoRefresh")}
+        {policy.data
+          ? ` · ${t("connectionPolicy.current", {
+              mode: policyLabel(policy.data.mode),
+            })}`
+          : ""}
+      </p>
       <DesktopTunnelsPanel />
       {tunnels.error && (
         <p

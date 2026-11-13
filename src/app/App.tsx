@@ -19,6 +19,7 @@ import {
 } from "../components/PageHeaderSlot";
 import { UserMenu } from "../components/UserMenu";
 import { AuditPage } from "../features/admin/AuditPage";
+import { ConnectionPolicyPage } from "../features/admin/ConnectionPolicyPage";
 import { GroupsPage } from "../features/admin/GroupsPage";
 import { McpGrantsPage } from "../features/admin/McpGrantsPage";
 import { MenusPage } from "../features/admin/MenusPage";
@@ -161,6 +162,14 @@ function AuthenticatedApp() {
               }
             />
             <Route path="menu" element={<MenusPage />} />
+            <Route
+              path="settings"
+              element={
+                <RequireSystemAdmin>
+                  <ConnectionPolicyPage />
+                </RequireSystemAdmin>
+              }
+            />
             <Route path="credentials" element={<CredentialsPage />} />
             <Route path="commands" element={<CommandsPage />} />
             <Route path="reachability" element={<ReachabilityPage />} />
