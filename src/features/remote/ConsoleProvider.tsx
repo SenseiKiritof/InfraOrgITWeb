@@ -2,6 +2,7 @@ import {
   ArrowsPointingInIcon,
   ArrowsPointingOutIcon,
   ChevronDownIcon,
+  ChevronUpIcon,
   FolderArrowDownIcon,
   FolderIcon,
   MagnifyingGlassIcon,
@@ -234,6 +235,8 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
     null,
   );
   const [expanded, setExpanded] = useState(false);
+  const [consoleCollapsed, setConsoleCollapsed] = useState(false);
+  const [fileSessionEpoch, setFileSessionEpoch] = useState(0);
   const [dockHeight, setDockHeight] = useState(storedDockHeight);
   const [paneWidths, setPaneWidths] = useState<PaneWidths>([
     100 / 3,
@@ -427,8 +430,17 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
+  const focusConsole = useCallback(() => {
+    setConsoleCollapsed(false);
+    setFilesOpen(false);
+    setFileSessions((current) =>
+      current.map((session) => ({ ...session, visible: false })),
+    );
+  }, []);
+
   const open = useCallback(
     (serverId: number, serverName: string, info?: ConsoleServerInfo) => {
+      focusConsole();
       const current = sessionsRef.current;
       const details = detailsOf(info);
       const existing = current.find((session) => session.serverId === serverId);
@@ -479,7 +491,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
       ]);
       setActivePane(target);
     },
-    [],
+    [focusConsole],
   );
 
   const assignToPane = useCallback((id: string, pane: number) => {
@@ -492,27 +504,31 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
     setActivePane(pane);
   }, []);
 
-  const select = useCallback((id: string) => {
-    const current = sessionsRef.current;
-    const session = current.find((item) => item.id === id);
-    if (!session) return;
-    if (session.pane !== null && session.pane < layoutRef.current) {
-      setActivePane(session.pane);
-      return;
-    }
-    const target = nextFreePane(
-      current,
-      layoutRef.current,
-      activePaneRef.current,
-    );
-    setSessions((previous) =>
-      previous.map((item) => {
-        if (item.id === id) return { ...item, pane: target };
-        return item.pane === target ? { ...item, pane: null } : item;
-      }),
-    );
-    setActivePane(target);
-  }, []);
+  const select = useCallback(
+    (id: string) => {
+      focusConsole();
+      const current = sessionsRef.current;
+      const session = current.find((item) => item.id === id);
+      if (!session) return;
+      if (session.pane !== null && session.pane < layoutRef.current) {
+        setActivePane(session.pane);
+        return;
+      }
+      const target = nextFreePane(
+        current,
+        layoutRef.current,
+        activePaneRef.current,
+      );
+      setSessions((previous) =>
+        previous.map((item) => {
+          if (item.id === id) return { ...item, pane: target };
+          return item.pane === target ? { ...item, pane: null } : item;
+        }),
+      );
+      setActivePane(target);
+    },
+    [focusConsole],
+  );
 
   const minimize = useCallback((id: string) => {
     const current = sessionsRef.current;
@@ -611,6 +627,8 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
 
   const showFileSession = useCallback(
     (serverId: number, serverName?: string) => {
+      setConsoleCollapsed(true);
+      setFileSessionEpoch((value) => value + 1);
       setFileSessions((current) => {
         const existing = current.some(
           (session) => session.serverId === serverId,
@@ -676,6 +694,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
   const openFiles = useCallback(
     (serverId: number | null) => {
       if (serverId === null) {
+        setConsoleCollapsed(true);
         setFilesOpen(true);
         return;
       }
@@ -698,7 +717,17 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
       fileSessions.some((session) => session.serverId === activeFileServerId)
     )
       return;
-    setActiveFileServerId(fileSessions[0]?.serverId ?? null);
+    const next = fileSessions[0] ?? null;
+    setActiveFileServerId(next?.serverId ?? null);
+    if (next && !next.visible) {
+      setFileSessions((current) =>
+        current.map((session) =>
+          session.serverId === next.serverId
+            ? { ...session, visible: true }
+            : session,
+        ),
+      );
+    }
   }, [fileSessions, activeFileServerId]);
 
   useEffect(() => {
@@ -839,7 +868,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
       session.pane !== null &&
       session.pane < layout,
   );
-  const dockOpen = renderedSessions.length > 0;
+  const dockOpen = renderedSessions.length > 0 && !consoleCollapsed;
   const paddedHeight = dockOpen
     ? expanded
       ? "calc(100vh - 4rem)"
@@ -888,6 +917,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
       {children}
 
       <div
+        hidden={!dockOpen}
         className={
           dockOpen
             ? "pointer-events-none fixed inset-x-0 bottom-11 z-30 px-2"
@@ -1230,7 +1260,10 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                 </fieldset>
                 <button
                   type="button"
-                  onClick={() => setExpanded((value) => !value)}
+                  onClick={() => {
+                    focusConsole();
+                    setExpanded((value) => !value);
+                  }}
                   aria-label={
                     expanded ? t("console.collapse") : t("console.expand")
                   }
@@ -1256,16 +1289,28 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                 </button>
                 <button
                   type="button"
-                  aria-label={t("console.minimize")}
-                  title={t("console.minimize")}
+                  aria-label={
+                    consoleCollapsed
+                      ? t("console.restore")
+                      : t("console.minimize")
+                  }
+                  title={
+                    consoleCollapsed
+                      ? t("console.restore")
+                      : t("console.minimize")
+                  }
                   onClick={() => {
-                    for (const session of renderedSessions)
-                      minimize(session.id);
+                    if (consoleCollapsed) focusConsole();
+                    else setConsoleCollapsed(true);
                   }}
                   disabled={renderedSessions.length === 0}
                   className="rounded p-1 text-slate-400 hover:text-slate-100 disabled:opacity-40"
                 >
-                  <ChevronDownIcon className="h-4 w-4" aria-hidden="true" />
+                  {consoleCollapsed ? (
+                    <ChevronUpIcon className="h-4 w-4" aria-hidden="true" />
+                  ) : (
+                    <ChevronDownIcon className="h-4 w-4" aria-hidden="true" />
+                  )}
                 </button>
               </>
             )}
@@ -1283,7 +1328,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
       )}
       {activeFileSession && (
         <FileBrowserModal
-          key={activeFileSession.serverId}
+          key={`${activeFileSession.serverId}-${fileSessionEpoch}`}
           open={activeFileSession.visible}
           serverId={activeFileSession.serverId}
           initialPath={activeFileSession.path}

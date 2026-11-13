@@ -14,6 +14,7 @@ import {
 import {
   type ChangeEvent,
   type FormEvent,
+  type DragEvent as ReactDragEvent,
   useEffect,
   useMemo,
   useRef,
@@ -21,7 +22,9 @@ import {
 } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../app/AuthProvider";
+import { SortableTh } from "../../components/SortableTh";
 import { ApiError } from "../../lib/api";
+import { subscribeDesktopMessages } from "../../lib/desktopBridge";
 import {
   type DesktopDownloadRoute,
   desktopDownloads,
@@ -44,6 +47,7 @@ import {
   serverFileDownloadUrl,
   uploadServerFile,
 } from "../../lib/remote";
+import { nextSort, type SortState, sortedRows } from "../../lib/sort";
 import { fetchServerAccess } from "../../lib/useServerAccess";
 
 /** Filtro file: nome, estensione o tipo (cartella/file). */
@@ -123,6 +127,13 @@ export function FileBrowserModal({
   const [isSystemAdmin, setIsSystemAdmin] = useState(false);
   const [loadingServers, setLoadingServers] = useState(false);
   const [entries, setEntries] = useState<RemoteFileEntry[]>([]);
+  const [sort, setSort] = useState<SortState>(null);
+  const [draggingFiles, setDraggingFiles] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<{
+    done: number;
+    total: number;
+    name: string;
+  } | null>(null);
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [loadErrorCode, setLoadErrorCode] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -185,6 +196,46 @@ export function FileBrowserModal({
   }, [open]);
 
   useEffect(() => {
+    if (!open) return;
+    return subscribeDesktopMessages((message) => {
+      if (message.type !== "desktop.download.status") return;
+      const name =
+        typeof message.fileName === "string" && message.fileName
+          ? message.fileName
+          : t("files.title");
+      const state = typeof message.state === "string" ? message.state : "";
+      if (state === "completed") {
+        setDownloadNote({
+          text: t("files.downloadDone", { name }),
+          tone: "info",
+        });
+        return;
+      }
+      if (state === "failed" || state === "cancelled") {
+        setDownloadNote({
+          text: t("files.downloadFailed", { name }),
+          tone: "warning",
+        });
+        return;
+      }
+      const total =
+        typeof message.totalBytes === "number" ? message.totalBytes : 0;
+      const received =
+        typeof message.receivedBytes === "number" ? message.receivedBytes : 0;
+      setDownloadNote({
+        text:
+          total > 0
+            ? t("files.downloading", {
+                name,
+                percent: Math.min(100, Math.round((received / total) * 100)),
+              })
+            : t("files.downloadingUnknown", { name }),
+        tone: "info",
+      });
+    });
+  }, [open, t]);
+
+  useEffect(() => {
     if (previousServer.current === selectedId) return;
     previousServer.current = selectedId;
     // Cambiando server si riparte dalla home, non dal percorso del precedente.
@@ -243,6 +294,16 @@ export function FileBrowserModal({
   const visibleEntries = useMemo(
     () => entries.filter((entry) => matchesFileFilter(entry, filter)),
     [entries, filter],
+  );
+  const orderedEntries = useMemo(
+    () =>
+      sortedRows(visibleEntries, sort, (entry, key) => {
+        if (key === "name") return entry.name;
+        if (key === "size") return entry.isDirectory ? null : entry.size;
+        if (key === "modified") return entry.modifiedUtc;
+        return null;
+      }) ?? [],
+    [visibleEntries, sort],
   );
   const protocolMissing =
     Boolean(server && !server.fileTransferProtocol) ||
@@ -437,11 +498,78 @@ export function FileBrowserModal({
     );
   };
 
+  const canUpload =
+    Boolean(server?.fileTransferProtocol) &&
+    selectedId !== null &&
+    path !== null &&
+    !busy;
+
+  const uploadFiles = async (files: File[]) => {
+    if (
+      !canUpload ||
+      selectedId === null ||
+      path === null ||
+      files.length === 0
+    )
+      return;
+    setBusy(true);
+    setActionError(null);
+    try {
+      for (const [index, file] of files.entries()) {
+        setUploadStatus({
+          done: index,
+          total: files.length,
+          name: file.name,
+        });
+        await uploadServerFile(selectedId, path, file, csrf);
+      }
+      await refresh();
+    } catch (cause) {
+      setActionError(
+        cause instanceof Error ? cause.message : t("files.failed"),
+      );
+    } finally {
+      setBusy(false);
+      setUploadStatus(null);
+    }
+  };
+
   const uploadFile = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+    const files = Array.from(event.target.files ?? []);
     event.target.value = "";
-    if (!file || selectedId === null || path === null) return;
-    void run(() => uploadServerFile(selectedId, path, file, csrf));
+    void uploadFiles(files);
+  };
+
+  const dragDepth = useRef(0);
+  const hasFiles = (event: ReactDragEvent) =>
+    Array.from(event.dataTransfer?.types ?? []).includes("Files");
+  const onDragEnter = (event: ReactDragEvent) => {
+    if (!canUpload || !hasFiles(event)) return;
+    event.preventDefault();
+    dragDepth.current += 1;
+    setDraggingFiles(true);
+  };
+  const onDragOver = (event: ReactDragEvent) => {
+    if (!canUpload || !hasFiles(event)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  };
+  const onDragLeave = (event: ReactDragEvent) => {
+    if (!canUpload || !hasFiles(event)) return;
+    event.preventDefault();
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) setDraggingFiles(false);
+  };
+  const onDrop = (event: ReactDragEvent) => {
+    if (!hasFiles(event)) return;
+    event.preventDefault();
+    dragDepth.current = 0;
+    setDraggingFiles(false);
+    if (!canUpload) {
+      setActionError(t("files.dropUnavailable"));
+      return;
+    }
+    void uploadFiles(Array.from(event.dataTransfer.files));
   };
 
   const rename = (entry: RemoteFileEntry) => {
@@ -600,7 +728,11 @@ export function FileBrowserModal({
         role="dialog"
         aria-label={t("files.title")}
         data-download-route={downloadRoute}
-        className="flex h-[60vh] w-full flex-col rounded-lg border border-slate-200 bg-white shadow-2xl"
+        onDragEnter={onDragEnter}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
+        className="relative flex h-[60vh] w-full flex-col rounded-lg border border-slate-200 bg-white text-slate-900 shadow-2xl"
       >
         <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
           <h2 className="min-w-0 truncate text-sm font-semibold uppercase tracking-wide text-slate-600">
@@ -728,6 +860,7 @@ export function FileBrowserModal({
             <input
               ref={upload}
               type="file"
+              multiple
               onChange={uploadFile}
               className="hidden"
             />
@@ -809,19 +942,40 @@ export function FileBrowserModal({
           {server?.fileTransferProtocol &&
             selectedId !== null &&
             !loadingFiles && (
-              <table className="w-full text-left text-sm">
+              <table className="w-full text-left text-sm text-slate-900">
                 <thead className="sticky top-0 bg-slate-50 text-xs uppercase text-slate-500">
                   <tr>
-                    <th className="px-4 py-2">{t("common.name")}</th>
-                    <th className="px-4 py-2">{t("files.size")}</th>
-                    <th className="px-4 py-2">{t("files.modified")}</th>
+                    <SortableTh
+                      label={t("common.name")}
+                      sortKey="name"
+                      sort={sort}
+                      onSort={(key) =>
+                        setSort((current) => nextSort(current, key))
+                      }
+                    />
+                    <SortableTh
+                      label={t("files.size")}
+                      sortKey="size"
+                      sort={sort}
+                      onSort={(key) =>
+                        setSort((current) => nextSort(current, key))
+                      }
+                    />
+                    <SortableTh
+                      label={t("files.modified")}
+                      sortKey="modified"
+                      sort={sort}
+                      onSort={(key) =>
+                        setSort((current) => nextSort(current, key))
+                      }
+                    />
                     <th className="px-4 py-2 text-right">
                       {t("common.actions")}
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleEntries.map((entry) => (
+                  {orderedEntries.map((entry) => (
                     <tr
                       key={entry.path}
                       className="border-t border-slate-100 hover:bg-slate-50"
@@ -829,9 +983,24 @@ export function FileBrowserModal({
                       <td className="px-4 py-2">
                         <button
                           type="button"
+                          draggable={!entry.isDirectory}
                           title={
                             entry.isDirectory ? entry.name : t("files.download")
                           }
+                          onDragStart={(event) => {
+                            if (entry.isDirectory || selectedId === null)
+                              return;
+                            const url = serverFileDownloadUrl(
+                              selectedId,
+                              entry.path,
+                            );
+                            event.dataTransfer.effectAllowed = "copy";
+                            event.dataTransfer.setData("text/uri-list", url);
+                            event.dataTransfer.setData(
+                              "DownloadURL",
+                              `application/octet-stream:${entry.name}:${url}`,
+                            );
+                          }}
                           onClick={() => {
                             if (entry.isDirectory) {
                               setPath(entry.path);
@@ -839,7 +1008,7 @@ export function FileBrowserModal({
                               void downloadEntry(entry);
                             }
                           }}
-                          className="flex max-w-[28rem] items-center gap-2 truncate text-left hover:underline"
+                          className="flex max-w-[28rem] items-center gap-2 truncate text-left text-slate-900 hover:underline"
                         >
                           {entry.isDirectory ? (
                             <FolderIcon
@@ -957,6 +1126,25 @@ export function FileBrowserModal({
             {actionError}
           </p>
         )}
+
+        {uploadStatus && (
+          <p
+            role="status"
+            className="border-t border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-600"
+          >
+            {t("files.uploading", {
+              name: uploadStatus.name,
+              done: uploadStatus.done,
+              total: uploadStatus.total,
+            })}
+          </p>
+        )}
+
+        {draggingFiles && (
+          <div className="pointer-events-none absolute inset-2 z-30 flex items-center justify-center rounded-lg border-2 border-dashed border-emerald-500 bg-emerald-50/95 text-sm font-medium text-emerald-800">
+            {t("files.dropUpload")}
+          </div>
+        )}
       </div>
 
       {configOpen && server && (
@@ -966,7 +1154,7 @@ export function FileBrowserModal({
             aria-modal="true"
             aria-label={t("files.configTitle")}
             onSubmit={(event) => void saveFileConfig(event)}
-            className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl"
+            className="w-full max-w-md rounded-lg bg-white p-5 text-slate-900 shadow-xl"
           >
             <h3 className="text-base font-semibold text-slate-900">
               {t("files.configTitle")}

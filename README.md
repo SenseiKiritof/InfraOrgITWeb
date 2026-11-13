@@ -104,21 +104,22 @@ menu. The raw value is shown once; grant only the scopes the client needs.
 
 ## Downloads in the desktop app
 
-When InfraOrgIT runs inside InfraOrgIT Desktop, file downloads can use two
-routes:
+In the Electron desktop shell, server attachments use Chromium's native
+download and generated API results use the desktop blob bridge. There is no
+desktop download-mode setting.
 
-- **Bridge**: the app asks the server for a short-lived one-time link and saves
-  the file in the desktop process. The download runs in the background, so a
-  slow server does not block the window.
-- **Native**: the desktop webview saves the file directly: Windows WebView2,
-  or macOS with the optional patched Photino build. It requires the platform
-  support and is not used for generated blobs.
+The legacy Photino manager offers `Automatico`, `Bridge` and `Nativo`:
 
-The desktop manager chooses `Automatico`, `Bridge` or `Nativo`. The server
-administrator can disable the signed bridge with
-`DESKTOP_DOWNLOADS_ENABLED=false`; the desktop then uses its native route.
-Generated API results keep using the bridge because WKWebView does not reliably
-save blob URLs.
+- **Bridge**: asks the server for a short-lived one-time link and saves the
+  file in the desktop process. It keeps the app responsive while the server is
+  slow.
+- **Native**: Windows WebView2, or macOS with the optional patched Photino
+  build, saves the file directly. Generated blobs still use the bridge because
+  WKWebView does not reliably save blob URLs.
+
+The server administrator can disable new signed bridge tickets with
+`DESKTOP_DOWNLOADS_ENABLED=false`; the legacy Photino app then uses its native
+route. Electron server attachments are native and do not use those tickets.
 
 ## Sign in
 

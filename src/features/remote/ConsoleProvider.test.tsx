@@ -415,6 +415,32 @@ describe("ConsoleProvider", () => {
     expect(terminalHidden()).toBe(true);
   });
 
+  it("conserva lo split quando riduci e ripristina la console", () => {
+    render(
+      <ConsoleProvider>
+        <Opener serverId={44} serverName="srv-alpha" />
+        <Opener serverId={45} serverName="srv-beta" />
+      </ConsoleProvider>,
+    );
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
+    fireEvent.click(screen.getByLabelText("2 pannelli"));
+    fireEvent.click(screen.getByText("Apri console srv-beta"));
+    expect(visiblePanes()).toHaveLength(2);
+    const dockHeight = () =>
+      document.documentElement.style.getPropertyValue("--console-dock-height");
+    expect(dockHeight()).toBe("364px");
+
+    fireEvent.click(screen.getByTitle("Riduci"));
+    expect(dockHeight()).toBe("2.75rem");
+    expect(visiblePanes()).toHaveLength(2);
+
+    fireEvent.click(screen.getByTitle("Ripristina console"));
+    expect(dockHeight()).toBe("364px");
+    expect(visiblePanes()).toHaveLength(2);
+    expect(visiblePanes()[0]).toHaveTextContent("srv-alpha");
+    expect(visiblePanes()[1]).toHaveTextContent("srv-beta");
+  });
+
   it("segnala l'output non visto e lo azzera quando apri la console", () => {
     vi.useFakeTimers();
     renderWithProvider();
@@ -613,6 +639,33 @@ describe("ConsoleProvider", () => {
           .some((url) => url.includes("path=%2Fhome%2Fbeta%2Fdocs")),
       ).toBe(true),
     );
+  });
+
+  it("chiudendo la sessione file attiva riapre la precedente", async () => {
+    stubFilesFetch();
+    renderFiles();
+    fireEvent.click(screen.getByText("Apri file 44"));
+    await screen.findByTestId("file-tab-44");
+    await screen.findByText("sub");
+    fireEvent.click(screen.getByText("Apri file 45"));
+    await screen.findByTestId("file-tab-45");
+    await screen.findByText("docs");
+
+    const activeDialog = screen.getByRole("dialog");
+    fireEvent.click(
+      within(activeDialog).getByLabelText(
+        "Chiudi la sessione file di srv-beta",
+      ),
+    );
+
+    await waitFor(() => expect(screen.queryByTestId("file-tab-45")).toBeNull());
+    expect(fileTab(44)).toBeTruthy();
+    expect(await screen.findByText("sub")).toBeInTheDocument();
+    expect(
+      fileRequests.some((url) =>
+        url.includes("/api/servers/44/files?path=%2Fhome%2Falpha"),
+      ),
+    ).toBe(true);
   });
 
   it("chiude le sessioni file al logout", async () => {

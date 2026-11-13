@@ -1,9 +1,11 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { BrowserRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -21,10 +23,12 @@ const json = (body: unknown) =>
   });
 
 let fileRequests: string[] = [];
+let uploadRequests: string[] = [];
 
 describe("FileBrowserModal", () => {
   beforeEach(() => {
     fileRequests = [];
+    uploadRequests = [];
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
@@ -35,6 +39,10 @@ describe("FileBrowserModal", () => {
             adminEnvironmentIds: [1],
             operatorEnvironmentIds: [1],
           });
+        }
+        if (url.includes("/api/servers/7/files/upload")) {
+          uploadRequests.push(url);
+          return json({ path: "/home/test/uploaded" });
         }
         if (url.includes("/api/servers/7/files")) {
           fileRequests.push(url);
@@ -92,6 +100,7 @@ describe("FileBrowserModal", () => {
   afterEach(() => {
     cleanup();
     Reflect.deleteProperty(window, "external");
+    Reflect.deleteProperty(window, "infraorgitDesktop");
     vi.unstubAllGlobals();
   });
 
@@ -111,6 +120,91 @@ describe("FileBrowserModal", () => {
     ).toContain(
       "/api/servers/7/files/download?path=%2Fhome%2Ftest%2Fhello.txt",
     );
+  });
+
+  it("ordina i file per nome e dimensione", async () => {
+    render(
+      <BrowserRouter>
+        <LanguageProvider initialLanguage="it">
+          <FileBrowserModal open serverId={7} onClose={() => undefined} />
+        </LanguageProvider>
+      </BrowserRouter>,
+    );
+
+    await screen.findByText("hello.txt");
+    const rowNames = () =>
+      screen
+        .getAllByRole("row")
+        .slice(1)
+        .map((row) => within(row).getAllByRole("cell")[0].textContent);
+
+    expect(rowNames()).toEqual(["hello.txt", "report.pdf", "logs"]);
+    fireEvent.click(screen.getByRole("button", { name: "Nome" }));
+    expect(rowNames()).toEqual(["hello.txt", "logs", "report.pdf"]);
+    fireEvent.click(screen.getByRole("button", { name: "Nome" }));
+    expect(rowNames()).toEqual(["report.pdf", "logs", "hello.txt"]);
+    fireEvent.click(screen.getByRole("button", { name: "Dimensione" }));
+    expect(rowNames()).toEqual(["hello.txt", "report.pdf", "logs"]);
+  });
+
+  it("carica i file trascinati nella cartella aperta", async () => {
+    render(
+      <BrowserRouter>
+        <LanguageProvider initialLanguage="it">
+          <FileBrowserModal open serverId={7} onClose={() => undefined} />
+        </LanguageProvider>
+      </BrowserRouter>,
+    );
+
+    await screen.findByText("hello.txt");
+    fireEvent.drop(screen.getByRole("dialog"), {
+      dataTransfer: {
+        types: ["Files"],
+        files: [new File(["contenuto"], "nuovo.txt")],
+      },
+    });
+
+    await waitFor(() =>
+      expect(
+        uploadRequests.some((url) =>
+          url.includes("/api/servers/7/files/upload?path=%2Fhome%2Ftest"),
+        ),
+      ).toBe(true),
+    );
+  });
+
+  it("mostra il progresso dei download nativi", async () => {
+    let receive: ((message: string) => void) | null = null;
+    Reflect.set(window, "infraorgitDesktop", {
+      sendMessage: vi.fn(),
+      receiveMessage: (handler: (message: string) => void) => {
+        receive = handler;
+      },
+    });
+    render(
+      <BrowserRouter>
+        <LanguageProvider initialLanguage="it">
+          <FileBrowserModal open serverId={7} onClose={() => undefined} />
+        </LanguageProvider>
+      </BrowserRouter>,
+    );
+
+    await screen.findByText("hello.txt");
+    act(() =>
+      receive?.(
+        JSON.stringify({
+          type: "desktop.download.status",
+          state: "progressing",
+          fileName: "dump.sql.gz",
+          receivedBytes: 45,
+          totalBytes: 100,
+        }),
+      ),
+    );
+
+    expect(
+      await screen.findByText("Download di dump.sql.gz: 45%"),
+    ).toBeTruthy();
   });
 
   it("mostra l'avviso e configura accesso e credenziale mancanti", async () => {
