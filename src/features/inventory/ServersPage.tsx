@@ -1176,6 +1176,7 @@ function DeployActions({
           button.id,
           csrfToken,
           button.requiresConfirmation,
+          button.serverId,
         ),
       );
       await queryClient.invalidateQueries({ queryKey: ["command-executions"] });
