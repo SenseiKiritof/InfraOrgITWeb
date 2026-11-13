@@ -287,6 +287,159 @@ describe("FileBrowserModal", () => {
     ).toBeNull();
   });
 
+  it("usa la credenziale SSH quando non ci sono credenziali file", async () => {
+    let saved: unknown = null;
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes("/api/server-access/me")) {
+          return json({
+            isSystemAdmin: true,
+            adminEnvironmentIds: [1],
+            operatorEnvironmentIds: [1],
+          });
+        }
+        if (url.includes("/api/server-credentials")) {
+          return json({ items: [], total: 0, page: 1, pageSize: 200 });
+        }
+        if (url.includes("/api/servers/7/file-transfer")) {
+          saved = JSON.parse(String(init?.body));
+          return new Response(null, { status: 204 });
+        }
+        if (url.includes("/api/servers/7/files")) {
+          return json({
+            path: "/home/test",
+            items: [
+              {
+                name: "hello.txt",
+                path: "/home/test/hello.txt",
+                isDirectory: false,
+                size: 12,
+                modifiedUtc: null,
+              },
+            ],
+          });
+        }
+        return json({
+          items: [
+            {
+              id: 7,
+              name: "srv-alpha",
+              providerEnvironmentId: 1,
+              providerEnvironmentLabel: "ACME / PROD",
+              ipAddress: "10.0.0.5",
+              sshPort: 22,
+              credentialId: 6,
+              fileTransferProtocol: null,
+              fileTransferPort: null,
+              fileTransferCredentialId: null,
+            },
+          ],
+          total: 1,
+          page: 1,
+          pageSize: 200,
+        });
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <BrowserRouter>
+        <LanguageProvider initialLanguage="it">
+          <FileBrowserModal open serverId={7} onClose={() => undefined} />
+        </LanguageProvider>
+      </BrowserRouter>,
+    );
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Configura accesso file" }),
+    );
+    await screen.findByRole("dialog", { name: "Accesso file del server" });
+    expect(
+      screen.getByRole("option", { name: "Usa la credenziale SSH" }),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Salva e apri" }));
+
+    await waitFor(() =>
+      expect(saved).toEqual({
+        protocol: "Sftp",
+        port: 22,
+        credentialId: null,
+      }),
+    );
+    expect(await screen.findByText("hello.txt")).toBeTruthy();
+  });
+
+  it("non resta in caricamento passando a un server senza protocollo", async () => {
+    let resolveFiles: ((value: Response) => void) | undefined;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/server-access/me")) {
+        return json({
+          isSystemAdmin: true,
+          adminEnvironmentIds: [1],
+          operatorEnvironmentIds: [1],
+        });
+      }
+      if (url.includes("/api/servers/7/files")) {
+        return new Promise<Response>((resolve) => {
+          resolveFiles = resolve;
+        });
+      }
+      return json({
+        items: [
+          {
+            id: 7,
+            name: "srv-alpha",
+            providerEnvironmentId: 1,
+            ipAddress: "10.0.0.5",
+            sshPort: 22,
+            fileTransferProtocol: "Sftp",
+            fileTransferPort: 22,
+          },
+          {
+            id: 8,
+            name: "srv-beta",
+            providerEnvironmentId: 1,
+            ipAddress: "10.0.0.6",
+            sshPort: 22,
+            fileTransferProtocol: null,
+            fileTransferPort: null,
+          },
+        ],
+        total: 2,
+        page: 1,
+        pageSize: 200,
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { rerender } = render(
+      <BrowserRouter>
+        <LanguageProvider initialLanguage="it">
+          <FileBrowserModal open serverId={7} onClose={() => undefined} />
+        </LanguageProvider>
+      </BrowserRouter>,
+    );
+    expect(await screen.findByText("Caricamento…")).toBeTruthy();
+
+    rerender(
+      <BrowserRouter>
+        <LanguageProvider initialLanguage="it">
+          <FileBrowserModal open serverId={8} onClose={() => undefined} />
+        </LanguageProvider>
+      </BrowserRouter>,
+    );
+
+    expect(
+      await screen.findByText(
+        "Accesso SFTP/FTPS/FTP non configurato per questo server.",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText("Caricamento…")).toBeNull();
+    resolveFiles?.(json({ path: "/", items: [] }));
+  });
+
   it("parte senza path e adotta la home restituita dal server", async () => {
     render(
       <BrowserRouter>

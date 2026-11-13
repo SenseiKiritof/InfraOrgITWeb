@@ -254,10 +254,18 @@ export function FileBrowserModal({
     configProtocol === "Sftp"
       ? credentials
       : credentials.filter((item) => item.authType === "Password");
+  const sshOption = configProtocol === "Sftp" && Boolean(server?.credentialId);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: reloadKey ricarica la cartella
   useEffect(() => {
-    if (!open || selectedId === null || !server?.fileTransferProtocol) return;
+    if (!open || selectedId === null) return;
+    if (!server?.fileTransferProtocol) {
+      setLoadingFiles(false);
+      setEntries([]);
+      setLoadError(null);
+      setLoadErrorCode(null);
+      return;
+    }
     // La home appena restituita dal server è già stata elencata: non serve
     // ripetere la richiesta con il path esplicito.
     if (path !== null && adoptedPath.current === path) {
@@ -318,7 +326,9 @@ export function FileBrowserModal({
     setConfigCredentialId(
       server.fileTransferCredentialId
         ? String(server.fileTransferCredentialId)
-        : "",
+        : protocol === "Sftp" && server.credentialId
+          ? "ssh"
+          : "",
     );
     setConfigError(null);
     setConfigOpen(true);
@@ -342,15 +352,24 @@ export function FileBrowserModal({
       setConfigError(t("files.portInvalid"));
       return;
     }
-    const credentialId = Number(configCredentialId);
-    if (!Number.isInteger(credentialId) || credentialId <= 0) {
+    const useSsh = configCredentialId === "ssh";
+    if (useSsh && (!server.credentialId || configProtocol !== "Sftp")) {
       setConfigError(t("files.credentialRequired"));
       return;
     }
-    const credential = credentialChoices.find(
-      (item) => item.id === credentialId,
-    );
-    if (!credential) {
+    const parsedCredentialId = Number(configCredentialId);
+    const credentialId = useSsh ? null : parsedCredentialId;
+    if (
+      !useSsh &&
+      (!Number.isInteger(parsedCredentialId) || parsedCredentialId <= 0)
+    ) {
+      setConfigError(t("files.credentialRequired"));
+      return;
+    }
+    const credential = useSsh
+      ? null
+      : credentialChoices.find((item) => item.id === credentialId);
+    if (!useSsh && !credential) {
       setConfigError(t("files.credentialRequired"));
       return;
     }
@@ -374,8 +393,8 @@ export function FileBrowserModal({
                 ...item,
                 fileTransferProtocol: configProtocol,
                 fileTransferPort: port,
-                fileTransferCredentialId: credential.id,
-                fileTransferCredentialName: credential.name,
+                fileTransferCredentialId: credentialId,
+                fileTransferCredentialName: credential?.name ?? null,
               }
             : item,
         ),
@@ -965,7 +984,9 @@ export function FileBrowserModal({
                     const protocol = event.target.value as FileTransferProtocol;
                     setConfigProtocol(protocol);
                     setConfigPort(String(defaultFileTransferPort(protocol)));
-                    setConfigCredentialId("");
+                    setConfigCredentialId(
+                      protocol === "Sftp" && server.credentialId ? "ssh" : "",
+                    );
                   }}
                   className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
                 >
@@ -995,7 +1016,8 @@ export function FileBrowserModal({
                     setConfigCredentialId(event.target.value)
                   }
                   disabled={
-                    credentialsLoading || credentialChoices.length === 0
+                    credentialsLoading ||
+                    (credentialChoices.length === 0 && !sshOption)
                   }
                   className="rounded-md border border-slate-300 px-2 py-1.5 text-sm disabled:opacity-60"
                 >
@@ -1004,6 +1026,9 @@ export function FileBrowserModal({
                       ? t("files.credentialLoading")
                       : t("files.credentialPlaceholder")}
                   </option>
+                  {sshOption && (
+                    <option value="ssh">{t("files.credentialSsh")}</option>
+                  )}
                   {credentialChoices.map((credential) => (
                     <option key={credential.id} value={credential.id}>
                       {credential.name} · {credential.username} ·{" "}
@@ -1025,18 +1050,20 @@ export function FileBrowserModal({
                 </p>
               )}
 
-              {!credentialsLoading && credentialChoices.length === 0 && (
-                <p className="text-xs text-slate-500">
-                  {t("files.credentialEmpty")}{" "}
-                  <Link
-                    to="/credentials"
-                    onClick={openCredentials}
-                    className="font-medium underline"
-                  >
-                    {t("files.manageCredentials")}
-                  </Link>
-                </p>
-              )}
+              {!credentialsLoading &&
+                credentialChoices.length === 0 &&
+                !sshOption && (
+                  <p className="text-xs text-slate-500">
+                    {t("files.credentialEmpty")}{" "}
+                    <Link
+                      to="/credentials"
+                      onClick={openCredentials}
+                      className="font-medium underline"
+                    >
+                      {t("files.manageCredentials")}
+                    </Link>
+                  </p>
+                )}
             </div>
 
             {configError && (
