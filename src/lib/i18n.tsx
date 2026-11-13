@@ -516,6 +516,8 @@ const it = {
   "tunnels.startedAt": "Avviato",
   "tunnels.lastSeenAt": "Ultimo contatto",
   "tunnels.none": "Nessun tunnel attivo",
+  "tunnels.noneHint":
+    "I tunnel si aprono dal desktop o dalla sezione Tunnel del server. Le sessioni attive compaiono qui.",
   "tunnels.refresh": "Aggiorna",
   "tunnels.autoRefresh": "Aggiornamento automatico ogni 15 secondi.",
   "tunnels.mode": "Modalità",
@@ -1260,6 +1262,8 @@ const en: Record<TranslationKey, string> = {
   "tunnels.startedAt": "Started",
   "tunnels.lastSeenAt": "Last seen",
   "tunnels.none": "No active tunnels",
+  "tunnels.noneHint":
+    "Tunnels are opened from the desktop app or from the server's Tunnel section. Active sessions appear here.",
   "tunnels.refresh": "Refresh",
   "tunnels.autoRefresh": "Automatic refresh every 15 seconds.",
   "tunnels.mode": "Mode",

@@ -133,9 +133,10 @@ export function TunnelsPage() {
             {t("common.loading")}
           </p>
         ) : tunnels.data?.items.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-slate-500">
-            {t("tunnels.none")}
-          </p>
+          <div className="space-y-1 px-4 py-6 text-sm text-slate-500">
+            <p>{t("tunnels.none")}</p>
+            <p className="text-xs">{t("tunnels.noneHint")}</p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
