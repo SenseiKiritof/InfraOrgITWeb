@@ -1013,6 +1013,18 @@ export function FileBrowserModal({
                 </select>
               </label>
 
+              {!credentialsLoading && credentialChoices.length > 0 && (
+                <p className="text-xs text-slate-500">
+                  <Link
+                    to="/credentials"
+                    onClick={openCredentials}
+                    className="font-medium underline"
+                  >
+                    {t("files.manageCredentials")}
+                  </Link>
+                </p>
+              )}
+
               {!credentialsLoading && credentialChoices.length === 0 && (
                 <p className="text-xs text-slate-500">
                   {t("files.credentialEmpty")}{" "}
