@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../../app/AuthProvider";
 import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
@@ -430,7 +430,14 @@ function ProjectServerList({
             <tbody>
               {servers.map((server) => (
                 <tr key={server.key} className="border-t border-slate-100">
-                  <td className="px-2 py-2">{server.serverName}</td>
+                  <td className="px-2 py-2">
+                    <Link
+                      to={`/servers/${server.serverId}`}
+                      className="font-medium text-slate-900 underline"
+                    >
+                      {server.serverName}
+                    </Link>
+                  </td>
                   <td className="px-2 py-2">{server.ipAddress}</td>
                   <td className="px-2 py-2">{server.hostname}</td>
                   <td className="px-2 py-2">

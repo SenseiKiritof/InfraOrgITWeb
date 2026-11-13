@@ -44,9 +44,18 @@ result is what the server really reaches.
 ### Work on servers
 
 Open an SSH console with several sessions side by side or minimized to the bar
-at the bottom. The same bar opens an SFTP/FTPS file browser. Command templates
-and application actions (restart, logs, health check) run from the server page;
-every session, action and test is written to the audit log.
+at the bottom; the same server can have more than one console. The same bar
+opens an SFTP/FTPS browser in the same 1/2/3 panes, so a console and a file
+browser can stay side by side, and one height handle resizes both. The file
+browser offers breadcrumb navigation, hidden-file toggle, sorting, filtering,
+multi-select bulk delete, drag-and-drop upload and download; refresh keeps the
+current rows visible while the new listing loads, and both console and SFTP tabs
+come back after a page refresh. If the server has no file
+protocol or no usable credential, the browser shows a warning and lets a
+SystemAdmin configure protocol, port and credential inline (or open the
+Credentials page) before retrying. Command templates and application actions
+(restart, logs, health check) run from the server page; every session, action
+and test is written to the audit log.
 
 ![SSH session with hostname, uptime, disk usage, application log and health endpoint](docs/screenshots/console.gif)
 
@@ -66,9 +75,17 @@ and cannot be approved by the AI client itself.
 
 Tunnels opened by InfraOrgIT Desktop are projected on `/tunnels`: local port,
 target, server, user and last contact. The page refreshes every 15 seconds, so
-the team can see which forwards are active.
+the team can see which forwards are active. The desktop reuses the instance
+BFF session, so a user already signed in to the Web app does not need a second
+tunnel login.
 
 ![Active tunnel with local port, target and last contact](docs/screenshots/tunnels.png)
+
+When nothing is running, the page explains that tunnels are opened from the
+desktop app or from the server's Tunnel section; the browser page is only the
+active-session view.
+
+![Empty active tunnels page with guidance to the desktop and server tunnel section](docs/screenshots/tunnels-empty.png)
 
 ### Keep an audit trail
 
@@ -91,14 +108,25 @@ menu. The raw value is shown once; grant only the scopes the client needs.
 
 ![Personal API tokens with scopes, creation, expiry, last use and state](docs/screenshots/tokens.png)
 
+## Downloads in the desktop app
+
+In the Electron desktop shell, server attachments use Chromium's native
+download and generated API results use the desktop blob bridge, which opens a
+native save dialog. There is no desktop download-mode setting in the UI.
+
+The server-side `DESKTOP_DOWNLOADS_ENABLED` flag and the signed one-time
+download tickets remain for API compatibility, but the Electron client does not
+use those tickets.
+
 ## Sign in
 
 Open the URL of your InfraOrgIT instance and sign in with the Keycloak account
 provided by your administrator. If the deployment enables MFA, Keycloak asks
 for the second factor before the app loads.
 
-Use the user menu to switch between Italian and English or between the light
-and dark theme. The menu labels stored in the database can be edited by an
+Use the user menu to switch between Italian and English or to cycle the light,
+dark and system theme (the system option keeps the operating-system
+appearance). The menu labels stored in the database can be edited by an
 administrator from **Menu**.
 
 ## Learn more

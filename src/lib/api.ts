@@ -4,11 +4,15 @@ export interface SessionUser {
   surname: string;
 }
 
+export type ThemePreference = "light" | "dark" | "system";
+
 export interface Session {
   user: SessionUser;
   expiresIn: number;
   refreshExpiresIn: number;
   csrfToken: string;
+  /** Presente quando il backend salva la preferenza tema dell'utente. */
+  theme?: ThemePreference;
 }
 
 export interface Menu {
@@ -124,6 +128,17 @@ export function getMenus(language: string): Promise<Menu[]> {
 
 export function postLogout(csrfToken: string): Promise<void> {
   return apiFetch<void>("/auth/logout", { method: "POST" }, csrfToken);
+}
+
+export function patchSessionTheme(
+  csrfToken: string,
+  theme: ThemePreference,
+): Promise<void> {
+  return apiFetch<void>(
+    "/api/session/theme",
+    { method: "PATCH", body: JSON.stringify({ theme }) },
+    csrfToken,
+  );
 }
 
 export function redirectToLogin(): void {

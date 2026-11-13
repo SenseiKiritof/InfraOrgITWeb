@@ -90,6 +90,9 @@ body {
 .dark .bg-slate-100 {
   background-color: #334155;
 }
+.dark .bg-slate-200 {
+  background-color: #334155;
+}
 .dark .bg-slate-900 {
   background-color: #334155;
 }
@@ -98,6 +101,9 @@ body {
 }
 .dark .hover\:bg-slate-100:hover {
   background-color: #334155;
+}
+.dark .hover\:text-slate-900:hover {
+  color: #e2e8f0;
 }
 .dark .bg-red-50 {
   background-color: #450a0a;
@@ -261,4 +267,11 @@ section:fullscreen {
 }
 section:fullscreen {
   background: #0f172a;
+}
+
+/* La barra console segue il tema invece di restare scura in tema chiaro. */
+.dark .console-footer {
+  border-color: #334155;
+  background-color: #0f172a;
+  color: #f1f5f9;
 }

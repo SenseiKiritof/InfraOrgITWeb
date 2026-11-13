@@ -123,13 +123,16 @@ export function assignFileTransfer(
   );
 }
 
+/**
+ * Elenca i file del server. Con `path` null la richiesta non invia il
+ * parametro: il server parte dalla home della sessione (SFTP) e la restituisce.
+ */
 export function listServerFiles(
   serverId: number,
-  path: string,
+  path: string | null,
 ): Promise<RemoteFileList> {
-  return apiFetch<RemoteFileList>(
-    `/api/servers/${serverId}/files?path=${encodeURIComponent(path)}`,
-  );
+  const query = path === null ? "" : `?path=${encodeURIComponent(path)}`;
+  return apiFetch<RemoteFileList>(`/api/servers/${serverId}/files${query}`);
 }
 
 export function serverFileDownloadUrl(serverId: number, path: string): string {

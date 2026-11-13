@@ -14,6 +14,7 @@ import type {
 } from "../../lib/admin";
 import { getEnvironmentGroupRoles, getGroups, getRoles } from "../../lib/admin";
 import { apiFetch } from "../../lib/api";
+import { includesText, startsWithValue } from "../../lib/filter";
 import { useI18n } from "../../lib/i18n";
 import type {
   Environment,
@@ -62,16 +63,23 @@ export function EnvironmentsPage() {
       <EntitySection
         rows={environments.data?.items}
         columns={[
-          { key: "name", label: t("common.name"), render: (row) => row.name },
+          {
+            key: "name",
+            label: t("common.name"),
+            render: (row) => row.name,
+            filter: (row, value) => includesText(row.name, value),
+          },
           {
             key: "description",
             label: t("common.description"),
             render: (row) => row.description,
+            filter: (row, value) => includesText(row.description, value),
           },
           {
             key: "providerCount",
             label: t("common.provider"),
             render: (row) => row.providerCount,
+            filter: (row, value) => startsWithValue(row.providerCount, value),
           },
         ]}
         fields={[
