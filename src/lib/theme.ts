@@ -4,19 +4,24 @@ import { patchSessionTheme, type Session, type ThemePreference } from "./api";
 export type { ThemePreference } from "./api";
 
 export const THEME_STORAGE_KEY = "infraorgit-theme";
+export const THEME_PENDING_KEY = "infraorgit-theme-pending";
 
 const PREFERENCES: ThemePreference[] = ["light", "dark", "system"];
 
-/** Valore locale usato prima del login e quando il server non risponde. */
-export function readThemePreference(): ThemePreference {
+function storedPreference(key: string): ThemePreference | null {
   try {
-    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    const stored = localStorage.getItem(key);
     if (PREFERENCES.includes(stored as ThemePreference))
       return stored as ThemePreference;
   } catch {
     // storage non disponibile: si usa il tema di sistema
   }
-  return "system";
+  return null;
+}
+
+/** Valore locale usato prima del login e quando il server non risponde. */
+export function readThemePreference(): ThemePreference {
+  return storedPreference(THEME_STORAGE_KEY) ?? "system";
 }
 
 export function storeThemePreference(theme: ThemePreference): void {
@@ -24,6 +29,27 @@ export function storeThemePreference(theme: ThemePreference): void {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
   } catch {
     // storage non disponibile: resta valido per questa scheda
+  }
+}
+
+/** Scelta locale non ancora confermata dal server. */
+export function readPendingThemePreference(): ThemePreference | null {
+  return storedPreference(THEME_PENDING_KEY);
+}
+
+export function storePendingThemePreference(theme: ThemePreference): void {
+  try {
+    localStorage.setItem(THEME_PENDING_KEY, theme);
+  } catch {
+    // storage non disponibile: il PATCH resta best effort
+  }
+}
+
+export function clearPendingThemePreference(): void {
+  try {
+    localStorage.removeItem(THEME_PENDING_KEY);
+  } catch {
+    // storage non disponibile
   }
 }
 
@@ -74,20 +100,41 @@ export function useTheme(session: Session | null) {
   }, [theme]);
 
   useEffect(() => {
-    if (!serverTheme || lastServerTheme.current === serverTheme) return;
+    if (!serverTheme) return;
+    const pending = readPendingThemePreference();
+    if (lastServerTheme.current === serverTheme && !pending) return;
     lastServerTheme.current = serverTheme;
-    storeThemePreference(serverTheme);
-    setThemeState(serverTheme);
-  }, [serverTheme]);
+    const next = pending ?? serverTheme;
+    storeThemePreference(next);
+    setThemeState(next);
+    applyTheme(next);
+    setResolved(resolvedTheme(next));
+    if (!pending) return;
+    const csrf = session?.csrfToken;
+    if (!csrf) return;
+    void patchSessionTheme(csrf, pending)
+      .then(() => {
+        if (readPendingThemePreference() === pending)
+          clearPendingThemePreference();
+      })
+      .catch(() => undefined);
+  }, [serverTheme, session?.csrfToken]);
 
   const setTheme = useCallback(
     (next: ThemePreference) => {
       setThemeState(next);
       storeThemePreference(next);
+      storePendingThemePreference(next);
       applyTheme(next);
       setResolved(resolvedTheme(next));
       const csrf = session?.csrfToken;
-      if (csrf) void patchSessionTheme(csrf, next).catch(() => undefined);
+      if (csrf)
+        void patchSessionTheme(csrf, next)
+          .then(() => {
+            if (readPendingThemePreference() === next)
+              clearPendingThemePreference();
+          })
+          .catch(() => undefined);
     },
     [session?.csrfToken],
   );

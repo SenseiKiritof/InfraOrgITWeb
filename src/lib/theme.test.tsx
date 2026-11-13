@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Session, ThemePreference } from "./api";
 import {
   applyTheme,
+  readPendingThemePreference,
   readThemePreference,
+  storePendingThemePreference,
   storeThemePreference,
   THEME_STORAGE_KEY,
   useTheme,
@@ -86,6 +88,37 @@ describe("theme", () => {
     expect(result.current.resolved).toBe("dark");
   });
 
+  it("non sovrascrive la scelta fatta prima del login con il default system", async () => {
+    const fetchMock = vi.fn(async () => new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+    storeThemePreference("dark");
+    storePendingThemePreference("dark");
+
+    const { result } = renderHook(() => useTheme(session("system")));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(result.current.theme).toBe("dark");
+    expect(darkApplied()).toBe(true);
+    expect(readPendingThemePreference()).toBeNull();
+
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    expect(url).toBe("/api/session/theme");
+    expect(JSON.parse(String(init.body))).toEqual({ theme: "dark" });
+  });
+
+  it("mantiene una scelta pendente se il PATCH non è disponibile", () => {
+    storeThemePreference("dark");
+    storePendingThemePreference("dark");
+
+    const { result } = renderHook(() => useTheme(session()));
+
+    expect(result.current.theme).toBe("dark");
+    expect(readPendingThemePreference()).toBe("dark");
+  });
+
   it("al toggle salva in locale e invia il PATCH con CSRF", async () => {
     const fetchMock = vi.fn(async () => new Response(null, { status: 204 }));
     vi.stubGlobal("fetch", fetchMock);
@@ -99,6 +132,7 @@ describe("theme", () => {
     expect(darkApplied()).toBe(false);
     expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe("light");
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(readPendingThemePreference()).toBeNull());
 
     const [url, init] = fetchMock.mock.calls[0] as unknown as [
       string,
@@ -127,6 +161,7 @@ describe("theme", () => {
     expect(result.current.theme).toBe("light");
     expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe("light");
     expect(darkApplied()).toBe(false);
+    expect(readPendingThemePreference()).toBe("light");
     await waitFor(() => expect(result.current.theme).toBe("light"));
   });
 });
