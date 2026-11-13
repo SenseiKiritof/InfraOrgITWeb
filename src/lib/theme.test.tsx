@@ -127,7 +127,7 @@ describe("theme", () => {
     const { result } = renderHook(() => useTheme(session("dark")));
     await waitFor(() => expect(result.current.theme).toBe("dark"));
 
-    act(() => result.current.toggle());
+    act(() => result.current.setTheme("light"));
 
     expect(result.current.theme).toBe("light");
     expect(darkApplied()).toBe(false);
@@ -173,7 +173,7 @@ describe("theme", () => {
     const { result } = renderHook(() => useTheme(session("dark")));
     await waitFor(() => expect(result.current.theme).toBe("dark"));
 
-    act(() => result.current.toggle());
+    act(() => result.current.setTheme("light"));
 
     expect(result.current.theme).toBe("light");
     expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe("light");

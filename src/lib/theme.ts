@@ -146,15 +146,11 @@ export function useTheme(session: Session | null) {
     [session?.csrfToken],
   );
 
-  const toggle = useCallback(() => {
-    setTheme(resolved === "dark" ? "light" : "dark");
-  }, [resolved, setTheme]);
-
   const cycle = useCallback(() => {
     const next =
       theme === "light" ? "dark" : theme === "dark" ? "system" : "light";
     setTheme(next);
   }, [theme, setTheme]);
 
-  return { theme, resolved, setTheme, toggle, cycle };
+  return { theme, resolved, setTheme, cycle };
 }
