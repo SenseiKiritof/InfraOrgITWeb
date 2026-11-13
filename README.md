@@ -87,6 +87,14 @@ active-session view.
 
 ![Empty active tunnels page with guidance to the desktop and server tunnel section](docs/screenshots/tunnels-empty.png)
 
+### Choose the connection mode
+
+`/settings` (SystemAdmin) chooses whether the installation opens tunnels through
+the API (`Server`), directly from the desktop (`Client`) or automatically
+(`Auto`, direct when the client reaches the SSH host). The value is stored in
+the shared database, so every API node in a cluster reports the same mode; the
+`/tunnels` page shows the transport of each active session.
+
 ### Keep an audit trail
 
 `/audit` records MCP tool calls and tunnel events with actor, client, target,

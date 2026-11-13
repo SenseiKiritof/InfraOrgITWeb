@@ -522,6 +522,32 @@ const it = {
   "tunnels.refresh": "Aggiorna",
   "tunnels.autoRefresh": "Aggiornamento automatico ogni 15 secondi.",
   "tunnels.mode": "Modalità",
+  "tunnels.transport": "Trasporto",
+  "tunnels.transportClient": "Client",
+  "tunnels.transportServer": "Server",
+
+  "connectionPolicy.title": "Connessioni",
+  "connectionPolicy.description":
+    "Modalità delle connessioni remote per questa installazione: tunnel SSH e, nelle fasi successive, console, file e azioni.",
+  "connectionPolicy.cluster":
+    "L'impostazione è salvata nel database condiviso: tutte le istanze API del cluster applicano lo stesso valore. I tunnel relay restano legati al nodo che accetta la connessione.",
+  "connectionPolicy.server": "Solo tramite server",
+  "connectionPolicy.client": "Dirette sul client",
+  "connectionPolicy.auto": "Automatica",
+  "connectionPolicy.serverHint":
+    "Il server InfraOrgIT apre la connessione SSH e inoltra i byte al desktop. Supporta i servizi tunnel Local.",
+  "connectionPolicy.clientHint":
+    "Il desktop apre SSH con l'agente locale. Supporta Local, Dynamic e Remote; servono OpenSSH e un agente SSH.",
+  "connectionPolicy.autoHint":
+    "Il desktop prova la connessione diretta e usa il relay del server solo se il target non è raggiungibile dal client.",
+  "connectionPolicy.serverWarning":
+    "In questa modalità i servizi Dynamic e Remote non sono disponibili: il relay server accetta solo servizi Local.",
+  "connectionPolicy.clientWarning":
+    "I tunnel restano disponibili solo dal desktop: un browser non può aprire porte locali. Le connessioni dirette richiedono un agente SSH sul client.",
+  "connectionPolicy.current": "Modalità connessioni: {mode}",
+  "connectionPolicy.save": "Salva",
+  "connectionPolicy.saved": "Impostazione salvata.",
+  "connectionPolicy.updatedBy": "Ultima modifica: {user} · {date}",
 
   "desktopTunnels.title": "Tunnel dal desktop",
   "desktopTunnels.description":
@@ -1288,6 +1314,32 @@ const en: Record<TranslationKey, string> = {
   "tunnels.refresh": "Refresh",
   "tunnels.autoRefresh": "Automatic refresh every 15 seconds.",
   "tunnels.mode": "Mode",
+  "tunnels.transport": "Transport",
+  "tunnels.transportClient": "Client",
+  "tunnels.transportServer": "Server",
+
+  "connectionPolicy.title": "Connections",
+  "connectionPolicy.description":
+    "Remote connection mode for this installation: SSH tunnels and, in later phases, console, files and actions.",
+  "connectionPolicy.cluster":
+    "The setting is stored in the shared database: every API node in the cluster applies the same value. Relay tunnels stay bound to the node that accepts the connection.",
+  "connectionPolicy.server": "Server only",
+  "connectionPolicy.client": "Direct on the client",
+  "connectionPolicy.auto": "Automatic",
+  "connectionPolicy.serverHint":
+    "The InfraOrgIT server opens the SSH connection and relays bytes to the desktop. Supports Local tunnel services.",
+  "connectionPolicy.clientHint":
+    "The desktop opens SSH with the local agent. Supports Local, Dynamic and Remote; OpenSSH and an SSH agent are required.",
+  "connectionPolicy.autoHint":
+    "The desktop tries the direct connection and uses the server relay only when the client cannot reach the target.",
+  "connectionPolicy.serverWarning":
+    "Dynamic and Remote services are unavailable in this mode: the server relay accepts Local services only.",
+  "connectionPolicy.clientWarning":
+    "Tunnels remain desktop-only: a browser cannot open local ports. Direct connections require an SSH agent on the client.",
+  "connectionPolicy.current": "Connection mode: {mode}",
+  "connectionPolicy.save": "Save",
+  "connectionPolicy.saved": "Setting saved.",
+  "connectionPolicy.updatedBy": "Last change: {user} · {date}",
 
   "desktopTunnels.title": "Desktop tunnels",
   "desktopTunnels.description":

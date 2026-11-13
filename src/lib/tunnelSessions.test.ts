@@ -13,6 +13,7 @@ const session: TunnelSession = {
   serviceId: null,
   serviceName: null,
   mode: "Local",
+  transport: "Client",
   localPort: 15432,
   targetHost: "db.internal",
   targetPort: 5432,
