@@ -111,21 +111,12 @@ menu. The raw value is shown once; grant only the scopes the client needs.
 ## Downloads in the desktop app
 
 In the Electron desktop shell, server attachments use Chromium's native
-download and generated API results use the desktop blob bridge. There is no
-desktop download-mode setting.
+download and generated API results use the desktop blob bridge, which opens a
+native save dialog. There is no desktop download-mode setting in the UI.
 
-The legacy Photino manager offers `Automatico`, `Bridge` and `Nativo`:
-
-- **Bridge**: asks the server for a short-lived one-time link and saves the
-  file in the desktop process. It keeps the app responsive while the server is
-  slow.
-- **Native**: Windows WebView2, or macOS with the optional patched Photino
-  build, saves the file directly. Generated blobs still use the bridge because
-  WKWebView does not reliably save blob URLs.
-
-The server administrator can disable new signed bridge tickets with
-`DESKTOP_DOWNLOADS_ENABLED=false`; the legacy Photino app then uses its native
-route. Electron server attachments are native and do not use those tickets.
+The server-side `DESKTOP_DOWNLOADS_ENABLED` flag and the signed one-time
+download tickets remain for API compatibility, but the Electron client does not
+use those tickets.
 
 ## Sign in
 
