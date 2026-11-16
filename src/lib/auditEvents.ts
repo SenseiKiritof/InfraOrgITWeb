@@ -25,6 +25,8 @@ export interface AuditEvent {
   errorCode: string | null;
   durationMs: number;
   correlationId: string | null;
+  serverName: string | null;
+  targetLabel: string | null;
 }
 
 export interface AuditEventPage {
@@ -57,6 +59,26 @@ export function getAuditEvents(
   return apiFetch<AuditEventPage>(`/api/audit-events?${params}`);
 }
 
+/** Human labels for the entity types stored in an audit target. */
+const TARGET_TYPE_LABELS: Record<string, string> = {
+  Server: "",
+  ServerApplication: "Applicazione",
+  Application: "Applicazione",
+  Project: "Progetto",
+  McpAgent: "Agente MCP",
+  McpPermissionRequest: "Richiesta permesso",
+};
+
+/** MCP calls without a single target still name the data they touched. */
+function mcpScope(action: string): string {
+  if (action === "get_mcp_agent" || action === "request_mcp_permission") {
+    return "Agente MCP";
+  }
+  if (action === "get_topology") return "Topologia";
+  if (action === "list_executions") return "Registro esecuzioni";
+  return "Inventario";
+}
+
 /** MCP calls have a server or an entity target; tunnels add host and ports. */
 export function formatAuditTarget(event: AuditEvent): string {
   const parts: string[] = [];
@@ -67,10 +89,15 @@ export function formatAuditTarget(event: AuditEvent): string {
     parts.push(`local:${event.localPort}`);
   }
   if (event.targetType) {
-    parts.push(`${event.targetType} #${event.targetId ?? "—"}`);
+    const type = TARGET_TYPE_LABELS[event.targetType] ?? event.targetType;
+    const value = event.targetLabel ?? `#${event.targetId ?? "—"}`;
+    parts.push(type ? `${type} ${value}` : value);
   }
-  if (event.serverId !== null) {
-    parts.push(`server #${event.serverId}`);
+  if (event.serverId !== null && event.targetType !== "Server") {
+    parts.push(event.serverName ?? `server #${event.serverId}`);
+  }
+  if (parts.length === 0 && event.kind === "McpToolCall") {
+    return mcpScope(event.action);
   }
   return parts.join(" · ") || "—";
 }
