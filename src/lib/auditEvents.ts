@@ -26,6 +26,7 @@ export interface AuditEvent {
   durationMs: number;
   correlationId: string | null;
   serverName: string | null;
+  serverAddress: string | null;
   targetLabel: string | null;
 }
 
@@ -94,7 +95,10 @@ export function formatAuditTarget(event: AuditEvent): string {
     parts.push(type ? `${type} ${value}` : value);
   }
   if (event.serverId !== null && event.targetType !== "Server") {
-    parts.push(event.serverName ?? `server #${event.serverId}`);
+    const server = event.serverName ?? `server #${event.serverId}`;
+    parts.push(
+      event.serverAddress ? `${server} (${event.serverAddress})` : server,
+    );
   }
   if (parts.length === 0 && event.kind === "McpToolCall") {
     return mcpScope(event.action);
