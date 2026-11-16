@@ -59,6 +59,50 @@ afterEach(() => {
 });
 
 describe("GlobalSearch", () => {
+  it("scorre i risultati con le frecce e tiene visibile la selezione", async () => {
+    mockedSearch.mockResolvedValue([
+      {
+        type: "provider",
+        id: 1,
+        name: "Fastweb",
+        detail: null,
+        href: "/providers/1",
+      },
+      {
+        type: "provider",
+        id: 2,
+        name: "Fastbee",
+        detail: null,
+        href: "/providers/2",
+      },
+      {
+        type: "provider",
+        id: 3,
+        name: "FastVerify",
+        detail: null,
+        href: "/providers/3",
+      },
+    ]);
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    renderSearch();
+
+    const input = screen.getByRole("combobox", { name: "Cerca" });
+    fireEvent.change(input, { target: { value: "fast" } });
+    await screen.findByRole("option", { name: /Fastweb/ });
+
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    const second = screen.getByRole("option", { name: /Fastbee/ });
+    expect(second).toHaveAttribute("aria-selected", "true");
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
+
+    fireEvent.keyDown(input, { key: "ArrowUp" });
+    expect(screen.getByRole("option", { name: /Fastweb/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
   it("mostra la tipologia e apre la schermata del risultato", async () => {
     renderSearch();
 
