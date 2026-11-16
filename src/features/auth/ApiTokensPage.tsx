@@ -65,7 +65,7 @@ export function ApiTokensPage() {
             to="/approvals"
             className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
           >
-            {t("approvals.title")}
+            {t("mcpAgents.title")}
           </Link>
         }
       />

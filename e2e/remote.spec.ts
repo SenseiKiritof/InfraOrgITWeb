@@ -57,7 +57,7 @@ test("remoto: credenziali, comandi e test di rete", async ({ page }) => {
   await page.goto("/reachability");
   await page.getByRole("button", { name: "Nuovo test" }).click();
   await page.getByLabel("Host").fill("example.com");
-  await page.getByLabel("Descrizione").fill(reachability);
+  await page.getByLabel("Descrizione", { exact: true }).fill(reachability);
   await page.getByRole("button", { name: "Salva" }).click();
   await expect(
     page.getByRole("cell", { name: "example.com" }).first(),
