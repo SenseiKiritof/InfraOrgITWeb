@@ -13,7 +13,7 @@ test("MCP: token personale, tools/list e revoca", async ({ page }) => {
   const name = `E2E MCP ${Date.now()}`;
   await page.goto("/tokens");
   await page.getByRole("button", { name: "Nuovo token" }).click();
-  await page.getByLabel("Nome").fill(name);
+  await page.getByLabel("Nome", { exact: true }).fill(name);
   await page.getByRole("dialog").getByRole("button", { name: "Salva" }).click();
   await expect(page.getByText("Token creato")).toBeVisible();
   const token =

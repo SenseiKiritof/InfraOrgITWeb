@@ -12,7 +12,7 @@ test("ricerca globale: mostra il tipo e apre il dettaglio", async ({
 
   await page.goto("/providers");
   await page.getByRole("button", { name: "Nuovo provider" }).click();
-  await page.getByLabel("Nome").fill(provider);
+  await page.getByLabel("Nome", { exact: true }).fill(provider);
   await page.getByRole("dialog").getByRole("button", { name: "Salva" }).click();
   await expect(page.getByRole("cell", { name: provider })).toBeVisible();
 
