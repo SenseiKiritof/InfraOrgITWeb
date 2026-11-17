@@ -12,11 +12,11 @@ test("login BFF, menu e logout", async ({ page }) => {
   await expect(page.getByText("Dev Admin", { exact: true })).toBeVisible();
   await expect(
     page
-      .getByRole("navigation", { name: "Menu principale" })
+      .getByRole("navigation", { name: "Main menu" })
       .getByRole("link", { name: "Users" }),
   ).toBeVisible();
 
-  const themeButton = page.getByRole("button", { name: /Tema:/ });
+  const themeButton = page.getByRole("button", { name: /Theme:/ });
   for (let attempt = 0; attempt < 3; attempt++) {
     const classes = (await page.locator("html").getAttribute("class")) ?? "";
     if (classes.includes("dark")) break;
