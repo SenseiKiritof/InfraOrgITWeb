@@ -1,10 +1,15 @@
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { isDesktopBridgeAvailable } from "../../lib/desktopBridge";
+import type { DesktopConsoleHandle } from "../../lib/desktopRemote";
+import { openDesktopConsole } from "../../lib/desktopRemote";
 import { type TranslationKey, useI18n } from "../../lib/i18n";
 import "@xterm/xterm/css/xterm.css";
 
 type ConsoleStatus = "connecting" | "connected" | "error";
+
+type ConsoleSocket = Pick<WebSocket, "readyState" | "send" | "close">;
 
 const PANE_INDEXES = [0, 1, 2] as const;
 
@@ -53,7 +58,7 @@ export function ConsoleModal({
   const container = useRef<HTMLDivElement | null>(null);
   const terminal = useRef<Terminal | null>(null);
   const fit = useRef<FitAddon | null>(null);
-  const socket = useRef<WebSocket | null>(null);
+  const socket = useRef<ConsoleSocket | null>(null);
   const sessionCallback = useRef(onSessionId);
   sessionCallback.current = onSessionId;
   const dataCallback = useRef(onData);
@@ -143,51 +148,134 @@ export function ConsoleModal({
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: reconnectKey forza una nuova connessione
   useEffect(() => {
-    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-    const query = new URLSearchParams({ cols: "100", rows: "30" });
-    const resume = resumeRef.current ?? initialResume.current;
-    if (resume) query.set("resume", resume);
-    const ws = new WebSocket(
-      `${protocol}://${window.location.host}/api/socket/servers/${serverId}/console?${query}`,
-    );
-    ws.binaryType = "arraybuffer";
-    socket.current = ws;
     let disposed = false;
+    let direct: DesktopConsoleHandle | null = null;
     setDisconnected(false);
     setSessionClosed(false);
     setStatus("connecting");
 
-    ws.onopen = () => {
-      setStatus("connected");
-      setDisconnected(false);
-      const term = terminal.current;
-      if (term) sendResize(term.cols, term.rows);
+    const connectWebSocket = () => {
+      const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+      const query = new URLSearchParams({ cols: "100", rows: "30" });
+      const resume = resumeRef.current ?? initialResume.current;
+      if (resume) query.set("resume", resume);
+      const ws = new WebSocket(
+        `${protocol}://${window.location.host}/api/socket/servers/${serverId}/console?${query}`,
+      );
+      ws.binaryType = "arraybuffer";
+      socket.current = ws;
+
+      ws.onopen = () => {
+        if (disposed) return;
+        setStatus("connected");
+        setDisconnected(false);
+        const term = terminal.current;
+        if (term) sendResize(term.cols, term.rows);
+      };
+      ws.onmessage = (event) => {
+        if (typeof event.data === "string") {
+          handleControl(event.data, sessionCallback.current);
+          return;
+        }
+
+        terminal.current?.write(new Uint8Array(event.data as ArrayBuffer));
+        dataCallback.current?.();
+      };
+      ws.onerror = () => {
+        if (disposed) return;
+        setStatus("error");
+        setDisconnected(true);
+      };
+      ws.onclose = () => {
+        if (disposed) return;
+        setSessionClosed(true);
+        setDisconnected(true);
+      };
     };
-    ws.onmessage = (event) => {
-      if (typeof event.data === "string") {
-        handleControl(event.data, sessionCallback.current);
-        return;
+
+    const connect = async () => {
+      try {
+        const result = await openDesktopConsole(
+          serverId,
+          100,
+          30,
+          (data) => {
+            terminal.current?.write(data);
+            dataCallback.current?.();
+          },
+          (error) => {
+            if (disposed) return;
+            setSessionClosed(true);
+            setDisconnected(true);
+            if (error) setStatus("error");
+          },
+        );
+        if (disposed) {
+          if (result.transport === "client") result.handle.close();
+          return;
+        }
+        if (result.transport === "client") {
+          direct = result.handle;
+          socket.current = {
+            readyState: WebSocket.OPEN,
+            send: (value) => {
+              const text =
+                typeof value === "string"
+                  ? value
+                  : new TextDecoder().decode(value as BufferSource);
+              if (text.startsWith("{")) {
+                try {
+                  const message = JSON.parse(text) as {
+                    type?: string;
+                    cols?: number;
+                    rows?: number;
+                  };
+                  if (message.type === "resize") {
+                    direct?.resize(
+                      Number(message.cols) || 100,
+                      Number(message.rows) || 30,
+                    );
+                    return;
+                  }
+                  if (message.type === "terminate") {
+                    direct?.close();
+                    return;
+                  }
+                } catch {
+                  // è input utente che inizia con "{"
+                }
+              }
+              direct?.send(text);
+            },
+            close: () => direct?.close(),
+          };
+          setStatus("connected");
+          setDisconnected(false);
+          const term = terminal.current;
+          if (term) sendResize(term.cols, term.rows);
+          return;
+        }
+        connectWebSocket();
+      } catch {
+        if (disposed) return;
+        setStatus("error");
+        setDisconnected(true);
       }
-
-      terminal.current?.write(new Uint8Array(event.data as ArrayBuffer));
-      dataCallback.current?.();
-    };
-    ws.onerror = () => {
-      if (disposed) return;
-      setStatus("error");
-      setDisconnected(true);
-    };
-    ws.onclose = () => {
-      if (disposed) return;
-      setSessionClosed(true);
-      setDisconnected(true);
     };
 
-    return () => {
+    const cleanup = () => {
       disposed = true;
-      ws.close();
+      direct?.close();
+      socket.current?.close();
       socket.current = null;
     };
+
+    if (!isDesktopBridgeAvailable()) {
+      connectWebSocket();
+      return cleanup;
+    }
+    void connect();
+    return cleanup;
   }, [serverId, sendResize, reconnectKey]);
 
   useEffect(() => {
@@ -278,7 +366,7 @@ export function ConsoleModal({
   );
 }
 
-function terminate(socket: WebSocket | null) {
+function terminate(socket: ConsoleSocket | null) {
   if (socket?.readyState === WebSocket.OPEN)
     socket.send(JSON.stringify({ type: "terminate" }));
 }

@@ -24,6 +24,10 @@ import {
   stopDesktopTunnel,
 } from "../../lib/desktopTunnels";
 import { useI18n } from "../../lib/i18n";
+import {
+  filterActiveTunnels,
+  filterTunnelServers,
+} from "../../lib/tunnelSearch";
 import type { TunnelServiceMode } from "../../lib/tunnelServices";
 
 type Status = {
@@ -45,8 +49,11 @@ function DesktopTunnelsPanelContent() {
   const [active, setActive] = useState<DesktopActiveTunnel[]>([]);
   const [status, setStatus] = useState<Status | null>(null);
   const [token, setToken] = useState("");
+  const [filter, setFilter] = useState("");
   const [ports, setPorts] = useState<Record<string, string>>({});
   const lastToken = useRef<string | null>(null);
+  const visibleServers = filterTunnelServers(targets, filter);
+  const visibleActive = filterActiveTunnels(active, filter);
 
   useEffect(
     () =>
@@ -312,8 +319,30 @@ function DesktopTunnelsPanelContent() {
         </p>
       )}
 
+      {(targets.length > 0 || active.length > 0) && (
+        <div>
+          <label htmlFor="desktop-tunnel-search" className="sr-only">
+            {t("desktopTunnels.searchPlaceholder")}
+          </label>
+          <input
+            id="desktop-tunnel-search"
+            type="search"
+            value={filter}
+            onChange={(event) => setFilter(event.target.value)}
+            placeholder={t("desktopTunnels.searchPlaceholder")}
+            className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+          />
+        </div>
+      )}
+
+      {filter && targets.length > 0 && visibleServers.length === 0 && (
+        <p className="text-sm text-slate-500">
+          {t("desktopTunnels.searchEmpty")}
+        </p>
+      )}
+
       <div className="space-y-3">
-        {targets.map((server) => (
+        {visibleServers.map((server) => (
           <article
             key={server.serverId}
             className="rounded-md border border-slate-200 p-3"
@@ -496,13 +525,15 @@ function DesktopTunnelsPanelContent() {
         <h3 className="text-sm font-semibold text-slate-900">
           {t("desktopTunnels.activeTitle")}
         </h3>
-        {active.length === 0 ? (
+        {visibleActive.length === 0 ? (
           <p className="mt-1 text-sm text-slate-500">
-            {t("desktopTunnels.activeNone")}
+            {filter && active.length > 0
+              ? t("desktopTunnels.searchEmpty")
+              : t("desktopTunnels.activeNone")}
           </p>
         ) : (
           <ul className="mt-1 space-y-2">
-            {active.map((tunnel) => (
+            {visibleActive.map((tunnel) => (
               <li
                 key={tunnel.id}
                 className="flex flex-wrap items-center justify-between gap-2 rounded border border-slate-200 px-3 py-2"

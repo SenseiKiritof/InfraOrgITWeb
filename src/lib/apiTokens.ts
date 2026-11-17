@@ -8,6 +8,7 @@ export interface ApiToken {
   expiresAt: string | null;
   lastUsedAt: string | null;
   revokedAt: string | null;
+  username: string;
 }
 
 export interface ApiTokenCreated extends ApiToken {

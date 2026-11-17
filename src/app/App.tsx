@@ -19,13 +19,14 @@ import {
 } from "../components/PageHeaderSlot";
 import { UserMenu } from "../components/UserMenu";
 import { AuditPage } from "../features/admin/AuditPage";
+import { ConnectionPolicyPage } from "../features/admin/ConnectionPolicyPage";
 import { GroupsPage } from "../features/admin/GroupsPage";
 import { McpGrantsPage } from "../features/admin/McpGrantsPage";
 import { MenusPage } from "../features/admin/MenusPage";
 import { RolesPage } from "../features/admin/RolesPage";
 import { UsersPage } from "../features/admin/UsersPage";
 import { ApiTokensPage } from "../features/auth/ApiTokensPage";
-import { McpApprovalsPage } from "../features/auth/McpApprovalsPage";
+import { McpAgentsPage } from "../features/auth/McpAgentsPage";
 import {
   ApplicationDetailPage,
   ApplicationsPage,
@@ -135,7 +136,7 @@ function AuthenticatedApp() {
               }
             />
             <Route path="tokens" element={<ApiTokensPage />} />
-            <Route path="approvals" element={<McpApprovalsPage />} />
+            <Route path="approvals" element={<McpAgentsPage />} />
             <Route
               path="mcp-grants"
               element={
@@ -161,6 +162,14 @@ function AuthenticatedApp() {
               }
             />
             <Route path="menu" element={<MenusPage />} />
+            <Route
+              path="settings"
+              element={
+                <RequireSystemAdmin>
+                  <ConnectionPolicyPage />
+                </RequireSystemAdmin>
+              }
+            />
             <Route path="credentials" element={<CredentialsPage />} />
             <Route path="commands" element={<CommandsPage />} />
             <Route path="reachability" element={<ReachabilityPage />} />

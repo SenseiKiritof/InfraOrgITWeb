@@ -32,6 +32,8 @@ import {
   type DesktopDownloadRoute,
   desktopDownloads,
 } from "../../lib/desktopDownloads";
+import { desktopDownloadFile } from "../../lib/desktopFiles";
+import { resolveDesktopRemote } from "../../lib/desktopRemote";
 import { formatBytes, formatDateTime } from "../../lib/format";
 import { useI18n } from "../../lib/i18n";
 import type { Server } from "../../lib/inventory";
@@ -178,6 +180,7 @@ export function FileBrowserModal({
   const [localAdminIds, setLocalAdminIds] = useState<number[]>([]);
   const [localSystemAdmin, setLocalSystemAdmin] = useState(false);
   const [localLoadingServers, setLocalLoadingServers] = useState(false);
+  const [directFiles, setDirectFiles] = useState(false);
   const servers = serverList ?? localServers;
   const adminIds = adminEnvironmentIds ?? localAdminIds;
   const isSystemAdmin = systemAdmin ?? localSystemAdmin;
@@ -212,6 +215,24 @@ export function FileBrowserModal({
   useEffect(() => {
     if (open && serverId !== null) filterInput.current?.focus();
   }, [open, serverId]);
+
+  useEffect(() => {
+    if (!open || selectedId === null) {
+      setDirectFiles(false);
+      return;
+    }
+    let active = true;
+    void resolveDesktopRemote(selectedId)
+      .then((transport) => {
+        if (active) setDirectFiles(transport === "client");
+      })
+      .catch(() => {
+        if (active) setDirectFiles(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [open, selectedId]);
 
   useEffect(() => {
     try {
@@ -819,6 +840,20 @@ export function FileBrowserModal({
 
   const downloadEntry = async (entry: RemoteFileEntry) => {
     if (selectedId === null || entry.isDirectory) return;
+    if (directFiles) {
+      const local = await desktopDownloadFile(selectedId, entry.path);
+      if (local) {
+        setDownloadNote(
+          local.saved
+            ? {
+                text: t("files.downloadDone", { name: entry.name }),
+                tone: "info",
+              }
+            : null,
+        );
+        return;
+      }
+    }
     const url = serverFileDownloadUrl(selectedId, entry.path);
     // Native e web: navigazione normale, il webview desktop la intercetta.
     if (downloadRoute !== "bridge") {
@@ -1375,6 +1410,10 @@ export function FileBrowserModal({
                         }
                         onDragStart={(event) => {
                           if (entry.isDirectory || selectedId === null) return;
+                          if (directFiles) {
+                            event.preventDefault();
+                            return;
+                          }
                           const url = serverFileDownloadUrl(
                             selectedId,
                             entry.path,
@@ -1427,9 +1466,10 @@ export function FileBrowserModal({
                             aria-label={t("files.download")}
                             title={t("files.download")}
                             onClick={(event) => {
-                              // Solo il bridge possiede il file: native e web
-                              // lasciano la navigazione normale al webview.
-                              if (downloadRoute !== "bridge") return;
+                              // In direct mode the desktop owns the file; the
+                              // ticket/native path stays for the server mode.
+                              if (!directFiles && downloadRoute !== "bridge")
+                                return;
                               event.preventDefault();
                               void downloadEntry(entry);
                             }}

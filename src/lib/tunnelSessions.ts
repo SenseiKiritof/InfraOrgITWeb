@@ -13,6 +13,7 @@ export interface TunnelSession {
   serviceId: number | null;
   serviceName: string | null;
   mode: TunnelServiceMode;
+  transport: "Client" | "Server";
   localPort: number | null;
   targetHost: string | null;
   targetPort: number | null;

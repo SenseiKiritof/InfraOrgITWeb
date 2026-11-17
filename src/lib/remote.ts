@@ -1,4 +1,16 @@
 import { apiFetch } from "./api";
+import {
+  desktopCreateDirectory,
+  desktopDeleteFile,
+  desktopListFiles,
+  desktopRenameFile,
+  desktopUploadFile,
+} from "./desktopFiles";
+import {
+  isDesktopRemoteAvailable,
+  resolveDesktopRemote,
+  runDesktopAction,
+} from "./desktopRemote";
 import type { Paged, Server } from "./inventory";
 import { paged } from "./inventory";
 
@@ -51,6 +63,16 @@ export interface ApplicationActionButton {
   label: string;
   order: number;
   requiresConfirmation: boolean;
+  serverId: number;
+}
+
+export interface ApplicationActionIntent {
+  executionId: number;
+  serverId: number;
+  label: string;
+  script: string;
+  redactValues: Record<string, string>;
+  timeoutSeconds: number;
 }
 
 export interface CommandResult {
@@ -127,10 +149,12 @@ export function assignFileTransfer(
  * Elenca i file del server. Con `path` null la richiesta non invia il
  * parametro: il server parte dalla home della sessione (SFTP) e la restituisce.
  */
-export function listServerFiles(
+export async function listServerFiles(
   serverId: number,
   path: string | null,
 ): Promise<RemoteFileList> {
+  const local = await desktopListFiles(serverId, path);
+  if (local) return local;
   const query = path === null ? "" : `?path=${encodeURIComponent(path)}`;
   return apiFetch<RemoteFileList>(`/api/servers/${serverId}/files${query}`);
 }
@@ -139,12 +163,14 @@ export function serverFileDownloadUrl(serverId: number, path: string): string {
   return `/api/servers/${serverId}/files/download?path=${encodeURIComponent(path)}`;
 }
 
-export function uploadServerFile(
+export async function uploadServerFile(
   serverId: number,
   directory: string,
   file: File,
   csrfToken: string,
 ): Promise<{ path: string }> {
+  const local = await desktopUploadFile(serverId, directory, file);
+  if (local) return local;
   const form = new FormData();
   form.append("file", file);
   return apiFetch<{ path: string }>(
@@ -154,11 +180,17 @@ export function uploadServerFile(
   );
 }
 
-export function createServerDirectory(
+export async function createServerDirectory(
   serverId: number,
   path: string,
   csrfToken: string,
 ): Promise<{ path: string }> {
+  const local = await desktopCreateDirectory(
+    serverId,
+    path.replace(/\/[^/]*$/, "") || "/",
+    path.split("/").filter(Boolean).pop() || path,
+  );
+  if (local) return local;
   return apiFetch<{ path: string }>(
     `/api/servers/${serverId}/files/directory`,
     { method: "POST", body: JSON.stringify({ path }) },
@@ -166,13 +198,15 @@ export function createServerDirectory(
   );
 }
 
-export function renameServerFile(
+export async function renameServerFile(
   serverId: number,
   path: string,
   newName: string,
   isDirectory: boolean,
   csrfToken: string,
 ): Promise<{ path: string }> {
+  const local = await desktopRenameFile(serverId, path, newName);
+  if (local) return local;
   return apiFetch<{ path: string }>(
     `/api/servers/${serverId}/files/rename`,
     {
@@ -183,12 +217,14 @@ export function renameServerFile(
   );
 }
 
-export function deleteServerFile(
+export async function deleteServerFile(
   serverId: number,
   path: string,
   isDirectory: boolean,
   csrfToken: string,
 ): Promise<void> {
+  const local = await desktopDeleteFile(serverId, path, isDirectory);
+  if (local) return;
   return apiFetch<void>(
     `/api/servers/${serverId}/files?path=${encodeURIComponent(path)}&isDirectory=${isDirectory}`,
     { method: "DELETE" },
@@ -308,15 +344,52 @@ export function getActionButtons(
   );
 }
 
-export function runAction(
+function actionIdempotencyKey(): string {
+  return (
+    globalThis.crypto?.randomUUID?.() ??
+    `run-${Date.now()}-${Math.random().toString(16).slice(2)}`
+  );
+}
+
+export function prepareActionIntent(
+  serverApplicationId: number,
+  actionId: number,
+  csrfToken: string,
+  confirm: boolean,
+  idempotencyKey: string,
+): Promise<ApplicationActionIntent> {
+  return apiFetch<ApplicationActionIntent>(
+    `/api/server-applications/${serverApplicationId}/actions/${actionId}/intent`,
+    {
+      method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify({ confirm }),
+    },
+    csrfToken,
+  );
+}
+
+export async function runAction(
   serverApplicationId: number,
   actionId: number,
   csrfToken: string,
   confirm = false,
+  serverId: number | null = null,
 ): Promise<CommandResult> {
-  const idempotencyKey =
-    globalThis.crypto?.randomUUID?.() ??
-    `run-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const idempotencyKey = actionIdempotencyKey();
+  if (serverId && isDesktopRemoteAvailable()) {
+    const transport = await resolveDesktopRemote(serverId, "actions");
+    if (transport === "client") {
+      const intent = await prepareActionIntent(
+        serverApplicationId,
+        actionId,
+        csrfToken,
+        confirm,
+        idempotencyKey,
+      );
+      return runDesktopAction(intent);
+    }
+  }
   return apiFetch<CommandResult>(
     `/api/server-applications/${serverApplicationId}/actions/${actionId}/run`,
     {

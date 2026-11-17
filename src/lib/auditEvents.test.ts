@@ -19,6 +19,9 @@ const event: AuditEvent = {
   errorCode: null,
   durationMs: 12,
   correlationId: "corr-1",
+  serverName: null,
+  serverAddress: null,
+  targetLabel: null,
 };
 
 const payload: AuditEventPage = {
@@ -75,7 +78,68 @@ describe("getAuditEvents", () => {
 describe("formatAuditTarget", () => {
   it("mostra host, porta locale, entità e server", () => {
     expect(formatAuditTarget(event)).toBe(
-      "db.internal:5432 · local:15432 · ServerApplication #7 · server #3",
+      "db.internal:5432 · local:15432 · Applicazione #7 · server #3",
+    );
+  });
+
+  it("usa i nomi risolti dal backend", () => {
+    expect(
+      formatAuditTarget({
+        ...event,
+        serverName: "ws101tskm",
+        serverAddress: "10.4.14.39",
+        targetLabel: "be-lh-sys",
+      }),
+    ).toBe(
+      "db.internal:5432 · local:15432 · Applicazione be-lh-sys · ws101tskm (10.4.14.39)",
+    );
+    expect(
+      formatAuditTarget({
+        ...event,
+        targetType: "Server",
+        targetId: 3,
+        targetLabel: "ws001tskm (10.4.14.40)",
+        serverId: 3,
+        serverName: "ws001tskm",
+        serverAddress: "10.4.14.40",
+        targetHost: null,
+        targetPort: null,
+        localPort: null,
+      }),
+    ).toBe("ws001tskm (10.4.14.40)");
+    expect(
+      formatAuditTarget({
+        ...event,
+        targetType: "McpAgent",
+        targetId: 2,
+        targetLabel: "opencode-skill",
+        serverId: null,
+        targetHost: null,
+        targetPort: null,
+        localPort: null,
+      }),
+    ).toBe("Agente MCP opencode-skill");
+  });
+
+  it("etichetta le letture MCP senza bersaglio", () => {
+    const read = {
+      ...event,
+      kind: "McpToolCall" as const,
+      targetType: null,
+      targetId: null,
+      targetHost: null,
+      targetPort: null,
+      localPort: null,
+      serverId: null,
+    };
+    expect(formatAuditTarget({ ...read, action: "list_servers" })).toBe(
+      "Inventario",
+    );
+    expect(formatAuditTarget({ ...read, action: "get_topology" })).toBe(
+      "Topologia",
+    );
+    expect(formatAuditTarget({ ...read, action: "list_executions" })).toBe(
+      "Registro esecuzioni",
     );
   });
 

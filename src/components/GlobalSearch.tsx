@@ -67,6 +67,7 @@ export function GlobalSearch() {
   const activeIndex =
     items.length > 0 ? Math.min(highlight, items.length - 1) : -1;
   const activeResult = activeIndex >= 0 ? items[activeIndex] : undefined;
+  const activeOptionId = activeIndex >= 0 ? optionId(activeIndex) : null;
   const pathname = location.pathname;
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: close the panel on route changes
@@ -83,6 +84,14 @@ export function GlobalSearch() {
     document.addEventListener("mousedown", onDocumentMouseDown);
     return () => document.removeEventListener("mousedown", onDocumentMouseDown);
   }, [open]);
+
+  // Keep the arrow-key selection inside the scrollable result list.
+  useEffect(() => {
+    if (!open || !activeOptionId) return;
+    document
+      .getElementById(activeOptionId)
+      ?.scrollIntoView({ block: "nearest" });
+  }, [open, activeOptionId]);
 
   const choose = (result: SearchResult) => {
     setOpen(false);

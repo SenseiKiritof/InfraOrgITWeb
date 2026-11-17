@@ -12,8 +12,10 @@ import {
   listApiTokens,
   revokeApiToken,
 } from "../../lib/apiTokens";
+import { includesText } from "../../lib/filter";
 import { formatDateTime } from "../../lib/format";
 import { useI18n } from "../../lib/i18n";
+import { useIsSystemAdmin } from "../../lib/useServerAccess";
 
 export function ApiTokensPage() {
   const { session } = useAuth();
@@ -22,6 +24,8 @@ export function ApiTokensPage() {
   const queryClient = useQueryClient();
   const [created, setCreated] = useState<ApiTokenCreated | null>(null);
   const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const isAdmin = useIsSystemAdmin();
 
   const tokens = useQuery({
     queryKey: ["api-tokens"],
@@ -45,9 +49,23 @@ export function ApiTokensPage() {
   };
 
   const revoke = async (row: ApiToken) => {
-    await revokeApiToken(row.id, csrf);
-    await queryClient.invalidateQueries({ queryKey: ["api-tokens"] });
+    setError(null);
+    try {
+      await revokeApiToken(row.id, csrf);
+      await queryClient.invalidateQueries({ queryKey: ["api-tokens"] });
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : t("common.operationError"),
+      );
+    }
   };
+
+  const status = (row: ApiToken) =>
+    row.revokedAt
+      ? t("tokens.revoked")
+      : row.expiresAt && new Date(row.expiresAt) < new Date()
+        ? t("tokens.expired")
+        : t("tokens.active");
 
   const copy = async () => {
     if (!created) return;
@@ -65,7 +83,7 @@ export function ApiTokensPage() {
             to="/approvals"
             className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
           >
-            {t("approvals.title")}
+            {t("mcpAgents.title")}
           </Link>
         }
       />
@@ -86,14 +104,39 @@ export function ApiTokensPage() {
           </div>
         </div>
       )}
+      {error && (
+        <p
+          role="alert"
+          className="rounded bg-red-50 px-4 py-2 text-sm text-red-700"
+        >
+          {error}
+        </p>
+      )}
       <EntitySection
         rows={tokens.data}
         columns={[
-          { key: "name", label: t("common.name"), render: (row) => row.name },
+          {
+            key: "name",
+            label: t("common.name"),
+            render: (row) => row.name,
+            filter: (row, value) => includesText(row.name, value),
+          },
+          ...(isAdmin
+            ? [
+                {
+                  key: "username",
+                  label: t("common.user"),
+                  render: (row: ApiToken) => row.username,
+                  filter: (row: ApiToken, value: string) =>
+                    includesText(row.username, value),
+                },
+              ]
+            : []),
           {
             key: "scopes",
             label: t("tokens.scopes"),
             render: (row) => row.scopes,
+            filter: (row, value) => includesText(row.scopes, value),
           },
           {
             key: "createdAt",
@@ -115,8 +158,8 @@ export function ApiTokensPage() {
           {
             key: "status",
             label: t("common.status"),
-            render: (row) =>
-              row.revokedAt ? t("tokens.revoked") : t("tokens.active"),
+            render: status,
+            filter: (row, value) => includesText(status(row), value),
           },
         ]}
         fields={[

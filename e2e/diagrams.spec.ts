@@ -11,7 +11,7 @@ test("diagramma: crea, salva layout e riapre", async ({ page }) => {
 
   await page.goto("/providers");
   await page.getByRole("button", { name: "Nuovo provider" }).click();
-  await page.getByLabel("Nome").fill(provider);
+  await page.getByLabel("Nome", { exact: true }).fill(provider);
   await page.getByRole("button", { name: "Salva" }).click();
   await page.getByRole("textbox", { name: "Cerca" }).fill(provider);
   await page.getByRole("button", { name: "Cerca" }).click();
@@ -19,7 +19,7 @@ test("diagramma: crea, salva layout e riapre", async ({ page }) => {
 
   await page.goto("/diagrams");
   await page.getByRole("button", { name: "Nuovo diagramma" }).click();
-  await page.getByLabel("Nome").fill(diagram);
+  await page.getByLabel("Nome", { exact: true }).fill(diagram);
   await page.getByRole("button", { name: "Salva" }).click();
 
   await expect(page.locator(".react-flow")).toBeVisible();

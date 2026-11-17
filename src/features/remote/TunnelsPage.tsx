@@ -1,9 +1,12 @@
 import { ArrowPathIcon } from "@heroicons/react/24/outline";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import { columnWidths } from "../../lib/columnWidths";
+import { getConnectionPolicy } from "../../lib/connectionPolicy";
 import { formatDateTime } from "../../lib/format";
 import { useI18n } from "../../lib/i18n";
+import { filterTunnelSessions } from "../../lib/tunnelSearch";
 import type { TunnelSession } from "../../lib/tunnelSessions";
 import {
   formatTunnelForward,
@@ -21,12 +24,26 @@ export function TunnelsPage() {
       : mode === "Remote"
         ? t("tunnelServices.modeRemote")
         : t("tunnelServices.modeLocal");
+  const [filter, setFilter] = useState("");
   const tunnels = useQuery({
     queryKey: ["tunnel-sessions"],
     queryFn: getTunnelSessions,
     refetchInterval: REFETCH_MS,
     retry: false,
   });
+  const sessions = tunnels.data?.items ?? [];
+  const filteredSessions = filterTunnelSessions(sessions, filter);
+  const policy = useQuery({
+    queryKey: ["connection-policy"],
+    queryFn: getConnectionPolicy,
+    retry: false,
+  });
+  const policyLabel = (mode?: string) =>
+    mode === "Server"
+      ? t("connectionPolicy.server")
+      : mode === "Client"
+        ? t("connectionPolicy.client")
+        : t("connectionPolicy.auto");
 
   const columns = [
     {
@@ -52,6 +69,15 @@ export function TunnelsPage() {
       label: t("tunnels.mode"),
       weight: 8,
       render: (row: TunnelSession) => modeLabel(row.mode),
+    },
+    {
+      key: "transport",
+      label: t("tunnels.transport"),
+      weight: 8,
+      render: (row: TunnelSession) =>
+        row.transport === "Server"
+          ? t("tunnels.transportServer")
+          : t("tunnels.transportClient"),
     },
     {
       key: "forward",
@@ -115,7 +141,14 @@ export function TunnelsPage() {
           </button>
         }
       />
-      <p className="text-xs text-slate-500">{t("tunnels.autoRefresh")}</p>
+      <p className="text-xs text-slate-500">
+        {t("tunnels.autoRefresh")}
+        {policy.data
+          ? ` · ${t("connectionPolicy.current", {
+              mode: policyLabel(policy.data.mode),
+            })}`
+          : ""}
+      </p>
       <DesktopTunnelsPanel />
       {tunnels.error && (
         <p
@@ -128,15 +161,34 @@ export function TunnelsPage() {
         </p>
       )}
       <div className="rounded-lg border border-slate-200 bg-white">
+        {sessions.length > 0 && (
+          <div className="border-b border-slate-100 p-3">
+            <label htmlFor="tunnel-search" className="sr-only">
+              {t("tunnels.searchPlaceholder")}
+            </label>
+            <input
+              id="tunnel-search"
+              type="search"
+              value={filter}
+              onChange={(event) => setFilter(event.target.value)}
+              placeholder={t("tunnels.searchPlaceholder")}
+              className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+            />
+          </div>
+        )}
         {tunnels.isLoading ? (
           <p className="px-4 py-6 text-sm text-slate-500">
             {t("common.loading")}
           </p>
-        ) : tunnels.data?.items.length === 0 ? (
+        ) : sessions.length === 0 ? (
           <div className="space-y-1 px-4 py-6 text-sm text-slate-500">
             <p>{t("tunnels.none")}</p>
             <p className="text-xs">{t("tunnels.noneHint")}</p>
           </div>
+        ) : filteredSessions.length === 0 ? (
+          <p className="px-4 py-6 text-sm text-slate-500">
+            {t("tunnels.searchEmpty")}
+          </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
@@ -156,7 +208,7 @@ export function TunnelsPage() {
                 </tr>
               </thead>
               <tbody>
-                {(tunnels.data?.items ?? []).map((session) => (
+                {filteredSessions.map((session) => (
                   <tr
                     key={session.id}
                     className="border-t border-slate-100 align-top"
