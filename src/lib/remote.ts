@@ -20,6 +20,7 @@ export interface ServerCredential {
   username: string;
   authType: "Password" | "PrivateKey";
   hasSecret: boolean;
+  hasSudoPassword: boolean;
   serversCount: number;
   needsReauth: boolean;
 }
@@ -30,6 +31,7 @@ export interface CredentialInput {
   authType: "Password" | "PrivateKey";
   secret: string | null;
   passphrase: string | null;
+  sudoPassword: string | null;
 }
 
 export interface CommandTemplate {
@@ -38,12 +40,14 @@ export interface CommandTemplate {
   description: string;
   script: string;
   placeholderCount: number;
+  requiresSudo: boolean;
 }
 
 export interface CommandTemplateInput {
   name: string;
   description: string;
   script: string;
+  requiresSudo: boolean;
 }
 
 export interface ApplicationActionConfig {
@@ -56,6 +60,7 @@ export interface ApplicationActionConfig {
   customScript: string | null;
   parameterValues: Record<string, string>;
   requiresConfirmation: boolean;
+  requiresSudo: boolean;
 }
 
 export interface ApplicationActionButton {
@@ -63,6 +68,7 @@ export interface ApplicationActionButton {
   label: string;
   order: number;
   requiresConfirmation: boolean;
+  requiresSudo: boolean;
   serverId: number;
 }
 
@@ -73,6 +79,7 @@ export interface ApplicationActionIntent {
   script: string;
   redactValues: Record<string, string>;
   timeoutSeconds: number;
+  requiresSudo: boolean;
 }
 
 export interface CommandResult {
@@ -240,6 +247,7 @@ export interface CommandExecution {
   kind: "Action" | "Reachability" | "Console";
   label: string;
   exitCode: number | null;
+  requiresSudo: boolean;
   output: string;
   startedAt: string;
   endedAt: string | null;
@@ -375,9 +383,10 @@ export async function runAction(
   csrfToken: string,
   confirm = false,
   serverId: number | null = null,
+  requiresSudo = false,
 ): Promise<CommandResult> {
   const idempotencyKey = actionIdempotencyKey();
-  if (serverId && isDesktopRemoteAvailable()) {
+  if (serverId && !requiresSudo && isDesktopRemoteAvailable()) {
     const transport = await resolveDesktopRemote(serverId, "actions");
     if (transport === "client") {
       const intent = await prepareActionIntent(
@@ -419,6 +428,7 @@ export function saveApplicationAction(
     customScript: string | null;
     parameterValues: Record<string, string>;
     requiresConfirmation: boolean;
+    requiresSudo: boolean;
   },
   csrfToken: string,
 ): Promise<unknown> {

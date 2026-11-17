@@ -28,6 +28,7 @@ export function CommandsPage() {
         name: values.name,
         description: values.description,
         script: values.script,
+        requiresSudo: values.requiresSudo === "true",
       },
       csrf,
     );
@@ -59,17 +60,34 @@ export function CommandsPage() {
             label: "Placeholder",
             render: (row) => row.placeholderCount,
           },
+          {
+            key: "requiresSudo",
+            label: t("commands.requiresSudoShort"),
+            render: (row) =>
+              row.requiresSudo ? t("common.yes") : t("common.no"),
+          },
         ]}
         fields={[
           { name: "name", label: t("common.name"), required: true },
           { name: "description", label: t("common.description") },
           { name: "script", label: "Script", type: "textarea", required: true },
+          {
+            name: "requiresSudo",
+            label: t("commands.requiresSudo"),
+            type: "checkbox",
+          },
         ]}
-        empty={{ name: "", description: "", script: "" }}
+        empty={{
+          name: "",
+          description: "",
+          script: "",
+          requiresSudo: "false",
+        }}
         toForm={(row) => ({
           name: row.name,
           description: row.description,
           script: row.script,
+          requiresSudo: String(row.requiresSudo),
         })}
         canWrite
         onSave={save}

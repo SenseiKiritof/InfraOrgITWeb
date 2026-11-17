@@ -315,6 +315,7 @@ export function ApplicationDetailPage() {
         customScript: commandTemplateId ? null : values.customScript,
         parameterValues,
         requiresConfirmation: values.requiresConfirmation === "true",
+        requiresSudo: values.requiresSudo === "true",
       },
       csrf,
     );
@@ -973,6 +974,11 @@ export function ApplicationDetailPage() {
               render: (row) =>
                 row.requiresConfirmation ? t("common.yes") : "",
             },
+            {
+              key: "requiresSudo",
+              label: t("applications.sudo"),
+              render: (row) => (row.requiresSudo ? t("common.yes") : ""),
+            },
           ]}
           fields={[
             {
@@ -1012,6 +1018,11 @@ export function ApplicationDetailPage() {
               label: t("applications.requiresConfirmation"),
               type: "checkbox",
             },
+            {
+              name: "requiresSudo",
+              label: t("applications.requiresSudo"),
+              type: "checkbox",
+            },
           ]}
           empty={{
             label: "",
@@ -1020,6 +1031,7 @@ export function ApplicationDetailPage() {
             customScript: "",
             parameterValues: "{}",
             requiresConfirmation: "false",
+            requiresSudo: "false",
           }}
           toForm={(row) => ({
             label: row.label,
@@ -1030,6 +1042,7 @@ export function ApplicationDetailPage() {
             customScript: row.customScript ?? "",
             parameterValues: JSON.stringify(row.parameterValues),
             requiresConfirmation: String(row.requiresConfirmation),
+            requiresSudo: String(row.requiresSudo),
           })}
           canWrite={isAdmin}
           onSave={saveAction}

@@ -12,6 +12,7 @@ export type DesktopActionIntent = {
   script: string;
   redactValues: Record<string, string>;
   timeoutSeconds: number;
+  requiresSudo: boolean;
 };
 
 export type DesktopTransport = "client" | "server";
@@ -248,6 +249,7 @@ export function runDesktopAction(
         script: intent.script,
         redactValues: intent.redactValues,
         timeoutSeconds: intent.timeoutSeconds,
+        requiresSudo: intent.requiresSudo,
       })
     ) {
       if (timer) clearTimeout(timer);
