@@ -14,7 +14,7 @@ export type FormValues = Record<string, string>;
 export interface Field {
   name: string;
   label: string;
-  type?: "text" | "number" | "textarea" | "select" | "checkbox";
+  type?: "text" | "password" | "number" | "textarea" | "select" | "checkbox";
   options?: { value: string; label: string }[];
   required?: boolean;
 }

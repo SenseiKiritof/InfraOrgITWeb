@@ -49,6 +49,7 @@ export function CredentialsPage() {
         authType: values.authType,
         secret: values.secret ? values.secret : null,
         passphrase: values.passphrase ? values.passphrase : null,
+        sudoPassword: values.sudoPassword ? values.sudoPassword : null,
       },
       csrf,
     );
@@ -220,6 +221,11 @@ export function CredentialsPage() {
             label: t("credentials.passphrase"),
             type: "textarea",
           },
+          {
+            name: "sudoPassword",
+            label: t("credentials.sudoPassword"),
+            type: "password",
+          },
         ]}
         empty={{
           name: "",
@@ -227,6 +233,7 @@ export function CredentialsPage() {
           authType: "Password",
           secret: "",
           passphrase: "",
+          sudoPassword: "",
         }}
         toForm={(row) => ({
           name: row.name,
@@ -234,6 +241,7 @@ export function CredentialsPage() {
           authType: row.authType,
           secret: "",
           passphrase: "",
+          sudoPassword: "",
         })}
         canWrite
         onSave={save}

@@ -53,8 +53,16 @@ export function ExecutionsPage() {
       label: t("common.label"),
       weight: 27,
       // Le righe Reachability hanno un'etichetta di sistema (anche le vecchie, in italiano).
-      render: (row) =>
-        row.kind === "Reachability" ? t("servers.reachability") : row.label,
+      render: (row) => (
+        <span className="flex items-center gap-1.5">
+          {row.kind === "Reachability" ? t("servers.reachability") : row.label}
+          {row.requiresSudo && (
+            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-amber-800 uppercase">
+              sudo
+            </span>
+          )}
+        </span>
+      ),
     },
     {
       key: "exitCode",

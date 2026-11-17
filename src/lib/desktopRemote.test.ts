@@ -95,6 +95,7 @@ describe("desktop console bridge", () => {
       script: "echo ok",
       redactValues: { Secret: "s3cr3t" },
       timeoutSeconds: 60,
+      requiresSudo: false,
     });
     expect(result).toEqual({ exitCode: 0, output: "ok", timedOut: false });
     expect(sent).toContainEqual(

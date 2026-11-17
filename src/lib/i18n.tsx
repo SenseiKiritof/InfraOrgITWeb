@@ -352,6 +352,7 @@ const it = {
   "applications.customScriptLabel": "Script custom",
   "applications.parameterValues": "Valori parametri (JSON)",
   "applications.requiresConfirmation": "Richiede conferma",
+  "applications.requiresSudo": "Esegui con sudo",
   "applications.createAction": "Nuova azione",
   "applications.invalidParameterValues":
     "ParameterValues deve essere un oggetto JSON valido.",
@@ -456,6 +457,8 @@ const it = {
   "commands.title": "Comandi",
   "commands.description":
     "Template con placeholder {{Nome}}. I valori sono quotati prima dell'esecuzione.",
+  "commands.requiresSudo": "Esegui con sudo",
+  "commands.requiresSudoShort": "Sudo",
   "commands.create": "Nuovo comando",
 
   "credentials.title": "Credenziali",
@@ -469,6 +472,7 @@ const it = {
   "credentials.sshUser": "Utente SSH",
   "credentials.privateKey": "Chiave privata",
   "credentials.secretHint": "Password o chiave privata (vuoto = invariato)",
+  "credentials.sudoPassword": "Password sudo (opzionale)",
   "credentials.passphrase": "Passphrase della chiave (opzionale)",
   "credentials.manageServers": "Gestisci server della credenziale",
   "credentials.serversTitle": "Server della credenziale",
@@ -1160,6 +1164,7 @@ const en: Record<TranslationKey, string> = {
   "applications.customScriptLabel": "Custom script",
   "applications.parameterValues": "Parameter values (JSON)",
   "applications.requiresConfirmation": "Requires confirmation",
+  "applications.requiresSudo": "Run with sudo",
   "applications.createAction": "New action",
   "applications.invalidParameterValues":
     "ParameterValues must be a valid JSON object.",
@@ -1265,6 +1270,8 @@ const en: Record<TranslationKey, string> = {
   "commands.title": "Commands",
   "commands.description":
     "Templates with {{Name}} placeholders. Values are quoted before execution.",
+  "commands.requiresSudo": "Run with sudo",
+  "commands.requiresSudoShort": "Sudo",
   "commands.create": "New command",
 
   "credentials.title": "Credentials",
@@ -1278,6 +1285,7 @@ const en: Record<TranslationKey, string> = {
   "credentials.sshUser": "SSH user",
   "credentials.privateKey": "Private key",
   "credentials.secretHint": "Password or private key (empty = unchanged)",
+  "credentials.sudoPassword": "Sudo password (optional)",
   "credentials.passphrase": "Key passphrase (optional)",
   "credentials.manageServers": "Manage credential servers",
   "credentials.serversTitle": "Credential servers",
