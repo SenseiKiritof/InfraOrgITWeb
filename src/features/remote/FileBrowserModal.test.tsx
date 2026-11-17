@@ -1094,7 +1094,7 @@ describe("FileBrowserModal", () => {
 
     const selectAll = screen.getByLabelText("Seleziona tutti");
     fireEvent.click(selectAll);
-    expect(screen.getByText("Elementi selezionati: 3")).toBeTruthy();
+    expect(await screen.findByText("Elementi selezionati: 3")).toBeTruthy();
 
     fireEvent.click(selectAll);
     expect(screen.queryByText(/Elementi selezionati:/)).toBeNull();
@@ -1138,7 +1138,7 @@ describe("FileBrowserModal", () => {
     await screen.findByText("hello.txt");
     fireEvent.click(screen.getByLabelText("Seleziona hello.txt"));
     fireEvent.click(screen.getByLabelText("Seleziona logs"));
-    expect(screen.getByText("Elementi selezionati: 2")).toBeTruthy();
+    expect(await screen.findByText("Elementi selezionati: 2")).toBeTruthy();
 
     fireEvent.click(
       screen.getByRole("button", { name: "Elimina selezionati" }),
@@ -1169,7 +1169,7 @@ describe("FileBrowserModal", () => {
     await screen.findByText("hello.txt");
 
     fireEvent.click(screen.getByLabelText("Seleziona hello.txt"));
-    expect(screen.getByText("Elementi selezionati: 1")).toBeTruthy();
+    expect(await screen.findByText("Elementi selezionati: 1")).toBeTruthy();
 
     fireEvent.click(screen.getByText("logs"));
 
@@ -1254,7 +1254,7 @@ describe("FileBrowserModal", () => {
     await screen.findByText("hello.txt");
 
     fireEvent.click(screen.getByLabelText("Seleziona hello.txt"));
-    expect(screen.getByText("Elementi selezionati: 1")).toBeTruthy();
+    expect(await screen.findByText("Elementi selezionati: 1")).toBeTruthy();
 
     fireEvent.change(screen.getByPlaceholderText("Filtra i file…"), {
       target: { value: "report" },
@@ -1305,7 +1305,7 @@ describe("FileBrowserModal", () => {
     );
 
     expect(await screen.findByText("File bloccato.")).toBeTruthy();
-    expect(screen.getByText("Elementi selezionati: 2")).toBeTruthy();
+    expect(await screen.findByText("Elementi selezionati: 2")).toBeTruthy();
     expect(
       (screen.getByLabelText("Seleziona hello.txt") as HTMLInputElement)
         .checked,
