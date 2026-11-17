@@ -1,5 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { LanguageProvider } from "../lib/i18n";
 import { EntitySection } from "./EntitySection";
 
 const rows = [{ id: 1, name: "Primo" }];
@@ -8,7 +10,7 @@ afterEach(cleanup);
 
 describe("EntitySection", () => {
   it("ordina le righe cliccando l'intestazione", () => {
-    render(
+    renderIt(
       <EntitySection
         rows={[
           { id: 1, name: "Beta" },
@@ -43,7 +45,7 @@ describe("EntitySection", () => {
 
   it("mostra le righe e crea un elemento", async () => {
     const onSave = vi.fn(async () => {});
-    render(
+    renderIt(
       <EntitySection
         rows={rows}
         columns={[{ key: "name", label: "Nome", render: (row) => row.name }]}
@@ -73,7 +75,7 @@ describe("EntitySection", () => {
       name: `Voce ${index + 1}`,
     }));
 
-    render(
+    renderIt(
       <EntitySection
         rows={many}
         columns={[{ key: "name", label: "Nome", render: (row) => row.name }]}
@@ -100,7 +102,7 @@ describe("EntitySection", () => {
       name: `Voce ${index + 1}`,
     }));
 
-    render(
+    renderIt(
       <EntitySection
         rows={many}
         columns={[{ key: "name", label: "Nome", render: (row) => row.name }]}
@@ -121,7 +123,7 @@ describe("EntitySection", () => {
   });
 
   it("nasconde la creazione quando canCreate è false", () => {
-    render(
+    renderIt(
       <EntitySection
         rows={rows}
         columns={[{ key: "name", label: "Nome", render: (row) => row.name }]}
@@ -143,7 +145,7 @@ describe("EntitySection", () => {
   });
 
   it("filtra per colonna e azzera i filtri", () => {
-    render(
+    renderIt(
       <EntitySection
         rows={[
           { id: 1, name: "Alpha" },
@@ -185,7 +187,7 @@ describe("EntitySection", () => {
       name: `Voce ${index + 1}`,
     }));
 
-    render(
+    renderIt(
       <EntitySection
         rows={many}
         columns={[
@@ -217,7 +219,7 @@ describe("EntitySection", () => {
   });
 
   it("usa l'ordine predefinito e lo ripristina azzerando il sort", () => {
-    render(
+    renderIt(
       <EntitySection
         rows={[
           { id: 1, name: "Beta" },
@@ -249,7 +251,7 @@ describe("EntitySection", () => {
   });
 
   it("nasconde le azioni di scrittura senza permesso", () => {
-    render(
+    renderIt(
       <EntitySection
         rows={rows}
         columns={[{ key: "name", label: "Nome", render: (row) => row.name }]}
@@ -269,3 +271,7 @@ describe("EntitySection", () => {
     ).not.toBeInTheDocument();
   });
 });
+
+function renderIt(ui: ReactNode) {
+  return render(<LanguageProvider initialLanguage="it">{ui}</LanguageProvider>);
+}

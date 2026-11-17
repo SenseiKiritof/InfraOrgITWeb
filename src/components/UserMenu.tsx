@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { Link } from "react-router-dom";
-import { LANGUAGES, useI18n } from "../lib/i18n";
+import { LANGUAGES, type Language, useI18n } from "../lib/i18n";
 import {
   ArrowRightOnRectangleIcon,
   KeyIcon,
@@ -20,7 +20,7 @@ export function UserMenu({
   const { language, setLanguage, t } = useI18n();
   const menu = useRef<HTMLDetailsElement>(null);
 
-  const choose = (next: "it" | "en") => {
+  const choose = (next: Language) => {
     setLanguage(next);
     menu.current?.removeAttribute("open");
   };

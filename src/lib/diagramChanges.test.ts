@@ -55,16 +55,16 @@ describe("diagramChanges", () => {
         { nodeType: "Server", entityId: 2, label: "b" },
         { nodeType: "ServerApplication", entityId: 3, label: "app" },
       ]),
-    ).toBe("Aggiunti 2 nuovi server e 1 nuova applicazione al diagramma.");
+    ).toBe("Added 2 new servers and 1 new application to the diagram.");
 
     expect(
       addedSummary([{ nodeType: "Provider", entityId: 1, label: "p" }]),
-    ).toBe("Aggiunti 1 nodo al diagramma.");
+    ).toBe("Added 1 node to the diagram.");
   });
 
   it("etichetta i tipi di nodo", () => {
     expect(addedTypeLabel("Server")).toBe("Server");
-    expect(addedTypeLabel("ServerApplication")).toBe("Applicazione");
-    expect(addedTypeLabel("ProviderEnvironment")).toBe("Ambiente");
+    expect(addedTypeLabel("ServerApplication")).toBe("Application");
+    expect(addedTypeLabel("ProviderEnvironment")).toBe("Environment");
   });
 });

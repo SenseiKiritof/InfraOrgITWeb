@@ -74,6 +74,11 @@ export interface ServerApplication {
   haRole: string | null;
 }
 
+export interface ApplicationTranslation {
+  name: string;
+  description: string;
+}
+
 export interface Application {
   id: number;
   name: string;
@@ -82,6 +87,8 @@ export interface Application {
   listeningOnPort: number;
   type: string;
   versionCount: number;
+  /** Translations of the base (English) name and description, by language. */
+  translations?: Record<string, ApplicationTranslation>;
 }
 
 export interface ApplicationEnvironment {

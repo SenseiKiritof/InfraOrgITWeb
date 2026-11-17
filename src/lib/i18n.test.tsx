@@ -36,23 +36,8 @@ describe("i18n", () => {
 
   afterEach(cleanup);
 
-  it("usa l'italiano come lingua predefinita", () => {
+  it("usa l'inglese come lingua predefinita", () => {
     renderProbe();
-
-    expect(screen.getByTestId("language")).toHaveTextContent("it");
-    expect(screen.getByTestId("label")).toHaveTextContent("Salva");
-    expect(screen.getByTestId("greeting")).toHaveTextContent("Benvenuto, Ada.");
-    expect(document.documentElement.lang).toBe("it");
-    expect(formatBytes(12_345)).toBe("12,3 kB");
-    expect(formatDateTime("2026-01-02T03:04:05Z")).toBe(
-      new Date("2026-01-02T03:04:05Z").toLocaleString("it-IT"),
-    );
-  });
-
-  it("passa all'inglese subito e aggiorna il lang", () => {
-    renderProbe();
-
-    fireEvent.click(screen.getByRole("button", { name: "English" }));
 
     expect(screen.getByTestId("language")).toHaveTextContent("en");
     expect(screen.getByTestId("label")).toHaveTextContent("Save");
@@ -64,17 +49,32 @@ describe("i18n", () => {
     );
   });
 
+  it("passa all'italiano subito e aggiorna il lang", () => {
+    renderProbe();
+
+    fireEvent.click(screen.getByRole("button", { name: "Italiano" }));
+
+    expect(screen.getByTestId("language")).toHaveTextContent("it");
+    expect(screen.getByTestId("label")).toHaveTextContent("Salva");
+    expect(screen.getByTestId("greeting")).toHaveTextContent("Benvenuto, Ada.");
+    expect(document.documentElement.lang).toBe("it");
+    expect(formatBytes(12_345)).toBe("12,3 kB");
+    expect(formatDateTime("2026-01-02T03:04:05Z")).toBe(
+      new Date("2026-01-02T03:04:05Z").toLocaleString("it-IT"),
+    );
+  });
+
   it("salva la scelta e la rilegge al montaggio", () => {
     const first = renderProbe();
 
-    fireEvent.click(screen.getByRole("button", { name: "English" }));
-    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe("en");
+    fireEvent.click(screen.getByRole("button", { name: "Italiano" }));
+    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe("it");
 
     first.unmount();
     renderProbe();
 
-    expect(screen.getByTestId("language")).toHaveTextContent("en");
-    expect(screen.getByTestId("label")).toHaveTextContent("Save");
-    expect(document.documentElement.lang).toBe("en");
+    expect(screen.getByTestId("language")).toHaveTextContent("it");
+    expect(screen.getByTestId("label")).toHaveTextContent("Salva");
+    expect(document.documentElement.lang).toBe("it");
   });
 });
