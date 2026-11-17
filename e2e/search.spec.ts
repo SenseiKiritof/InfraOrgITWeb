@@ -11,12 +11,12 @@ test("ricerca globale: mostra il tipo e apre il dettaglio", async ({
   await login(page);
 
   await page.goto("/providers");
-  await page.getByRole("button", { name: "Nuovo provider" }).click();
-  await page.getByLabel("Nome", { exact: true }).fill(provider);
-  await page.getByRole("dialog").getByRole("button", { name: "Salva" }).click();
+  await page.getByRole("button", { name: "New provider" }).click();
+  await page.getByLabel("Name", { exact: true }).fill(provider);
+  await page.getByRole("dialog").getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("cell", { name: provider })).toBeVisible();
 
-  const search = page.getByRole("combobox", { name: "Cerca" });
+  const search = page.getByRole("combobox", { name: "Search" });
   await search.fill(provider);
   const option = page.getByRole("option", { name: new RegExp(provider) });
   await expect(option).toBeVisible();
@@ -25,12 +25,12 @@ test("ricerca globale: mostra il tipo e apre il dettaglio", async ({
   await expect(page).toHaveURL(/\/providers\/\d+$/);
 
   await page.goto("/providers");
-  await page.getByRole("textbox", { name: "Cerca" }).fill(provider);
-  await page.getByRole("button", { name: "Cerca" }).click();
+  await page.getByRole("textbox", { name: "Search" }).fill(provider);
+  await page.getByRole("button", { name: "Search" }).click();
   page.on("dialog", (dialog) => void dialog.accept());
   await page
     .getByRole("row", { name: provider })
-    .getByRole("button", { name: "Elimina" })
+    .getByRole("button", { name: "Delete" })
     .click();
   await expect(page.getByRole("row", { name: provider })).toHaveCount(0);
 });

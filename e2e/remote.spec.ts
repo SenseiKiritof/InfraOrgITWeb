@@ -12,16 +12,16 @@ test("remoto: credenziali, comandi e test di rete", async ({ page }) => {
   await login(page);
 
   await page.goto("/credentials");
-  await page.getByRole("button", { name: "Nuova credenziale" }).click();
-  await page.getByLabel("Nome", { exact: true }).fill(credential);
-  await page.getByLabel("Utente SSH").fill("root");
+  await page.getByRole("button", { name: "New credential" }).click();
+  await page.getByLabel("Name", { exact: true }).fill(credential);
+  await page.getByLabel("SSH user").fill("root");
   await page
-    .getByLabel("Password o chiave privata (vuoto = invariato)")
+    .getByLabel("Password or private key (empty = unchanged)")
     .fill("e2e-secret");
-  await page.getByRole("button", { name: "Salva" }).click();
+  await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("row", { name: credential })).toBeVisible();
   await expect(
-    page.getByRole("row", { name: credential }).getByText("impostato"),
+    page.getByRole("row", { name: credential }).getByText("set"),
   ).toBeVisible();
   await expect(page.getByText("e2e-secret")).toHaveCount(0);
 
@@ -30,46 +30,46 @@ test("remoto: credenziali, comandi e test di rete", async ({ page }) => {
     .getByRole("button", { name: "Server" })
     .click();
   const manager = page.getByRole("dialog", {
-    name: "Gestisci server della credenziale",
+    name: "Manage credential servers",
   });
   await expect(manager).toBeVisible();
-  await expect(manager.getByText("Associati (0)")).toBeVisible();
-  await manager.getByRole("button", { name: "Chiudi" }).click();
+  await expect(manager.getByText("Assigned (0)")).toBeVisible();
+  await manager.getByRole("button", { name: "Close" }).click();
 
   await page
     .getByRole("row", { name: credential })
-    .getByRole("button", { name: "Elimina" })
+    .getByRole("button", { name: "Delete" })
     .click();
   await expect(page.getByRole("row", { name: credential })).toHaveCount(0);
 
   await page.goto("/commands");
-  await page.getByRole("button", { name: "Nuovo comando" }).click();
-  await page.getByLabel("Nome", { exact: true }).fill(template);
-  await page.getByLabel("Script").fill("echo {{ServerName}}");
-  await page.getByRole("button", { name: "Salva" }).click();
+  await page.getByRole("button", { name: "New command" }).click();
+  await page.getByLabel("Name", { exact: true }).fill(template);
+  await page.getByLabel("Script", { exact: true }).fill("echo {{ServerName}}");
+  await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("row", { name: template })).toBeVisible();
   await page
     .getByRole("row", { name: template })
-    .getByRole("button", { name: "Elimina" })
+    .getByRole("button", { name: "Delete" })
     .click();
   await expect(page.getByRole("row", { name: template })).toHaveCount(0);
 
   await page.goto("/reachability");
-  await page.getByRole("button", { name: "Nuovo test" }).click();
+  await page.getByRole("button", { name: "New test" }).click();
   await page.getByLabel("Host").fill("example.com");
-  await page.getByLabel("Descrizione", { exact: true }).fill(reachability);
-  await page.getByRole("button", { name: "Salva" }).click();
+  await page.getByLabel("Description", { exact: true }).fill(reachability);
+  await page.getByRole("button", { name: "Save" }).click();
   await expect(
     page.getByRole("cell", { name: "example.com" }).first(),
   ).toBeVisible();
 
   await page.goto("/executions");
   await expect(
-    page.getByRole("heading", { name: "Registro esecuzioni" }),
+    page.getByRole("heading", { name: "Execution log" }),
   ).toBeVisible();
 
   await page.goto("/reachability");
   const reachRow = page.getByRole("row", { name: reachability });
-  await reachRow.getByRole("button", { name: "Elimina" }).click();
+  await reachRow.getByRole("button", { name: "Delete" }).click();
   await expect(reachRow).toBeHidden();
 });

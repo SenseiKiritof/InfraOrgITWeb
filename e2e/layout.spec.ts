@@ -6,9 +6,9 @@ test("layout mobile: drawer e nessun overflow", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page);
 
-  const nav = page.getByRole("navigation", { name: "Menu principale" });
+  const nav = page.getByRole("navigation", { name: "Main menu" });
   await expect(nav).toBeHidden();
-  await page.getByRole("button", { name: "Apri menu" }).click();
+  await page.getByRole("button", { name: "Open menu" }).click();
   await expect(nav).toBeVisible();
   await nav.getByRole("link", { name: "Servers" }).click();
   await expect(nav).toBeHidden();

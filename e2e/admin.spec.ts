@@ -13,61 +13,61 @@ test("admin: gruppi, ruoli, utenti e menu", async ({ page }) => {
   await login(page);
 
   await page.goto("/groups");
-  await page.getByRole("button", { name: "Nuovo gruppo" }).click();
-  await page.getByLabel("Nome", { exact: true }).fill(group);
-  await page.getByRole("button", { name: "Salva" }).click();
+  await page.getByRole("button", { name: "New group" }).click();
+  await page.getByLabel("Name", { exact: true }).fill(group);
+  await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("row", { name: group })).toBeVisible();
 
   await page.goto("/roles");
-  await page.getByRole("button", { name: "Nuovo ruolo" }).click();
-  await page.getByLabel("Nome", { exact: true }).fill(role);
-  await page.getByLabel("Etichetta").fill(role);
-  await page.getByRole("button", { name: "Salva" }).click();
+  await page.getByRole("button", { name: "New role" }).click();
+  await page.getByLabel("Name", { exact: true }).fill(role);
+  await page.getByLabel("Label").fill(role);
+  await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("row", { name: role })).toBeVisible();
 
   await page.goto("/users");
-  await page.getByRole("button", { name: "Nuovo utente" }).click();
+  await page.getByRole("button", { name: "New user" }).click();
   await page.getByLabel("Username").fill(user);
-  await page.getByLabel("Nome", { exact: true }).fill("Utente");
-  await page.getByLabel("Cognome").fill("E2E");
+  await page.getByLabel("Name", { exact: true }).fill("User");
+  await page.getByLabel("Surname").fill("E2E");
   await page.getByLabel(group).check();
   await page.getByLabel(role).check();
-  await page.getByRole("button", { name: "Salva" }).click();
+  await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("row", { name: user })).toBeVisible();
   await expect(
     page.getByRole("row", { name: user }).getByText(role),
   ).toBeVisible();
 
   await page.goto("/menu");
-  await page.getByRole("button", { name: "Nuovo menu" }).click();
-  await page.getByLabel("Nome", { exact: true }).fill(menu);
+  await page.getByRole("button", { name: "New menu" }).click();
+  await page.getByLabel("Name", { exact: true }).fill(menu);
   await page.getByLabel("Path").fill(`/menu-e2e-${suffix}`);
-  await page.getByRole("button", { name: "Salva" }).click();
+  await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("row", { name: menu })).toBeVisible();
   await page
     .getByRole("row", { name: menu })
-    .getByRole("button", { name: "Elimina" })
+    .getByRole("button", { name: "Delete" })
     .click();
   await expect(page.getByRole("row", { name: menu })).toHaveCount(0);
 
   await page.goto("/users");
   await page
     .getByRole("row", { name: user })
-    .getByRole("button", { name: "Elimina" })
+    .getByRole("button", { name: "Delete" })
     .click();
   await expect(page.getByRole("row", { name: user })).toHaveCount(0);
 
   await page.goto("/roles");
   await page
     .getByRole("row", { name: role })
-    .getByRole("button", { name: "Elimina" })
+    .getByRole("button", { name: "Delete" })
     .click();
   await expect(page.getByRole("row", { name: role })).toHaveCount(0);
 
   await page.goto("/groups");
   await page
     .getByRole("row", { name: group })
-    .getByRole("button", { name: "Elimina" })
+    .getByRole("button", { name: "Delete" })
     .click();
   await expect(page.getByRole("row", { name: group })).toHaveCount(0);
 });

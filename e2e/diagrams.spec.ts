@@ -10,41 +10,41 @@ test("diagramma: crea, salva layout e riapre", async ({ page }) => {
   await login(page);
 
   await page.goto("/providers");
-  await page.getByRole("button", { name: "Nuovo provider" }).click();
-  await page.getByLabel("Nome", { exact: true }).fill(provider);
-  await page.getByRole("button", { name: "Salva" }).click();
-  await page.getByRole("textbox", { name: "Cerca" }).fill(provider);
-  await page.getByRole("button", { name: "Cerca" }).click();
+  await page.getByRole("button", { name: "New provider" }).click();
+  await page.getByLabel("Name", { exact: true }).fill(provider);
+  await page.getByRole("button", { name: "Save" }).click();
+  await page.getByRole("textbox", { name: "Search" }).fill(provider);
+  await page.getByRole("button", { name: "Search" }).click();
   await expect(page.getByRole("cell", { name: provider })).toBeVisible();
 
   await page.goto("/diagrams");
-  await page.getByRole("button", { name: "Nuovo diagramma" }).click();
-  await page.getByLabel("Nome", { exact: true }).fill(diagram);
-  await page.getByRole("button", { name: "Salva" }).click();
+  await page.getByRole("button", { name: "New diagram" }).click();
+  await page.getByLabel("Name", { exact: true }).fill(diagram);
+  await page.getByRole("button", { name: "Save" }).click();
 
   await expect(page.locator(".react-flow")).toBeVisible();
   await expect(page.getByText(provider)).toBeVisible();
 
-  await page.getByRole("button", { name: "Salva", exact: true }).click();
-  await expect(page.getByText("Layout salvato.")).toBeVisible();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByText("Layout saved.")).toBeVisible();
 
   await page.reload();
   await expect(page.getByText(provider)).toBeVisible();
 
-  await page.getByRole("link", { name: "Elenco" }).click();
+  await page.getByRole("link", { name: "List" }).click();
   const row = page.getByRole("row", { name: diagram });
   await expect(row).toBeVisible();
 
   page.on("dialog", (dialog) => void dialog.accept());
-  await row.getByRole("button", { name: "Elimina" }).click();
+  await row.getByRole("button", { name: "Delete" }).click();
   await expect(page.getByRole("row", { name: diagram })).toHaveCount(0);
 
   await page.goto("/providers");
-  await page.getByRole("textbox", { name: "Cerca" }).fill(provider);
-  await page.getByRole("button", { name: "Cerca" }).click();
+  await page.getByRole("textbox", { name: "Search" }).fill(provider);
+  await page.getByRole("button", { name: "Search" }).click();
   await page
     .getByRole("row", { name: provider })
-    .getByRole("button", { name: "Elimina" })
+    .getByRole("button", { name: "Delete" })
     .click();
   await expect(page.getByRole("row", { name: provider })).toHaveCount(0);
 });
