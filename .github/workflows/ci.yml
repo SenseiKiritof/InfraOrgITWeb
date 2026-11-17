@@ -2,7 +2,12 @@ name: frontend-ci
 
 on:
   push:
+    branches: [main, dev]
   pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -10,15 +15,18 @@ permissions:
 jobs:
   lint-test-build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
+          cache: yarn
+          cache-dependency-path: yarn.lock
       - name: Install yarn
         run: npm install -g yarn@1.22.22
       - name: Install
-        run: yarn install --frozen-lockfile
+        run: yarn install --frozen-lockfile --prefer-offline
       - name: Lint
         run: yarn biome ci .
       - name: Typecheck
