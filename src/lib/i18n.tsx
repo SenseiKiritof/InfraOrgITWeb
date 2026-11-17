@@ -161,6 +161,8 @@ const it = {
   "mcpAgents.save": "Salva permessi",
   "mcpAgents.revoke": "Revoca",
   "mcpAgents.deny": "Nega",
+  "mcpAgents.revokeConfirm":
+    "Negare o revocare l'agente revoca anche il token personale associato. Per riconnettersi servirà un nuovo token. Continuare?",
   "mcpAgents.reason": "Motivo",
   "mcpAgents.approveRequest": "Approva",
   "mcpAgents.denyRequest": "Nega",
@@ -966,6 +968,8 @@ const en: Record<TranslationKey, string> = {
   "mcpAgents.save": "Save permissions",
   "mcpAgents.revoke": "Revoke",
   "mcpAgents.deny": "Deny",
+  "mcpAgents.revokeConfirm":
+    "Denying or revoking the agent also revokes its personal token. Reconnecting requires a new token. Continue?",
   "mcpAgents.reason": "Reason",
   "mcpAgents.approveRequest": "Approve",
   "mcpAgents.denyRequest": "Deny",

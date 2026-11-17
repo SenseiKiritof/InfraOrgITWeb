@@ -124,6 +124,7 @@ export function McpAgentsPage() {
     drafts[agent.id] ?? draftFromAgent(agent);
 
   const decideAgent = async (agent: McpAgent, approve: boolean) => {
+    if (!approve && !window.confirm(t("mcpAgents.revokeConfirm"))) return;
     const permissions: McpAgentPermissionInput[] = approve
       ? permissionsFromDraft(draftFor(agent))
       : [];
