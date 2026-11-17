@@ -974,6 +974,11 @@ export function ApplicationDetailPage() {
               render: (row) =>
                 row.requiresConfirmation ? t("common.yes") : "",
             },
+            {
+              key: "requiresSudo",
+              label: t("applications.sudo"),
+              render: (row) => (row.requiresSudo ? t("common.yes") : ""),
+            },
           ]}
           fields={[
             {
