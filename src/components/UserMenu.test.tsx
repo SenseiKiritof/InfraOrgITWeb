@@ -21,11 +21,11 @@ describe("UserMenu", () => {
     );
 
     expect(screen.getByText("Lingua / Language")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Italiano" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "English" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
-    expect(screen.getByRole("button", { name: "English" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Italiano" })).toHaveAttribute(
       "aria-pressed",
       "false",
     );
@@ -34,14 +34,14 @@ describe("UserMenu", () => {
     expect(menu).not.toBeNull();
     if (menu) menu.open = true;
 
-    fireEvent.click(screen.getByRole("button", { name: "English" }));
+    fireEvent.click(screen.getByRole("button", { name: "Italiano" }));
 
     expect(screen.getByText("Lingua / Language")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "English" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Italiano" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
     expect(menu?.open).toBe(false);
-    expect(localStorage.getItem("infraorgit-language")).toBe("en");
+    expect(localStorage.getItem("infraorgit-language")).toBe("it");
   });
 });

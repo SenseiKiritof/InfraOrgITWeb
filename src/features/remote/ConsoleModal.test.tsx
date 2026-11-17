@@ -5,7 +5,9 @@ import {
   render,
   screen,
 } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { LanguageProvider } from "../../lib/i18n";
 import { FakeSocket, stubWebSocket } from "../../test/fakeSocket";
 
 const terminalMock = vi.hoisted(() => ({
@@ -54,7 +56,7 @@ const renderConsole = (
     onSessionId?: (id: string) => void;
   } = {},
 ) =>
-  render(
+  renderIt(
     <ConsoleModal
       serverId={44}
       serverName="srv-alpha"
@@ -162,3 +164,7 @@ describe("ConsoleModal", () => {
     expect(terminalMock.focus).toHaveBeenCalled();
   });
 });
+
+function renderIt(ui: ReactNode) {
+  return render(<LanguageProvider initialLanguage="it">{ui}</LanguageProvider>);
+}
