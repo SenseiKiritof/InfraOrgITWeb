@@ -532,6 +532,8 @@ const it = {
   "tunnels.noneHint":
     "I tunnel si aprono dal desktop o dalla sezione Tunnel del server. Le sessioni attive compaiono qui.",
   "tunnels.refresh": "Aggiorna",
+  "tunnels.searchPlaceholder": "Cerca server, applicazione, utente o porta…",
+  "tunnels.searchEmpty": "Nessun tunnel corrisponde alla ricerca.",
   "tunnels.autoRefresh": "Aggiornamento automatico ogni 15 secondi.",
   "tunnels.mode": "Modalità",
   "tunnels.transport": "Trasporto",
@@ -566,6 +568,8 @@ const it = {
   "desktopTunnels.description":
     "Tunnel SSH locali aperti da questa app desktop sull'istanza corrente. Le credenziali restano nel desktop.",
   "desktopTunnels.refresh": "Aggiorna",
+  "desktopTunnels.searchPlaceholder": "Cerca server, applicazione o servizio…",
+  "desktopTunnels.searchEmpty": "Nessun elemento corrisponde alla ricerca.",
   "desktopTunnels.token": "Token personale",
   "desktopTunnels.tokenPlaceholder": "itk_…",
   "desktopTunnels.tokenRequired": "Inserisci il token personale.",
@@ -1337,6 +1341,8 @@ const en: Record<TranslationKey, string> = {
   "tunnels.noneHint":
     "Tunnels are opened from the desktop app or from the server's Tunnel section. Active sessions appear here.",
   "tunnels.refresh": "Refresh",
+  "tunnels.searchPlaceholder": "Search server, application, user or port…",
+  "tunnels.searchEmpty": "No tunnel matches the search.",
   "tunnels.autoRefresh": "Automatic refresh every 15 seconds.",
   "tunnels.mode": "Mode",
   "tunnels.transport": "Transport",
@@ -1371,6 +1377,8 @@ const en: Record<TranslationKey, string> = {
   "desktopTunnels.description":
     "Local SSH tunnels opened by this desktop app for the current instance. Credentials stay in the desktop.",
   "desktopTunnels.refresh": "Refresh",
+  "desktopTunnels.searchPlaceholder": "Search server, application or service…",
+  "desktopTunnels.searchEmpty": "No item matches the search.",
   "desktopTunnels.token": "Personal token",
   "desktopTunnels.tokenPlaceholder": "itk_…",
   "desktopTunnels.tokenRequired": "Enter the personal token.",
