@@ -1177,6 +1177,7 @@ function DeployActions({
           csrfToken,
           button.requiresConfirmation,
           button.serverId,
+          button.requiresSudo,
         ),
       );
       await queryClient.invalidateQueries({ queryKey: ["command-executions"] });
