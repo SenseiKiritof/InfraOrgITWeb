@@ -186,6 +186,14 @@ export function CredentialsPage() {
               row.hasSecret ? t("credentials.set") : t("credentials.missing"),
           },
           {
+            key: "hasSudoPassword",
+            label: t("credentials.sudoPasswordShort"),
+            render: (row) =>
+              row.hasSudoPassword
+                ? t("credentials.set")
+                : t("credentials.missing"),
+          },
+          {
             key: "serversCount",
             label: t("common.server"),
             render: (row) => row.serversCount,

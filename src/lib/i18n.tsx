@@ -353,6 +353,7 @@ const it = {
   "applications.parameterValues": "Valori parametri (JSON)",
   "applications.requiresConfirmation": "Richiede conferma",
   "applications.requiresSudo": "Esegui con sudo",
+  "applications.sudo": "Sudo",
   "applications.createAction": "Nuova azione",
   "applications.invalidParameterValues":
     "ParameterValues deve essere un oggetto JSON valido.",
@@ -473,6 +474,7 @@ const it = {
   "credentials.privateKey": "Chiave privata",
   "credentials.secretHint": "Password o chiave privata (vuoto = invariato)",
   "credentials.sudoPassword": "Password sudo (opzionale)",
+  "credentials.sudoPasswordShort": "Password sudo",
   "credentials.passphrase": "Passphrase della chiave (opzionale)",
   "credentials.manageServers": "Gestisci server della credenziale",
   "credentials.serversTitle": "Server della credenziale",
@@ -1165,6 +1167,7 @@ const en: Record<TranslationKey, string> = {
   "applications.parameterValues": "Parameter values (JSON)",
   "applications.requiresConfirmation": "Requires confirmation",
   "applications.requiresSudo": "Run with sudo",
+  "applications.sudo": "Sudo",
   "applications.createAction": "New action",
   "applications.invalidParameterValues":
     "ParameterValues must be a valid JSON object.",
@@ -1286,6 +1289,7 @@ const en: Record<TranslationKey, string> = {
   "credentials.privateKey": "Private key",
   "credentials.secretHint": "Password or private key (empty = unchanged)",
   "credentials.sudoPassword": "Sudo password (optional)",
+  "credentials.sudoPasswordShort": "Sudo password",
   "credentials.passphrase": "Key passphrase (optional)",
   "credentials.manageServers": "Manage credential servers",
   "credentials.serversTitle": "Credential servers",
