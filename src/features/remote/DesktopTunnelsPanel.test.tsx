@@ -6,7 +6,9 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { LanguageProvider } from "../../lib/i18n";
 import { DesktopTunnelsPanel } from "./DesktopTunnelsPanel";
 
 const origin = window.location.origin;
@@ -96,7 +98,7 @@ afterEach(() => {
 
 describe("DesktopTunnelsPanel", () => {
   it("senza bridge desktop non mostra nulla", () => {
-    const { container } = render(<DesktopTunnelsPanel />);
+    const { container } = renderIt(<DesktopTunnelsPanel />);
 
     expect(container).toBeEmptyDOMElement();
     expect(screen.queryByTestId("desktop-tunnels-panel")).toBeNull();
@@ -104,7 +106,7 @@ describe("DesktopTunnelsPanel", () => {
 
   it("chiede il ripristino e gestisce il codice dispositivo", async () => {
     const bridge = installBridge();
-    render(<DesktopTunnelsPanel />);
+    renderIt(<DesktopTunnelsPanel />);
 
     expect(sentType(bridge, "tunnels.restore")).toMatchObject({
       url: origin,
@@ -152,7 +154,7 @@ describe("DesktopTunnelsPanel", () => {
 
   it("con la sessione web attiva nasconde il login e non offre un logout finto", async () => {
     const bridge = installBridge();
-    render(<DesktopTunnelsPanel />);
+    renderIt(<DesktopTunnelsPanel />);
 
     bridge.emit({
       type: "tunnels.auth",
@@ -177,7 +179,7 @@ describe("DesktopTunnelsPanel", () => {
 
   it("con un token salvato offre solo Dimentica token", async () => {
     const bridge = installBridge();
-    render(<DesktopTunnelsPanel />);
+    renderIt(<DesktopTunnelsPanel />);
 
     bridge.emit({
       type: "tunnels.auth",
@@ -194,7 +196,7 @@ describe("DesktopTunnelsPanel", () => {
 
   it("mostra target, avvia, apre e chiude i tunnel", async () => {
     const bridge = installBridge();
-    render(<DesktopTunnelsPanel />);
+    renderIt(<DesktopTunnelsPanel />);
 
     bridge.emit(targetsMessage);
 
@@ -281,7 +283,7 @@ describe("DesktopTunnelsPanel", () => {
 
   it("mostra lo stato senza sessione e ignora un'altra istanza", async () => {
     const bridge = installBridge();
-    render(<DesktopTunnelsPanel />);
+    renderIt(<DesktopTunnelsPanel />);
 
     bridge.emit({
       type: "tunnels.auth",
@@ -302,3 +304,7 @@ describe("DesktopTunnelsPanel", () => {
     ).toBeInTheDocument();
   });
 });
+
+function renderIt(ui: ReactNode) {
+  return render(<LanguageProvider initialLanguage="it">{ui}</LanguageProvider>);
+}

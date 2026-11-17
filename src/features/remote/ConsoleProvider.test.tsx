@@ -7,7 +7,9 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { LanguageProvider } from "../../lib/i18n";
 import { FakeSocket, stubWebSocket } from "../../test/fakeSocket";
 
 const { terminals } = vi.hoisted(() => ({
@@ -187,7 +189,7 @@ function stubFilesFetch() {
 }
 
 const renderFiles = () =>
-  render(
+  renderIt(
     <ConsoleProvider>
       <FilesOpener serverId={44} />
       <FilesOpener serverId={45} />
@@ -195,7 +197,7 @@ const renderFiles = () =>
   );
 
 const renderWithProvider = () =>
-  render(
+  renderIt(
     <ConsoleProvider>
       <Opener serverId={44} serverName="srv-alpha" />
     </ConsoleProvider>,
@@ -254,7 +256,7 @@ describe("ConsoleProvider", () => {
   });
 
   it("mostra nome, IP e hostname nella tab e il testo intero nel tooltip", () => {
-    render(
+    renderIt(
       <ConsoleProvider>
         <Opener
           serverId={44}
@@ -349,7 +351,7 @@ describe("ConsoleProvider", () => {
   });
 
   it("dispone le console su due pannelli e permette di sceglierli", () => {
-    render(
+    renderIt(
       <ConsoleProvider>
         <Opener serverId={44} serverName="srv-alpha" />
         <Opener serverId={45} serverName="srv-beta" />
@@ -384,7 +386,7 @@ describe("ConsoleProvider", () => {
   });
 
   it("sposta una console su un altro pannello dal pannello stesso", () => {
-    render(
+    renderIt(
       <ConsoleProvider>
         <Opener serverId={44} serverName="srv-alpha" />
         <Opener serverId={45} serverName="srv-beta" />
@@ -421,7 +423,7 @@ describe("ConsoleProvider", () => {
 
   it("apre i file accanto alla console senza chiuderla", async () => {
     stubFilesFetch();
-    render(
+    renderIt(
       <ConsoleProvider>
         <Opener serverId={44} serverName="srv-alpha" />
         <FilesOpener serverId={44} />
@@ -450,7 +452,7 @@ describe("ConsoleProvider", () => {
 
   it("chiude una sola sessione file lasciando console e altra sessione", async () => {
     stubFilesFetch();
-    render(
+    renderIt(
       <ConsoleProvider>
         <Opener serverId={44} serverName="srv-alpha" />
         <FilesOpener serverId={44} />
@@ -490,7 +492,7 @@ describe("ConsoleProvider", () => {
 
   it("chiudendo la sessione file attiva attiva il pannello rimasto", async () => {
     stubFilesFetch();
-    render(
+    renderIt(
       <ConsoleProvider>
         <Opener serverId={44} serverName="srv-alpha" />
         <FilesOpener serverId={44} />
@@ -517,7 +519,7 @@ describe("ConsoleProvider", () => {
 
   it("il pannello vuoto elenca console e sessioni file", async () => {
     stubFilesFetch();
-    render(
+    renderIt(
       <ConsoleProvider>
         <Opener serverId={44} serverName="srv-alpha" />
         <FilesOpener serverId={44} />
@@ -602,7 +604,7 @@ describe("ConsoleProvider", () => {
   });
 
   it("conserva lo split quando riduci e ripristina la console", () => {
-    render(
+    renderIt(
       <ConsoleProvider>
         <Opener serverId={44} serverName="srv-alpha" />
         <Opener serverId={45} serverName="srv-beta" />
@@ -926,7 +928,7 @@ describe("ConsoleProvider", () => {
 
   it("conta anche una sessione file in hasSession", async () => {
     stubFilesFetch();
-    render(
+    renderIt(
       <ConsoleProvider>
         <FilesOpener serverId={44} />
         <HasSession serverId={44} />
@@ -960,7 +962,7 @@ describe("ConsoleProvider", () => {
 
   it("non manda Esc/Backspace alla sessione file quando il dock è ridotto", async () => {
     stubFilesFetch();
-    render(
+    renderIt(
       <ConsoleProvider>
         <Opener serverId={44} serverName="srv-alpha" />
         <FilesOpener serverId={44} />
@@ -980,7 +982,7 @@ describe("ConsoleProvider", () => {
 
   it("Esc esce dalla console espansa anche con un pannello file attivo", async () => {
     stubFilesFetch();
-    render(
+    renderIt(
       <ConsoleProvider>
         <Opener serverId={44} serverName="srv-alpha" />
         <FilesOpener serverId={44} />
@@ -1004,7 +1006,7 @@ describe("ConsoleProvider", () => {
   });
 
   it("attiva il pannello console cliccandone l'intestazione", async () => {
-    render(
+    renderIt(
       <ConsoleProvider>
         <Opener serverId={44} serverName="srv-alpha" />
         <Opener serverId={45} serverName="srv-beta" />
@@ -1035,3 +1037,7 @@ describe("ConsoleProvider", () => {
     await waitFor(() => expect(serverRequests).toBe(1));
   });
 });
+
+function renderIt(ui: ReactNode) {
+  return render(<LanguageProvider initialLanguage="it">{ui}</LanguageProvider>);
+}

@@ -29,7 +29,7 @@ function renderSearch() {
   });
   return render(
     <QueryClientProvider client={client}>
-      <LanguageProvider>
+      <LanguageProvider initialLanguage="it">
         <MemoryRouter initialEntries={["/"]}>
           <GlobalSearch />
           <LocationProbe />

@@ -1,5 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { LanguageProvider } from "../../lib/i18n";
 import { ApiSpecImport } from "./ApiSpecImport";
 
 const spec = JSON.stringify({
@@ -26,7 +28,7 @@ afterEach(cleanup);
 
 describe("ApiSpecImport", () => {
   it("analizza una specifica e mostra le API e le API key da importare", () => {
-    render(
+    renderIt(
       <ApiSpecImport
         versionId={1}
         applicationId={7}
@@ -54,7 +56,7 @@ describe("ApiSpecImport", () => {
   });
 
   it("mostra l'errore per un documento non valido", () => {
-    render(
+    renderIt(
       <ApiSpecImport
         versionId={1}
         applicationId={7}
@@ -72,3 +74,7 @@ describe("ApiSpecImport", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/OpenAPI/);
   });
 });
+
+function renderIt(ui: ReactNode) {
+  return render(<LanguageProvider initialLanguage="it">{ui}</LanguageProvider>);
+}
