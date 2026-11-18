@@ -360,9 +360,10 @@ describe("ConsoleProvider", () => {
     fireEvent.change(search, { target: { value: "srv" } });
 
     fireEvent.keyDown(search, { key: "ArrowDown" });
-    expect(
-      screen.getByText("srv-beta").closest("button"),
-    ).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("srv-beta").closest("button")).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
 
     fireEvent.keyDown(search, { key: "Enter" });
     await waitFor(() => expect(FakeSocket.instances).toHaveLength(1));
