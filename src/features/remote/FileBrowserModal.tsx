@@ -194,6 +194,7 @@ export function FileBrowserModal({
     done: number;
     total: number;
     name: string;
+    percent: number;
   } | null>(null);
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [loadErrorCode, setLoadErrorCode] = useState<string | null>(null);
@@ -688,8 +689,16 @@ export function FileBrowserModal({
           done: index,
           total: files.length,
           name: file.name,
+          percent: 0,
         });
-        await uploadServerFile(selectedId, path, file, csrf);
+        await uploadServerFile(selectedId, path, file, csrf, (percent) =>
+          setUploadStatus({
+            done: index,
+            total: files.length,
+            name: file.name,
+            percent,
+          }),
+        );
       }
       await refresh();
     } catch (cause) {
@@ -841,7 +850,18 @@ export function FileBrowserModal({
   const downloadEntry = async (entry: RemoteFileEntry) => {
     if (selectedId === null || entry.isDirectory) return;
     if (directFiles) {
-      const local = await desktopDownloadFile(selectedId, entry.path);
+      const local = await desktopDownloadFile(
+        selectedId,
+        entry.path,
+        (progress) =>
+          setDownloadNote({
+            text: t("files.downloading", {
+              name: entry.name,
+              percent: progress.percent,
+            }),
+            tone: "info",
+          }),
+      );
       if (local) {
         setDownloadNote(
           local.saved
@@ -1559,6 +1579,7 @@ export function FileBrowserModal({
           >
             {t("files.uploading", {
               name: uploadStatus.name,
+              percent: uploadStatus.percent,
               done: uploadStatus.done,
               total: uploadStatus.total,
             })}

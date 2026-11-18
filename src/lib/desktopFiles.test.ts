@@ -71,4 +71,38 @@ describe("desktop files bridge", () => {
       path: null,
     });
   });
+
+  it("forwards byte progress for the matching request", async () => {
+    const { bridge, sent } = bridgeWith((message, reply) => {
+      if (message.type !== "files.upload") return;
+      reply({
+        type: "files.progress",
+        requestId: message.requestId,
+        operation: "Upload",
+        transferredBytes: 5,
+        totalBytes: 10,
+        percent: 50,
+      });
+      reply({
+        type: "files.result",
+        requestId: message.requestId,
+        ok: true,
+        data: { path: "/home/deploy/app.log" },
+      });
+    });
+    Reflect.set(window, "infraorgitDesktop", bridge);
+    const progress: number[] = [];
+
+    const result = await requestDesktopFile<{ path: string }>(
+      { type: "files.upload", serverId: 7, path: "/home/deploy" },
+      { onProgress: (value) => progress.push(value.percent) },
+    );
+
+    expect(result).toEqual({
+      transport: "client",
+      data: { path: "/home/deploy/app.log" },
+    });
+    expect(progress).toEqual([50]);
+    expect(sent[0]).toMatchObject({ type: "files.upload", serverId: 7 });
+  });
 });

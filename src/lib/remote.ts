@@ -176,14 +176,62 @@ export function serverFileDownloadUrl(serverId: number, path: string): string {
   return `/api/servers/${serverId}/files/download?path=${encodeURIComponent(path)}`;
 }
 
+function uploadWithProgress(
+  url: string,
+  file: File,
+  csrfToken: string,
+  onProgress: (percent: number) => void,
+): Promise<{ path: string }> {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", url);
+    request.withCredentials = true;
+    if (csrfToken) request.setRequestHeader("X-CSRF-Token", csrfToken);
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable)
+        onProgress(Math.round((event.loaded / event.total) * 100));
+    };
+    request.onerror = () => reject(new Error("Upload non riuscito."));
+    request.onabort = () => reject(new Error("Upload annullato."));
+    request.onload = () => {
+      if (request.status >= 200 && request.status < 300) {
+        try {
+          resolve(JSON.parse(request.responseText) as { path: string });
+        } catch {
+          reject(new Error("Risposta upload non valida."));
+        }
+        return;
+      }
+      reject(new Error(`Upload fallito (HTTP ${request.status}).`));
+    };
+    const form = new FormData();
+    form.append("file", file);
+    request.send(form);
+  });
+}
+
 export async function uploadServerFile(
   serverId: number,
   directory: string,
   file: File,
   csrfToken: string,
+  onProgress?: ((percent: number) => void) | null,
 ): Promise<{ path: string }> {
-  const local = await desktopUploadFile(serverId, directory, file);
+  const local = await desktopUploadFile(
+    serverId,
+    directory,
+    file,
+    onProgress ? (progress) => onProgress(progress.percent) : null,
+  );
   if (local) return local;
+  if (onProgress) {
+    return uploadWithProgress(
+      `/api/servers/${serverId}/files/upload?path=${encodeURIComponent(directory)}`,
+      file,
+      csrfToken,
+      onProgress,
+    );
+  }
   const form = new FormData();
   form.append("file", file);
   return apiFetch<{ path: string }>(
