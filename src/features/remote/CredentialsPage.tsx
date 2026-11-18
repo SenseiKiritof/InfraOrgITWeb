@@ -4,6 +4,8 @@ import { useAuth } from "../../app/AuthProvider";
 import type { FormValues } from "../../components/EntitySection";
 import { EntitySection } from "../../components/EntitySection";
 import { PageHeaderSlot } from "../../components/PageHeaderSlot";
+import { getDevices, getUsers, revokeDevice } from "../../lib/admin";
+import { formatDateTime } from "../../lib/format";
 import { useI18n } from "../../lib/i18n";
 import type { Server } from "../../lib/inventory";
 import { deleteEntity, saveEntity } from "../../lib/inventory";
@@ -33,6 +35,25 @@ export function CredentialsPage() {
     retry: false,
   });
 
+  const devices = useQuery({
+    queryKey: ["desktop-devices"],
+    queryFn: getDevices,
+    retry: false,
+  });
+
+  const users = useQuery({
+    queryKey: ["users", "credential-owner"],
+    queryFn: () => getUsers(),
+    retry: false,
+  });
+  const ownerOptions = [
+    { value: "", label: t("credentials.shared") },
+    ...(users.data?.items ?? []).map((user) => ({
+      value: String(user.id),
+      label: `${user.name} ${user.surname} (${user.username})`.trim(),
+    })),
+  ];
+
   const servers = useQuery({
     queryKey: ["servers", "credential-manager"],
     queryFn: getServersForCredential,
@@ -50,6 +71,8 @@ export function CredentialsPage() {
         secret: values.secret ? values.secret : null,
         passphrase: values.passphrase ? values.passphrase : null,
         sudoPassword: values.sudoPassword ? values.sudoPassword : null,
+        ownerUserId: values.ownerUserId ? Number(values.ownerUserId) : null,
+        allowOffline: values.allowOffline === "true",
       },
       csrf,
     );
@@ -198,6 +221,17 @@ export function CredentialsPage() {
             label: t("common.server"),
             render: (row) => row.serversCount,
           },
+          {
+            key: "owner",
+            label: t("credentials.owner"),
+            render: (row) => row.ownerUsername || t("credentials.shared"),
+          },
+          {
+            key: "allowOffline",
+            label: t("credentials.offline"),
+            render: (row) =>
+              row.allowOffline ? t("common.yes") : t("common.no"),
+          },
         ]}
         fields={[
           { name: "name", label: t("common.name"), required: true },
@@ -234,6 +268,17 @@ export function CredentialsPage() {
             label: t("credentials.sudoPassword"),
             type: "password",
           },
+          {
+            name: "ownerUserId",
+            label: t("credentials.owner"),
+            type: "select",
+            options: ownerOptions,
+          },
+          {
+            name: "allowOffline",
+            label: t("credentials.allowOffline"),
+            type: "checkbox",
+          },
         ]}
         empty={{
           name: "",
@@ -242,6 +287,8 @@ export function CredentialsPage() {
           secret: "",
           passphrase: "",
           sudoPassword: "",
+          ownerUserId: "",
+          allowOffline: "false",
         }}
         toForm={(row) => ({
           name: row.name,
@@ -250,6 +297,8 @@ export function CredentialsPage() {
           secret: "",
           passphrase: "",
           sudoPassword: "",
+          ownerUserId: row.ownerUserId ? String(row.ownerUserId) : "",
+          allowOffline: String(row.allowOffline),
         })}
         canWrite
         onSave={save}
@@ -265,6 +314,72 @@ export function CredentialsPage() {
         )}
         createLabel={t("credentials.create")}
       />
+
+      <section className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+          {t("devices.title")}
+        </h2>
+        <p className="mt-1 text-xs text-slate-500">
+          {t("devices.description")}
+        </p>
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+                <th className="px-2 py-2">{t("devices.name")}</th>
+                <th className="px-2 py-2">{t("devices.user")}</th>
+                <th className="px-2 py-2">{t("devices.fingerprint")}</th>
+                <th className="px-2 py-2">{t("devices.lastSeen")}</th>
+                <th className="px-2 py-2">{t("common.actions")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(devices.data ?? []).map((device) => (
+                <tr key={device.id} className="border-b border-slate-100">
+                  <td className="px-2 py-2">{device.name}</td>
+                  <td className="px-2 py-2">{device.username}</td>
+                  <td className="px-2 py-2 font-mono text-xs">
+                    {device.fingerprint.slice(0, 16)}…
+                  </td>
+                  <td className="px-2 py-2">
+                    {formatDateTime(device.lastSeenAt)}
+                  </td>
+                  <td className="px-2 py-2">
+                    {device.revokedAt ? (
+                      <span className="text-slate-500">
+                        {t("devices.revoked")}
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="text-sm font-medium text-red-700 underline"
+                        onClick={() => {
+                          if (!window.confirm(t("devices.revokeConfirm")))
+                            return;
+                          void revokeDevice(device.id, csrf).then(() =>
+                            queryClient.invalidateQueries({
+                              queryKey: ["desktop-devices"],
+                            }),
+                          );
+                        }}
+                      >
+                        {t("devices.revoke")}
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {(devices.data ?? []).length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-2 py-3 text-slate-500">
+                    {t("devices.none")}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       {managing && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 p-4">

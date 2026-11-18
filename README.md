@@ -148,6 +148,11 @@ operating-system appearance). The menu labels stored in the database can be
 edited by an administrator from **Menu**; application names and descriptions
 can carry a translation per language.
 
+On **Credentials** an administrator can make a credential shared or owned by a
+user, allow offline use, and revoke enrolled desktop devices. The desktop
+downloads secrets encrypted for its own device key; the browser never receives
+them.
+
 ## Learn more
 
 - [AllInfraOrgIT](https://github.com/SenseiKiritof/AllInfraOrgIT) — product
