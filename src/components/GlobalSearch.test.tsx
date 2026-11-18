@@ -94,6 +94,7 @@ describe("GlobalSearch", () => {
     fireEvent.keyDown(input, { key: "ArrowDown" });
     const second = screen.getByRole("option", { name: /Fastbee/ });
     expect(second).toHaveAttribute("aria-selected", "true");
+    expect(second).toHaveClass("listbox-option-active");
     await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
 
     fireEvent.keyDown(input, { key: "ArrowUp" });

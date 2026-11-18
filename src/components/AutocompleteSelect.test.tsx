@@ -30,6 +30,9 @@ describe("AutocompleteSelect", () => {
 
     fireEvent.focus(input);
     expect(screen.getAllByRole("option")).toHaveLength(2);
+    expect(screen.getByRole("option", { name: "Database" })).toHaveClass(
+      "listbox-option-active",
+    );
 
     fireEvent.change(input, { target: { value: "cache" } });
 

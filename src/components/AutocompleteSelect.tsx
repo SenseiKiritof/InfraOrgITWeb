@@ -190,13 +190,13 @@ export function AutocompleteSelect({
                 id={`${id}-option-${index}`}
                 role="option"
                 tabIndex={-1}
-                aria-selected={option.value === value}
+                aria-selected={index === highlight}
                 onMouseDown={(event) => {
                   event.preventDefault();
                   choose(option);
                 }}
                 className={`cursor-pointer px-3 py-1.5 ${
-                  index === highlight ? "bg-slate-100" : ""
+                  index === highlight ? "listbox-option-active" : ""
                 }`}
               >
                 {option.label}
