@@ -21,6 +21,7 @@ const KINDS: AuditKind[] = [
   "TunnelStop",
   "TunnelError",
   "ClientCheck",
+  "CredentialDownload",
 ];
 
 const OUTCOMES: AuditOutcome[] = ["Ok", "Error", "Denied"];
@@ -86,6 +87,8 @@ export function AuditPage() {
         return t("audit.kindTunnelError");
       case "ClientCheck":
         return t("audit.kindClientCheck");
+      case "CredentialDownload":
+        return t("audit.kindCredentialDownload");
       default:
         return value;
     }

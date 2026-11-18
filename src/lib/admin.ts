@@ -1,6 +1,6 @@
 import { apiFetch } from "./api";
 import type { Paged } from "./inventory";
-import { paged } from "./inventory";
+import { deleteEntity, paged } from "./inventory";
 
 export interface UserRef {
   id: number;
@@ -82,4 +82,23 @@ export function getEnvironmentGroupRoles(
   return apiFetch<Paged<EnvironmentGroupRole>>(
     `/api/provider-environments/${providerEnvironmentId}/group-roles?pageSize=200`,
   );
+}
+
+export interface DesktopDevice {
+  id: number;
+  userId: number;
+  username: string;
+  name: string;
+  fingerprint: string;
+  createdAt: string;
+  lastSeenAt: string;
+  revokedAt: string | null;
+}
+
+export function getDevices(): Promise<DesktopDevice[]> {
+  return apiFetch<DesktopDevice[]>("/api/devices");
+}
+
+export function revokeDevice(id: number, csrfToken: string): Promise<void> {
+  return deleteEntity(`/api/devices/${id}`, csrfToken);
 }

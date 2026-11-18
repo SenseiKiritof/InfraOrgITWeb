@@ -23,6 +23,10 @@ export interface ServerCredential {
   hasSudoPassword: boolean;
   serversCount: number;
   needsReauth: boolean;
+  ownerUserId: number | null;
+  ownerUsername: string | null;
+  allowOffline: boolean;
+  version: number;
 }
 
 export interface CredentialInput {
@@ -32,6 +36,8 @@ export interface CredentialInput {
   secret: string | null;
   passphrase: string | null;
   sudoPassword: string | null;
+  ownerUserId: number | null;
+  allowOffline: boolean;
 }
 
 export interface CommandTemplate {
