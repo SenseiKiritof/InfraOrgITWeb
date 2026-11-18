@@ -54,11 +54,47 @@ const fileEntry = (name: string) => ({
   modifiedUtc: null,
 });
 
+class FakeUploadRequest {
+  upload: {
+    onprogress?: (event: {
+      lengthComputable: boolean;
+      loaded: number;
+      total: number;
+    }) => void;
+  } = {};
+  status = 0;
+  responseText = "";
+  onload: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  onabort: (() => void) | null = null;
+
+  open(_method: string, url: string) {
+    this.uploadUrl = url;
+  }
+
+  uploadUrl = "";
+
+  setRequestHeader() {}
+
+  send() {
+    uploadRequests.push(this.uploadUrl);
+    this.upload.onprogress?.({
+      lengthComputable: true,
+      loaded: 50,
+      total: 100,
+    });
+    this.status = 200;
+    this.responseText = JSON.stringify({ path: "/home/test/uploaded" });
+    this.onload?.();
+  }
+}
+
 describe("FileBrowserModal", () => {
   beforeEach(() => {
     fileRequests = [];
     uploadRequests = [];
     localStorage.clear();
+    vi.stubGlobal("XMLHttpRequest", FakeUploadRequest);
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
