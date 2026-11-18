@@ -81,6 +81,7 @@ door).
   builds stay amd64
 - image `ghcr.io/senseikiritof/infraorgit-web`
 - local build: `docker build --build-arg APP_VERSION=v0.2.0 -t infraorgit-web:0.2.0 .`
+  Without `APP_VERSION` the sidebar shows `dev` instead of a stale number.
 - the SPA is served on port 80; the version is baked into `VITE_APP_VERSION`
   and shown in the sidebar
 - the published image is used by `../AllInfraOrgIT/deploy/compose.yaml` (stack
