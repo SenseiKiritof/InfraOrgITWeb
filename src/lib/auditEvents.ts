@@ -4,7 +4,8 @@ export type AuditKind =
   | "McpToolCall"
   | "TunnelStart"
   | "TunnelStop"
-  | "TunnelError";
+  | "TunnelError"
+  | "ClientCheck";
 
 export type AuditOutcome = "Ok" | "Error" | "Denied";
 
