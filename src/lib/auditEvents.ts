@@ -5,7 +5,8 @@ export type AuditKind =
   | "TunnelStart"
   | "TunnelStop"
   | "TunnelError"
-  | "ClientCheck";
+  | "ClientCheck"
+  | "CredentialDownload";
 
 export type AuditOutcome = "Ok" | "Error" | "Denied";
 
