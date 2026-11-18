@@ -197,7 +197,7 @@ export function GlobalSearch() {
                         setQuery("");
                       }}
                       className={`flex items-start gap-2 px-3 py-2 ${
-                        index === activeIndex ? "bg-slate-100" : ""
+                        index === activeIndex ? "listbox-option-active" : ""
                       }`}
                     >
                       <span className="mt-0.5 rounded bg-slate-100 p-1 text-slate-600">

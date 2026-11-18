@@ -269,6 +269,17 @@ section:fullscreen {
   background: #0f172a;
 }
 
+/* Selected row in a listbox: stronger than the theme remap of bg-slate-100,
+   which is nearly invisible against the dropdown in dark mode. */
+.listbox-option-active {
+  background-color: #dbeafe;
+  box-shadow: inset 3px 0 0 #2563eb;
+}
+.dark .listbox-option-active {
+  background-color: #1e3a8a;
+  box-shadow: inset 3px 0 0 #60a5fa;
+}
+
 /* La barra console segue il tema invece di restare scura in tema chiaro. */
 .dark .console-footer {
   border-color: #334155;
