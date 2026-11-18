@@ -326,6 +326,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
   const [activity, setActivity] = useState<Record<string, Activity>>({});
   const [launcherOpen, setLauncherOpen] = useState(false);
   const [launcherQuery, setLauncherQuery] = useState("");
+  const [launcherIndex, setLauncherIndex] = useState(0);
   const [filesOpen, setFilesOpen] = useState(false);
   const [fileSessions, setFileSessions] = useState<FileSession[]>(
     initialState.files,
@@ -402,6 +403,17 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
         .some((field) => field.toLocaleLowerCase().includes(query)),
     );
   }, [availableServers, launcherQuery]);
+
+  const activeLauncherIndex =
+    filteredServers.length > 0
+      ? Math.min(launcherIndex, filteredServers.length - 1)
+      : -1;
+
+  useEffect(() => {
+    if (!launcherOpen || activeLauncherIndex < 0) return;
+    const id = `console-launcher-${filteredServers[activeLauncherIndex]?.id}`;
+    document.getElementById(id)?.scrollIntoView?.({ block: "nearest" });
+  }, [activeLauncherIndex, filteredServers, launcherOpen]);
 
   // I server caricati arricchiscono le tab aperte da altre pagine o ripristinate.
   useEffect(() => {
@@ -1349,7 +1361,46 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                     // biome-ignore lint/a11y/noAutofocus: la ricerca è il primo campo del pannello appena aperto
                     autoFocus
                     value={launcherQuery}
-                    onChange={(event) => setLauncherQuery(event.target.value)}
+                    onChange={(event) => {
+                      setLauncherQuery(event.target.value);
+                      setLauncherIndex(0);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "ArrowDown") {
+                        event.preventDefault();
+                        setLauncherIndex((current) =>
+                          Math.min(
+                            Math.max(filteredServers.length - 1, 0),
+                            Math.min(current, filteredServers.length - 1) + 1,
+                          ),
+                        );
+                      } else if (event.key === "ArrowUp") {
+                        event.preventDefault();
+                        setLauncherIndex((current) =>
+                          Math.max(
+                            0,
+                            Math.min(current, filteredServers.length - 1) - 1,
+                          ),
+                        );
+                      } else if (event.key === "Enter") {
+                        const server = filteredServers[activeLauncherIndex];
+                        if (!server) return;
+                        event.preventDefault();
+                        open(server.id, server.name, {
+                          ipAddress: server.ipAddress,
+                          hostname: server.hostname,
+                          environment: server.providerEnvironmentLabel,
+                        });
+                        setLauncherOpen(false);
+                        setLauncherQuery("");
+                        setLauncherIndex(0);
+                      } else if (event.key === "Escape") {
+                        event.preventDefault();
+                        setLauncherOpen(false);
+                        setLauncherQuery("");
+                        setLauncherIndex(0);
+                      }
+                    }}
                     placeholder={t("console.searchServer")}
                     className="min-w-0 flex-1 text-sm outline-none"
                   />
@@ -1365,10 +1416,14 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                       {t("console.noServers")}
                     </p>
                   )}
-                  {filteredServers.map((server) => (
+                  {filteredServers.map((server, index) => (
                     <button
                       key={server.id}
+                      id={`console-launcher-${server.id}`}
                       type="button"
+                      role="option"
+                      aria-selected={index === activeLauncherIndex}
+                      onMouseEnter={() => setLauncherIndex(index)}
                       onClick={() => {
                         open(server.id, server.name, {
                           ipAddress: server.ipAddress,
@@ -1377,8 +1432,11 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                         });
                         setLauncherOpen(false);
                         setLauncherQuery("");
+                        setLauncherIndex(0);
                       }}
-                      className="flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-slate-100"
+                      className={`flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-slate-100 ${
+                        index === activeLauncherIndex ? "bg-slate-100" : ""
+                      }`}
                     >
                       <span className="min-w-0 truncate">
                         <span className="block truncate font-medium">

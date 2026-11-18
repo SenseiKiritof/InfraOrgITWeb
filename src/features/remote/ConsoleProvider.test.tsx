@@ -350,6 +350,27 @@ describe("ConsoleProvider", () => {
     ).toBeTruthy();
   });
 
+  it("naviga il launcher con le frecce e apre con Invio", async () => {
+    stubFilesFetch();
+    renderWithProvider();
+    fireEvent.click(screen.getByLabelText("Aggiungi console"));
+
+    const search = await screen.findByPlaceholderText("Cerca un server…");
+    await screen.findByText("srv-alpha");
+    fireEvent.change(search, { target: { value: "srv" } });
+
+    fireEvent.keyDown(search, { key: "ArrowDown" });
+    expect(
+      screen.getByText("srv-beta").closest("button"),
+    ).toHaveAttribute("aria-selected", "true");
+
+    fireEvent.keyDown(search, { key: "Enter" });
+    await waitFor(() => expect(FakeSocket.instances).toHaveLength(1));
+    expect(
+      consoleTab("srv-beta · 10.0.0.45 · srv-beta.acme.example"),
+    ).toBeTruthy();
+  });
+
   it("dispone le console su due pannelli e permette di sceglierli", () => {
     renderIt(
       <ConsoleProvider>
