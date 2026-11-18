@@ -1434,8 +1434,10 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
                         setLauncherQuery("");
                         setLauncherIndex(0);
                       }}
-                      className={`flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-slate-100 ${
-                        index === activeLauncherIndex ? "bg-slate-100" : ""
+                      className={`flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-sm ${
+                        index === activeLauncherIndex
+                          ? "listbox-option-active"
+                          : ""
                       }`}
                     >
                       <span className="min-w-0 truncate">
