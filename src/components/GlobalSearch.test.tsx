@@ -101,6 +101,11 @@ describe("GlobalSearch", () => {
       "aria-selected",
       "true",
     );
+
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() =>
+      expect(screen.getByTestId("path")).toHaveTextContent("/providers/1"),
+    );
   });
 
   it("mostra la tipologia e apre la schermata del risultato", async () => {
