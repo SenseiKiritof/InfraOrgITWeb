@@ -63,13 +63,28 @@ and test is written to the audit log.
 
 ### Approve AI actions
 
-MCP clients can read the inventory and request actions. An action requested by
-an AI client does not run on its own: it becomes a **Pending** request on
-`/approvals`. You check server, application and action, then approve or deny
-from your browser session. The request expires after 10 minutes, is used once
-and cannot be approved by the AI client itself.
+MCP clients can read the inventory and request actions. The first action call
+creates a **Pending** MCP agent on `/approvals`; there is no per-call approval
+row. You approve the agent once with individual permissions
+(`reachability.run`, `actions.run`, per environment or all), then edit or revoke
+them at any time. Denying or revoking an agent also revokes the personal API
+token that created it; action calls still need the environment operator right
+and `confirm=true`.
 
-![MCP approvals page with a pending action, Approve and Deny buttons, and the human-approval warning](docs/screenshots/approvals.png)
+![MCP agents page with a pending agent, individual permissions, Approve and Deny buttons](docs/screenshots/approvals.png)
+
+### Manage credentials and devices
+
+`/credentials` (SystemAdmin) marks a credential as shared or owned by a user,
+enables offline use per credential, shows the servers that use it and lists the
+desktop devices enrolled by users. A shared credential is downloadable only by
+operators of an environment where it is assigned; a personal credential only by
+its owner and cannot be assigned to servers or file transfer. The desktop gets
+secrets encrypted for its own RSA device key, so the browser never receives
+them. Revoking a device drops its cached copies, and a credential version change
+invalidates the cached copy on the next access.
+
+![Credential owners, offline flag and enrolled desktop devices](docs/screenshots/credentials.png)
 
 ### See desktop tunnels
 
@@ -87,6 +102,11 @@ active-session view.
 
 ![Empty active tunnels page with guidance to the desktop and server tunnel section](docs/screenshots/tunnels-empty.png)
 
+The desktop also keeps an encrypted inventory snapshot for offline use, runs
+local TCP/TLS/HTTP checks from the machine or through the first jump host, and
+queues check results and tunnel events for the central audit until the instance
+is reachable again.
+
 ### Choose the connection mode
 
 `/settings` (SystemAdmin) chooses how the installation opens tunnels. The
@@ -94,9 +114,9 @@ default is **Auto**.
 
 | Mode | Behaviour |
 |---|---|
-| **Auto** (default) | Tunnels, console, files and actions use the desktop when the client reaches the first SSH hop; otherwise they use the server. |
+| **Auto** (default) | Tunnels, console, files and actions use the desktop when the client reaches the first SSH hop and has a key-based SSH agent or a downloaded credential; otherwise they use the server. A password credential without a downloaded copy uses the server. |
 | **Server** | Tunnels go through the API; console, files and actions run on the server. Only `Local` services and deployments with a fixed target port are relayed. |
-| **Client** | Tunnels, console, files and actions use the desktop SSH agent; `Local`, `Dynamic` and `Remote` tunnels are available. |
+| **Client** | Tunnels, console, files and actions use the desktop SSH agent or a downloaded credential; `Local`, `Dynamic` and `Remote` tunnels are available, but `Dynamic` and `Remote` always require an agent key. |
 
 The value is stored in the shared `ConnectionPolicies` row, so every API node
 in a cluster reports the same mode. Relay connections are node-local; the load
@@ -125,6 +145,13 @@ menu. The raw value is shown once; grant only the scopes the client needs.
 
 ![Personal API tokens with scopes, creation, expiry, last use and state](docs/screenshots/tokens.png)
 
+### Keyboard
+
+Global search and the console server launcher support ArrowUp/ArrowDown,
+Enter and Escape; the active row scrolls into view and stays visible in light
+and dark themes. Forms that use the shared autocomplete have the same keyboard
+behavior.
+
 ## Downloads in the desktop app
 
 In the Electron desktop shell, server attachments use Chromium's native
@@ -147,11 +174,6 @@ menu cycles the light, dark and system theme (the system option keeps the
 operating-system appearance). The menu labels stored in the database can be
 edited by an administrator from **Menu**; application names and descriptions
 can carry a translation per language.
-
-On **Credentials** an administrator can make a credential shared or owned by a
-user, allow offline use, and revoke enrolled desktop devices. The desktop
-downloads secrets encrypted for its own device key; the browser never receives
-them.
 
 ## Learn more
 

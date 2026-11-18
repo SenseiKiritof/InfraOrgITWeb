@@ -471,7 +471,7 @@ const it = {
 
   "credentials.title": "Credenziali",
   "credentials.description":
-    "Segreti SSH cifrati: non vengono mai restituiti al client.",
+    "Segreti SSH cifrati a riposo: il desktop li scarica solo cifrati per il proprio dispositivo.",
   "credentials.create": "Nuova credenziale",
   "credentials.user": "Utente",
   "credentials.secret": "Segreto",
@@ -1307,7 +1307,7 @@ const en: Record<TranslationKey, string> = {
 
   "credentials.title": "Credentials",
   "credentials.description":
-    "Encrypted SSH secrets: they are never returned to the client.",
+    "SSH secrets are encrypted at rest and downloaded only encrypted for the enrolled desktop device.",
   "credentials.create": "New credential",
   "credentials.user": "User",
   "credentials.secret": "Secret",
@@ -1787,7 +1787,7 @@ const fr: Partial<Record<TranslationKey, string>> = {
   "tunnels.transport": "Transport",
   "credentials.title": "Identifiants",
   "credentials.description":
-    "Secrets SSH chiffrés : ils ne sont jamais renvoyés au client.",
+    "Secrets SSH chiffrés au repos : le bureau les télécharge uniquement chiffrés pour son appareil.",
   "credentials.create": "Nouvel identifiant",
   "credentials.user": "Utilisateur",
   "credentials.secret": "Secret",
@@ -1924,7 +1924,7 @@ const de: Partial<Record<TranslationKey, string>> = {
   "tunnels.transport": "Transport",
   "credentials.title": "Anmeldedaten",
   "credentials.description":
-    "Verschlüsselte SSH-Geheimnisse: Sie werden nie an den Client zurückgegeben.",
+    "SSH-Geheimnisse sind im Ruhezustand verschlüsselt und werden nur verschlüsselt für das registrierte Desktop-Gerät heruntergeladen.",
   "credentials.create": "Neue Anmeldedaten",
   "credentials.user": "Benutzer",
   "credentials.secret": "Geheimnis",
@@ -2064,7 +2064,7 @@ const es: Partial<Record<TranslationKey, string>> = {
   "tunnels.transport": "Transporte",
   "credentials.title": "Credenciales",
   "credentials.description":
-    "Secretos SSH cifrados: nunca se devuelven al cliente.",
+    "Los secretos SSH están cifrados en reposo y solo se descargan cifrados para el dispositivo de escritorio registrado.",
   "credentials.create": "Nueva credencial",
   "credentials.user": "Usuario",
   "credentials.secret": "Secreto",
