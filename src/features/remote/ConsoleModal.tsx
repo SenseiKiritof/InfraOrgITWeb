@@ -356,12 +356,15 @@ export function ConsoleModal({
         </div>
       </div>
       <div
-        ref={container}
         role="application"
         aria-label={t("console.terminal")}
         onFocus={() => onActivate?.()}
         className="min-h-0 flex-1 overflow-hidden rounded bg-black p-2"
-      />
+      >
+        {/* FitAddon legge l'altezza del contenitore: il padding deve stare
+            fuori, altrimenti calcola una riga in più e taglia il prompt. */}
+        <div ref={container} className="h-full w-full" />
+      </div>
     </div>
   );
 }
