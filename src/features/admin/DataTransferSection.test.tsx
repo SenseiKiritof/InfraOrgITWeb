@@ -15,10 +15,21 @@ const json = (body: unknown) =>
 
 describe("DataTransferSection", () => {
   beforeEach(() => {
+    URL.createObjectURL = vi.fn(() => "blob:inventory");
+    URL.revokeObjectURL = vi.fn();
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input);
+        if (url.includes("/api/data/export")) {
+          return new Response("{}", {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+              "Content-Disposition": 'attachment; filename="inventory.json"',
+            },
+          });
+        }
         if (url.includes("/api/data/import/confirm")) {
           return json({
             imported: true,
@@ -53,6 +64,22 @@ describe("DataTransferSection", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("warns before exporting the inventory", async () => {
+    render(
+      <LanguageProvider initialLanguage="en">
+        <DataTransferSection />
+      </LanguageProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Export inventory" }));
+    expect(screen.getByText(/command scripts/)).toBeTruthy();
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Download anyway" }));
+    await waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText(/command scripts/)).toBeNull();
   });
 
   it("previews and confirms an inventory import", async () => {

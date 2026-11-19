@@ -9,6 +9,10 @@ import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import { SearchForm } from "../../components/page";
 import { RecordCard } from "../../components/RecordCard";
 import { apiFetch } from "../../lib/api";
+import {
+  optionsWithValue,
+  useApplicationTypes,
+} from "../../lib/applicationTypes";
 import { formatBytes, formatDateTime } from "../../lib/format";
 import { useI18n } from "../../lib/i18n";
 import type {
@@ -40,24 +44,6 @@ import { ApiCallModal } from "./ApiCallModal";
 import { ApiSpecImport } from "./ApiSpecImport";
 import { SavedCallModal } from "./SavedCallModal";
 
-const applicationTypes = [
-  { value: "Backend", label: "Backend" },
-  { value: "Frontend", label: "Frontend" },
-  { value: "Sftp", label: "SFTP" },
-  { value: "RabbitMq", label: "RabbitMQ" },
-  { value: "Nginx", label: "NGINX" },
-  { value: "Elastic", label: "Elastic" },
-  { value: "Kibana", label: "Kibana" },
-  { value: "Kafka", label: "Kafka" },
-  { value: "MySql", label: "MySQL/MariaDB" },
-  { value: "MongoDb", label: "MongoDB" },
-  { value: "Redis", label: "Redis" },
-] as const;
-
-function applicationTypeLabel(value: string): string {
-  return applicationTypes.find((type) => type.value === value)?.label ?? value;
-}
-
 const translationLanguages = [
   { code: "it", label: "Italiano" },
   { code: "fr", label: "Français" },
@@ -85,6 +71,7 @@ export function ApplicationsPage() {
   const csrf = session?.csrfToken ?? "";
   const isAdmin = useIsSystemAdmin();
   const queryClient = useQueryClient();
+  const { options: typeOptions, label: typeLabel } = useApplicationTypes();
   const { search, setSearch, q, setQ } = useQueryFilter();
 
   const applications = useQuery({
@@ -145,7 +132,7 @@ export function ApplicationsPage() {
           {
             key: "type",
             label: t("common.type"),
-            render: (row) => applicationTypeLabel(row.type),
+            render: (row) => typeLabel(row.type),
           },
           {
             key: "versionCount",
@@ -172,7 +159,7 @@ export function ApplicationsPage() {
             label: t("applications.type"),
             type: "select",
             required: true,
-            options: applicationTypes.map((type) => ({ ...type })),
+            options: typeOptions,
           },
         ]}
         empty={{
@@ -205,6 +192,7 @@ export function ApplicationDetailPage() {
   const { session } = useAuth();
   const { t, language } = useI18n();
   const csrf = session?.csrfToken ?? "";
+  const { options: typeOptions } = useApplicationTypes();
   const isAdmin = useIsSystemAdmin();
   const access = useServerAccess();
   const adminEnvironmentIds = access.data?.adminEnvironmentIds ?? [];
@@ -590,7 +578,7 @@ export function ApplicationDetailPage() {
             label: t("applications.type"),
             type: "select",
             required: true,
-            options: applicationTypes.map((type) => ({ ...type })),
+            options: optionsWithValue(typeOptions, edit.type),
           },
         ]}
         values={
