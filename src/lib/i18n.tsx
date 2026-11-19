@@ -594,6 +594,32 @@ const it = {
   "connectionPolicy.saved": "Impostazione salvata.",
   "connectionPolicy.updatedBy": "Ultima modifica: {user} · {date}",
 
+  "dataTransfer.title": "Dati e backup",
+  "dataTransfer.description":
+    "Esporta l'inventario in JSON versionato o importa un file in un'istanza locale vuota. L'import sostituisce i dati e salva un backup prima di applicare.",
+  "dataTransfer.export": "Esporta inventario",
+  "dataTransfer.exporting": "Esportazione…",
+  "dataTransfer.import": "Importa inventario",
+  "dataTransfer.reading": "Lettura file…",
+  "dataTransfer.importHint":
+    "File .infraorgit.json, massimo 20 MB. L'import replace è disponibile solo nell'istanza locale SQLite.",
+  "dataTransfer.preview": "Anteprima import",
+  "dataTransfer.counts": "{count} elementi",
+  "dataTransfer.existing": "{count} elementi già presenti",
+  "dataTransfer.warnings": "Avvisi",
+  "dataTransfer.credentials":
+    "{count} riferimenti a credenziali da riconfigurare",
+  "dataTransfer.cannotApply":
+    "Il database locale non è vuoto: l'import replace è rifiutato. Esporta o svuota l'istanza prima di importare.",
+  "dataTransfer.confirm": "Importa e sostituisci",
+  "dataTransfer.importing": "Importazione…",
+  "dataTransfer.confirmHint":
+    "L'operazione applica il file in una transazione e conserva il backup pre-import.",
+  "dataTransfer.imported": "Import completato: {count} elementi.",
+  "dataTransfer.backup": "Backup: {path}",
+  "dataTransfer.error": "Operazione non riuscita.",
+  "dataTransfer.tooLarge": "File troppo grande (massimo 20 MB).",
+
   "desktopTunnels.title": "Tunnel dal desktop",
   "desktopTunnels.description":
     "Tunnel SSH locali aperti da questa app desktop sull'istanza corrente. Le credenziali restano nel desktop.",
@@ -1429,6 +1455,31 @@ const en: Record<TranslationKey, string> = {
   "connectionPolicy.save": "Save",
   "connectionPolicy.saved": "Setting saved.",
   "connectionPolicy.updatedBy": "Last change: {user} · {date}",
+
+  "dataTransfer.title": "Data and backup",
+  "dataTransfer.description":
+    "Export the inventory as versioned JSON or import a file into an empty local instance. Import replaces the data and saves a backup before applying.",
+  "dataTransfer.export": "Export inventory",
+  "dataTransfer.exporting": "Exporting…",
+  "dataTransfer.import": "Import inventory",
+  "dataTransfer.reading": "Reading file…",
+  "dataTransfer.importHint":
+    "A .infraorgit.json file, maximum 20 MB. Replace import is available only in the local SQLite instance.",
+  "dataTransfer.preview": "Import preview",
+  "dataTransfer.counts": "{count} items",
+  "dataTransfer.existing": "{count} existing items",
+  "dataTransfer.warnings": "Warnings",
+  "dataTransfer.credentials": "{count} credential references to reconfigure",
+  "dataTransfer.cannotApply":
+    "The local database is not empty: replace import is refused. Export or clear the instance before importing.",
+  "dataTransfer.confirm": "Import and replace",
+  "dataTransfer.importing": "Importing…",
+  "dataTransfer.confirmHint":
+    "The file is applied in one transaction and the pre-import backup is kept.",
+  "dataTransfer.imported": "Import completed: {count} items.",
+  "dataTransfer.backup": "Backup: {path}",
+  "dataTransfer.error": "Operation failed.",
+  "dataTransfer.tooLarge": "File too large (maximum 20 MB).",
 
   "desktopTunnels.title": "Desktop tunnels",
   "desktopTunnels.description":
