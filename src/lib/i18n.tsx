@@ -599,10 +599,16 @@ const it = {
     "Esporta l'inventario in JSON versionato o importa un file in un'istanza locale vuota. L'import sostituisce i dati e salva un backup prima di applicare.",
   "dataTransfer.export": "Esporta inventario",
   "dataTransfer.exporting": "Esportazione…",
+  "dataTransfer.exportWarning":
+    "Il file contiene anche gli script dei comandi, che possono includere credenziali o token. Conservalo come dato sensibile e condividilo solo con canali sicuri.",
+  "dataTransfer.exportConfirm": "Scarica comunque",
+  "dataTransfer.exportCancel": "Annulla",
   "dataTransfer.import": "Importa inventario",
   "dataTransfer.reading": "Lettura file…",
   "dataTransfer.importHint":
     "File .infraorgit.json, massimo 20 MB. L'import replace è disponibile solo nell'istanza locale SQLite.",
+  "dataTransfer.integrityHint":
+    "Il checksum rileva file corrotti o troncati, non prova la provenienza: importa solo file ricevuti da fonti fidate.",
   "dataTransfer.preview": "Anteprima import",
   "dataTransfer.counts": "{count} elementi",
   "dataTransfer.existing": "{count} elementi già presenti",
@@ -1461,10 +1467,16 @@ const en: Record<TranslationKey, string> = {
     "Export the inventory as versioned JSON or import a file into an empty local instance. Import replaces the data and saves a backup before applying.",
   "dataTransfer.export": "Export inventory",
   "dataTransfer.exporting": "Exporting…",
+  "dataTransfer.exportWarning":
+    "The file also contains command scripts, which can include credentials or tokens. Treat it as sensitive data and share it only over secure channels.",
+  "dataTransfer.exportConfirm": "Download anyway",
+  "dataTransfer.exportCancel": "Cancel",
   "dataTransfer.import": "Import inventory",
   "dataTransfer.reading": "Reading file…",
   "dataTransfer.importHint":
     "A .infraorgit.json file, maximum 20 MB. Replace import is available only in the local SQLite instance.",
+  "dataTransfer.integrityHint":
+    "The checksum detects corrupted or truncated files, not their origin: import only files from trusted sources.",
   "dataTransfer.preview": "Import preview",
   "dataTransfer.counts": "{count} items",
   "dataTransfer.existing": "{count} existing items",
