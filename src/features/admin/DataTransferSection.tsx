@@ -22,8 +22,10 @@ export function DataTransferSection() {
   const [busy, setBusy] = useState<"export" | "preview" | "confirm" | null>(
     null,
   );
+  const [exportPending, setExportPending] = useState(false);
 
   const download = async () => {
+    setExportPending(false);
     setBusy("export");
     setError(null);
     try {
@@ -95,7 +97,7 @@ export function DataTransferSection() {
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
-          onClick={() => void download()}
+          onClick={() => setExportPending(true)}
           disabled={busy !== null}
           className="rounded-md bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -125,6 +127,33 @@ export function DataTransferSection() {
       </div>
 
       <p className="text-xs text-slate-500">{t("dataTransfer.importHint")}</p>
+      <p className="text-xs text-slate-500">
+        {t("dataTransfer.integrityHint")}
+      </p>
+
+      {exportPending && (
+        <div className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <p>{t("dataTransfer.exportWarning")}</p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void download()}
+              disabled={busy !== null}
+              className="rounded-md bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {t("dataTransfer.exportConfirm")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setExportPending(false)}
+              disabled={busy !== null}
+              className="rounded-md border border-amber-400 px-4 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100"
+            >
+              {t("dataTransfer.exportCancel")}
+            </button>
+          </div>
+        </div>
+      )}
 
       {error && (
         <p
