@@ -8,6 +8,7 @@ import {
   updateConnectionPolicy,
 } from "../../lib/connectionPolicy";
 import { useI18n } from "../../lib/i18n";
+import { DataTransferSection } from "./DataTransferSection";
 
 const MODES: ConnectionPolicyMode[] = ["Server", "Client", "Auto"];
 
@@ -140,6 +141,8 @@ export function ConnectionPolicyPage() {
           })}
         </p>
       )}
+
+      <DataTransferSection />
     </section>
   );
 }

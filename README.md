@@ -125,6 +125,13 @@ balancer needs WebSocket upgrades but no sticky sessions. The `/tunnels` page
 shows the transport of each active session; direct console/actions and file
 operations appear in the execution and audit logs.
 
+### Export and import inventory
+
+`/settings` (SystemAdmin) has **Data and backup**: export the inventory as a
+versioned `.infraorgit.json` file, or preview an import with counts, warnings
+and credential references before confirming. Replace import is available only
+on an empty local SQLite instance and keeps a pre-import backup.
+
 ### Keep an audit trail
 
 `/audit` records MCP tool calls and tunnel events with actor, client, target,
