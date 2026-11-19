@@ -46,6 +46,7 @@ const applicationTypes = [
   { value: "Sftp", label: "SFTP" },
   { value: "RabbitMq", label: "RabbitMQ" },
   { value: "Nginx", label: "NGINX" },
+  { value: "HAProxy", label: "HAProxy" },
   { value: "Elastic", label: "Elastic" },
   { value: "Kibana", label: "Kibana" },
   { value: "Kafka", label: "Kafka" },
