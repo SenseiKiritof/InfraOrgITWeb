@@ -91,6 +91,14 @@ export interface Application {
   translations?: Record<string, ApplicationTranslation>;
 }
 
+export interface ApplicationType {
+  id: number;
+  name: string;
+  label: string;
+  sortOrder: number;
+  applicationsCount: number;
+}
+
 export interface ApplicationEnvironment {
   environmentId: number;
   name: string;

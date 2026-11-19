@@ -594,6 +594,14 @@ const it = {
   "connectionPolicy.saved": "Impostazione salvata.",
   "connectionPolicy.updatedBy": "Ultima modifica: {user} · {date}",
 
+  "applicationTypes.title": "Tipi applicazione",
+  "applicationTypes.code": "Codice",
+  "applicationTypes.sortOrder": "Ordinamento",
+  "applicationTypes.applications": "Applicazioni",
+  "applicationTypes.create": "Nuovo tipo",
+  "applicationTypes.hint":
+    "I tipi sono salvati nel database: aggiungerne uno lo rende subito disponibile. Rinominare un tipo aggiorna le applicazioni collegate; Backend resta il predefinito e non può essere rimosso.",
+
   "dataTransfer.title": "Dati e backup",
   "dataTransfer.description":
     "Esporta l'inventario in JSON versionato o importa un file in un'istanza locale vuota. L'import sostituisce i dati e salva un backup prima di applicare.",
@@ -1461,6 +1469,14 @@ const en: Record<TranslationKey, string> = {
   "connectionPolicy.save": "Save",
   "connectionPolicy.saved": "Setting saved.",
   "connectionPolicy.updatedBy": "Last change: {user} · {date}",
+
+  "applicationTypes.title": "Application types",
+  "applicationTypes.code": "Code",
+  "applicationTypes.sortOrder": "Sort order",
+  "applicationTypes.applications": "Applications",
+  "applicationTypes.create": "New type",
+  "applicationTypes.hint":
+    "Types live in the database: adding one makes it available immediately. Renaming a type updates the linked applications; Backend stays the default and cannot be removed.",
 
   "dataTransfer.title": "Data and backup",
   "dataTransfer.description":
