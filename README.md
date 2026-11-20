@@ -62,6 +62,18 @@ and test is written to the audit log.
 
 ![Two consoles side by side, minimized to the bar and reopened](docs/screenshots/console-split.gif)
 
+### Query databases
+
+Database applications (MySQL/MariaDB, PostgreSQL, MongoDB, Redis, SQL Server,
+Oracle) show **Query DB** on every deployment. The query runs on the server
+through SSH with its local client, without storing database passwords in
+InfraOrgIT: MySQL, PostgreSQL and Oracle execute inside a read-only
+transaction; MongoDB, Redis and SQL Server require a read-only login on the
+server. There is no query allowlist: joins, CTEs, aggregation pipelines and
+read commands are allowed, while transaction control and write/escape
+statements are blocked. The 20-second result is shown in the browser and
+recorded in the execution log.
+
 ### Approve AI actions
 
 MCP clients can read the inventory and request actions. The first action call
