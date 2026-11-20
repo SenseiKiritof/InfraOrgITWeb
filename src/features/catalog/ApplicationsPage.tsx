@@ -13,6 +13,7 @@ import {
   optionsWithValue,
   useApplicationTypes,
 } from "../../lib/applicationTypes";
+import { databaseEngine } from "../../lib/databaseEngine";
 import { formatBytes, formatDateTime } from "../../lib/format";
 import { useI18n } from "../../lib/i18n";
 import type {
@@ -42,6 +43,7 @@ import { useQueryFilter } from "../../lib/useQueryFilter";
 import { useIsSystemAdmin, useServerAccess } from "../../lib/useServerAccess";
 import { ApiCallModal } from "./ApiCallModal";
 import { ApiSpecImport } from "./ApiSpecImport";
+import { DatabaseQueryModal } from "./DatabaseQueryModal";
 import { SavedCallModal } from "./SavedCallModal";
 
 const translationLanguages = [
@@ -234,7 +236,12 @@ export function ApplicationDetailPage() {
     enabled: Number.isInteger(applicationId),
   });
   const [openCall, setOpenCall] = useState<ApplicationApiCall | null>(null);
+  const [queryDeployment, setQueryDeployment] =
+    useState<ServerApplication | null>(null);
   const isFrontend = application.data?.type === "Frontend";
+  const applicationEngine = application.data
+    ? databaseEngine(application.data.type)
+    : null;
 
   const versions = useQuery({
     queryKey: ["application-versions", "application", applicationId],
@@ -671,6 +678,17 @@ export function ApplicationDetailPage() {
       <EntitySection
         title={t("common.servers")}
         rows={deployments.data?.items}
+        rowActions={(row) =>
+          applicationEngine ? (
+            <button
+              type="button"
+              onClick={() => setQueryDeployment(row)}
+              className="text-sm text-teal-700 underline"
+            >
+              {t("dbQuery.button")}
+            </button>
+          ) : null
+        }
         columns={[
           {
             key: "serverName",
@@ -811,6 +829,15 @@ export function ApplicationDetailPage() {
         rowHref={(row) => `/servers/${row.serverId}`}
         createLabel={t("applications.addServer")}
       />
+      {queryDeployment && applicationEngine && (
+        <DatabaseQueryModal
+          deployment={queryDeployment}
+          engine={applicationEngine}
+          applicationName={application.data?.name ?? ""}
+          serverName={serversById.get(queryDeployment.serverId)?.name ?? ""}
+          onClose={() => setQueryDeployment(null)}
+        />
+      )}
       <EntitySection
         title={t("common.environments")}
         rows={environmentRows}

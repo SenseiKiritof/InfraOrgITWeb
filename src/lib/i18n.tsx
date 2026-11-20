@@ -602,6 +602,22 @@ const it = {
   "applicationTypes.hint":
     "I tipi sono salvati nel database: aggiungerne uno lo rende subito disponibile. Rinominare un tipo aggiorna le applicazioni collegate; Backend resta il predefinito e non può essere rimosso.",
 
+  "dbQuery.title": "Query database · {engine}",
+  "dbQuery.dialogLabel": "Query {engine}",
+  "dbQuery.button": "Query DB",
+  "dbQuery.readOnly":
+    "Sola lettura: la query gira sul server con il client locale in transazione read-only (timeout 20 s). Per MongoDB, Redis e SQL Server il login del client deve essere read-only.",
+  "dbQuery.database": "Database",
+  "dbQuery.databasePlaceholder": "es. app",
+  "dbQuery.redisDatabase": "Indice Redis",
+  "dbQuery.query": "Query",
+  "dbQuery.run": "Esegui",
+  "dbQuery.running": "Esecuzione…",
+  "dbQuery.exitCode": "Exit code: {code}",
+  "dbQuery.timedOut": "timeout",
+  "dbQuery.empty": "Nessun output.",
+  "dbQuery.error": "Query non riuscita.",
+
   "dataTransfer.title": "Dati e backup",
   "dataTransfer.description":
     "Esporta l'inventario in JSON versionato o importa un file in un'istanza locale vuota. L'import sostituisce i dati e salva un backup prima di applicare.",
@@ -1477,6 +1493,22 @@ const en: Record<TranslationKey, string> = {
   "applicationTypes.create": "New type",
   "applicationTypes.hint":
     "Types live in the database: adding one makes it available immediately. Renaming a type updates the linked applications; Backend stays the default and cannot be removed.",
+
+  "dbQuery.title": "Database query · {engine}",
+  "dbQuery.dialogLabel": "{engine} query",
+  "dbQuery.button": "Query DB",
+  "dbQuery.readOnly":
+    "Read-only: the query runs on the server with the local client in a read-only transaction (20 s timeout). For MongoDB, Redis and SQL Server the client login must be read-only.",
+  "dbQuery.database": "Database",
+  "dbQuery.databasePlaceholder": "e.g. app",
+  "dbQuery.redisDatabase": "Redis index",
+  "dbQuery.query": "Query",
+  "dbQuery.run": "Run",
+  "dbQuery.running": "Running…",
+  "dbQuery.exitCode": "Exit code: {code}",
+  "dbQuery.timedOut": "timeout",
+  "dbQuery.empty": "No output.",
+  "dbQuery.error": "Query failed.",
 
   "dataTransfer.title": "Data and backup",
   "dataTransfer.description":
