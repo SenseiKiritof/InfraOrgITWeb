@@ -52,6 +52,15 @@ export interface Server {
   memoryGb: number | null;
   diskGb: number | null;
   operatingSystem: string | null;
+  osName: string | null;
+  osVersion: string | null;
+  osUpdateTarget: string | null;
+  osUpdateTargetLts: boolean | null;
+  osEolDate: string | null;
+  osUpdateStatus: string | null;
+  osUpdateDetail: string | null;
+  osUpdateCheckedAt: string | null;
+  osUpdateLtsOnly: boolean | null;
   haNode: string | null;
   managedBy: string | null;
 }
