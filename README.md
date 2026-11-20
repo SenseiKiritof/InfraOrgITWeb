@@ -62,6 +62,18 @@ and test is written to the audit log.
 
 ![Two consoles side by side, minimized to the bar and reopened](docs/screenshots/console-split.gif)
 
+### Check OS lifecycle
+
+Every hour InfraOrgIT reads the OS release of each server with an SSH
+credential and stores the latest result: current version, available major
+upgrade, EOL date and status. Ubuntu, Debian, RHEL/Alma/Rocky/Oracle and SLES
+are recognised; endoflife.date fills the upgrade and EOL data when the server
+tool is missing. The server list marks an EOL in orange within 60 days and in
+red after expiry. **Impostazioni → Aggiornamenti sistema operativo** enables
+the check and the LTS default; each server can inherit, force LTS or allow
+non-LTS (RHEL, SLES and Debian are always LTS). The check is read-only and
+never modifies the server.
+
 ### Query databases
 
 Database applications (MySQL/MariaDB, PostgreSQL, MongoDB, Redis, SQL Server,

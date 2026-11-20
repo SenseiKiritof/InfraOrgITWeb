@@ -10,6 +10,7 @@ import {
 import { useI18n } from "../../lib/i18n";
 import { ApplicationTypesSection } from "./ApplicationTypesSection";
 import { DataTransferSection } from "./DataTransferSection";
+import { ServerUpdateSection } from "./ServerUpdateSection";
 
 const MODES: ConnectionPolicyMode[] = ["Server", "Client", "Auto"];
 
@@ -144,6 +145,8 @@ export function ConnectionPolicyPage() {
       )}
 
       <ApplicationTypesSection />
+
+      <ServerUpdateSection />
 
       <DataTransferSection />
     </section>

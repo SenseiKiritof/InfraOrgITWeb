@@ -41,6 +41,7 @@ import {
 } from "../../lib/remote";
 import { useServerAccess } from "../../lib/useServerAccess";
 import { useConsole } from "../remote/ConsoleProvider";
+import { OsUpdateBadge, ServerOsCard } from "./ServerOsUpdate";
 import { connectionChanged } from "./serverConnection";
 import { compareServerDefault } from "./serverOrder";
 import { TunnelServicesSection } from "./TunnelServicesSection";
@@ -240,6 +241,16 @@ export function ServersPage() {
             label: t("common.sshPort"),
             render: (row) => row.sshPort,
             filter: (row, value) => startsWithValue(row.sshPort, value),
+          },
+          {
+            key: "os",
+            label: t("servers.osTitle"),
+            render: (row) => <OsUpdateBadge server={row} />,
+            filter: (row, value) =>
+              includesText(
+                `${row.osName ?? ""} ${row.osVersion ?? ""} ${row.osUpdateTarget ?? ""} ${row.operatingSystem ?? ""}`,
+                value,
+              ),
           },
           {
             key: "jumpServerName",
@@ -732,6 +743,10 @@ export function ServerDetailPage() {
         onSubmit={() => void saveServer()}
         message={editMessage}
       />
+
+      {server.data && (
+        <ServerOsCard server={server.data} canWrite={isSystemAdmin} />
+      )}
 
       {isSystemAdmin && (
         <form
