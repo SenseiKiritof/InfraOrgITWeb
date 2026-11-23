@@ -96,13 +96,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Image name
+        id: image
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/infraorgit-web" >> "$GITHUB_OUTPUT"
+
       - id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           platforms: ${{ matrix.platform }}
           push: true
-          outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/infraorgit-web,push-by-digest=true,name-canonical=true
+          outputs: type=image,name=${{ steps.image.outputs.name }},push-by-digest=true,name-canonical=true
           build-args: APP_VERSION=${{ github.ref_name }}
           cache-from: type=gha,scope=web-${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=web-${{ matrix.arch }}
