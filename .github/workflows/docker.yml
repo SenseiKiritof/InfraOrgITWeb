@@ -20,24 +20,14 @@ permissions:
   attestations: write
 
 jobs:
+  # Branch, PR and manual runs: amd64 image, as before.
   image:
+    if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Version tag must be on main
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          git fetch --no-tags origin main
-          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-            echo "::error::Version tags must point to a commit on main."
-            exit 1
-          fi
-
-      - uses: docker/setup-qemu-action@v3
-        if: startsWith(github.ref, 'refs/tags/v')
 
       - uses: docker/setup-buildx-action@v3
 
@@ -63,36 +53,122 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          platforms: ${{ startsWith(github.ref, 'refs/tags/v') && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
+          platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: ${{ startsWith(github.ref, 'refs/tags/') && format('APP_VERSION={0}', github.ref_name) || '' }}
-          cache-from: type=gha,scope=web
-          cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,mode=max,scope=web' || '' }}
+          cache-from: type=gha,scope=web-amd64
+          cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,mode=max,scope=web-amd64' || '' }}
 
-      - name: Resolve the published image
-        if: startsWith(github.ref, 'refs/tags/v')
-        id: published
-        env:
-          DIGEST: ${{ steps.build.outputs.digest }}
-          TAGS: ${{ steps.meta.outputs.tags }}
+  # Version tags: one native runner per architecture, no QEMU. Each build
+  # pushes an untagged digest; the merge job assembles the multi-arch index.
+  build-tag:
+    if: startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+            arch: amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Version tag must be on main
         run: |
-          # metadata-action lowercases the image name, so take it from the tags.
-          ref=${TAGS%%$'\n'*}
-          image=${ref%:*}
-          echo "image=$image" >> "$GITHUB_OUTPUT"
-          # The build-push-action digest is the multi-arch index digest; the
-          # SBOM scans the amd64 manifest nested in that index.
-          platform_digest=$(docker buildx imagetools inspect "$image@$DIGEST" --raw \
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Version tags must point to a commit on main."
+            exit 1
+          fi
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          push: true
+          outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/infraorgit-web,push-by-digest=true,name-canonical=true
+          build-args: APP_VERSION=${{ github.ref_name }}
+          cache-from: type=gha,scope=web-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=web-${{ matrix.arch }}
+
+      - name: Export digest
+        run: |
+          set -euo pipefail
+          digest='${{ steps.build.outputs.digest }}'
+          mkdir -p /tmp/digests
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.arch }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge-tag:
+    needs: build-tag
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create the multi-arch index
+        id: merge
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/infraorgit-web"
+          short="${GITHUB_SHA::7}"
+          refs=()
+          for file in /tmp/digests/*; do
+            refs+=("$image@sha256:$(basename "$file")")
+          done
+          docker buildx imagetools create \
+            -t "$image:$version" \
+            -t "$image:${version%.*}" \
+            -t "$image:latest" \
+            -t "$image:sha-$short" \
+            "${refs[@]}"
+          digest=$(docker buildx imagetools inspect "$image:$version" \
+            --format '{{.Manifest.Digest}}')
+          platform_digest=$(docker buildx imagetools inspect "$image:$version" --raw \
             | jq -r '[.manifests[]? | select(.platform.os == "linux" and .platform.architecture == "amd64")][0].digest // empty')
-          echo "platform-digest=${platform_digest:-$DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "platform-digest=${platform_digest:-$digest}" >> "$GITHUB_OUTPUT"
 
       - name: Generate the SBOM
-        if: startsWith(github.ref, 'refs/tags/v')
         uses: anchore/sbom-action@v0
         with:
-          image: ${{ steps.published.outputs.image }}@${{ steps.published.outputs.platform-digest }}
+          image: ${{ steps.merge.outputs.image }}@${{ steps.merge.outputs.platform-digest }}
           format: spdx-json
           artifact-name: sbom-web.spdx.json
           registry-username: ${{ github.actor }}
@@ -100,18 +176,15 @@ jobs:
           upload-release-assets: false
 
       - name: Attest the build provenance
-        if: startsWith(github.ref, 'refs/tags/v')
         uses: actions/attest-build-provenance@v2
         with:
-          subject-name: ${{ steps.published.outputs.image }}
-          subject-digest: ${{ steps.build.outputs.digest }}
+          subject-name: ${{ steps.merge.outputs.image }}
+          subject-digest: ${{ steps.merge.outputs.digest }}
           push-to-registry: true
 
       - uses: sigstore/cosign-installer@v3
-        if: startsWith(github.ref, 'refs/tags/v')
 
       - name: Sign the published image
-        if: startsWith(github.ref, 'refs/tags/v')
         env:
-          DIGEST: ${{ steps.build.outputs.digest }}
-        run: cosign sign --yes "${{ steps.published.outputs.image }}@$DIGEST"
+          DIGEST: ${{ steps.merge.outputs.digest }}
+        run: cosign sign --yes "${{ steps.merge.outputs.image }}@$DIGEST"
