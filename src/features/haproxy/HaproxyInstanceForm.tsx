@@ -1,6 +1,9 @@
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useAuth } from "../../app/AuthProvider";
 import {
+  createHaproxyCluster,
+  getHaproxyClusters,
   type HaproxyInstance,
   refreshHaproxyInstance,
   testHaproxyInstance,
@@ -27,6 +30,9 @@ export function HaproxyInstanceForm({
   const [name, setName] = useState(instance.name);
   const [baseUrl, setBaseUrl] = useState(instance.baseUrl);
   const [transport, setTransport] = useState(instance.transport);
+  const [clusterId, setClusterId] = useState(
+    instance.clusterId ? String(instance.clusterId) : "",
+  );
   const [apiHost, setApiHost] = useState(instance.apiHost);
   const [apiPort, setApiPort] = useState(String(instance.apiPort));
   const [apiVersion, setApiVersion] = useState(instance.apiVersion);
@@ -42,6 +48,35 @@ export function HaproxyInstanceForm({
   const [statsPassword, setStatsPassword] = useState("");
   const [clearPassword, setClearPassword] = useState(false);
   const [clearStatsPassword, setClearStatsPassword] = useState(false);
+  const clusters = useQuery({
+    queryKey: ["haproxy", "clusters"],
+    queryFn: getHaproxyClusters,
+  });
+
+  const createCluster = async () => {
+    const name = window.prompt(t("haproxy.clusterNamePrompt"));
+    if (!name?.trim()) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const cluster = await createHaproxyCluster(
+        instance.providerEnvironmentId,
+        name.trim(),
+        csrf,
+      );
+      await clusters.refetch();
+      setClusterId(String(cluster.id));
+      setMessage(t("haproxy.clusterCreated"));
+    } catch (cause) {
+      setMessage(
+        cause instanceof Error
+          ? cause.message
+          : t("haproxy.clusterCreateFailed"),
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const save = async () => {
     setBusy(true);
@@ -61,6 +96,7 @@ export function HaproxyInstanceForm({
           caPem,
           allowSelfSigned,
           serverApplicationId: instance.serverApplicationId,
+          clusterId: clusterId ? Number(clusterId) : null,
         },
         csrf,
       );
@@ -172,6 +208,31 @@ export function HaproxyInstanceForm({
             <option value="SshForward">SshForward</option>
             <option value="Direct">Direct</option>
           </select>
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-slate-500">
+          {t("haproxy.cluster")}
+          <span className="flex gap-1">
+            <select
+              value={clusterId}
+              onChange={(event) => setClusterId(event.target.value)}
+              className="min-w-0 flex-1 rounded border border-slate-300 px-2 py-1 text-sm text-slate-900"
+            >
+              <option value="">{t("haproxy.noCluster")}</option>
+              {(clusters.data ?? []).map((cluster) => (
+                <option key={cluster.id} value={String(cluster.id)}>
+                  {cluster.name} ({cluster.mode})
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => void createCluster()}
+              disabled={busy}
+              className="rounded border border-slate-300 px-2 py-1 text-xs"
+            >
+              +
+            </button>
+          </span>
         </label>
         <label className="flex flex-col gap-1 text-xs text-slate-500">
           {t("haproxy.baseUrl")}

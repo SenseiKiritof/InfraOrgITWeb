@@ -15,6 +15,8 @@ export interface HaproxyInstance {
   providerEnvironmentId: number;
   environmentLabel: string;
   serverApplicationId: number | null;
+  clusterId: number | null;
+  clusterName: string | null;
   name: string;
   baseUrl: string;
   transport: "Direct" | "SshForward" | "DesktopRelay";
@@ -216,6 +218,41 @@ export function deleteHaproxyCertificate(
   );
 }
 
+export interface HaproxyCluster {
+  id: number;
+  providerEnvironmentId: number;
+  name: string;
+  mode: "active-active" | "active-passive";
+  vip: string | null;
+  notes: string | null;
+  instanceCount: number;
+}
+
+export function getHaproxyClusters(): Promise<HaproxyCluster[]> {
+  return apiFetch<HaproxyCluster[]>("/api/haproxy/clusters");
+}
+
+export function createHaproxyCluster(
+  providerEnvironmentId: number,
+  name: string,
+  csrfToken: string,
+): Promise<HaproxyCluster> {
+  return apiFetch<HaproxyCluster>(
+    "/api/haproxy/clusters",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        providerEnvironmentId,
+        name,
+        mode: "active-active",
+        vip: null,
+        notes: null,
+      }),
+    },
+    csrfToken,
+  );
+}
+
 export function setHaproxyMonitoring(
   id: number,
   choice: HaproxyMonitoringChoice,
@@ -251,6 +288,7 @@ export interface HaproxySettings {
   caPem: string;
   allowSelfSigned: boolean;
   serverApplicationId: number | null;
+  clusterId: number | null;
 }
 
 export function updateHaproxySettings(

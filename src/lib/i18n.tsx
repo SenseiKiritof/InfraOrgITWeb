@@ -744,6 +744,11 @@ const it = {
   "haproxy.certificateDeleted": "Certificato eliminato.",
   "haproxy.certificateFailed": "Operazione sul certificato non riuscita.",
   "haproxy.certificateDeleteConfirm": 'Eliminare il certificato "{name}"?',
+  "haproxy.cluster": "Cluster",
+  "haproxy.noCluster": "Nessun cluster",
+  "haproxy.clusterNamePrompt": "Nome del nuovo cluster",
+  "haproxy.clusterCreated": "Cluster creato.",
+  "haproxy.clusterCreateFailed": "Cluster non creato.",
   "haproxy.viaSsh": "via SSH",
 
   "serverUpdate.title": "Aggiornamenti sistema operativo",
@@ -1775,6 +1780,11 @@ const en: Record<TranslationKey, string> = {
   "haproxy.certificateDeleted": "Certificate deleted.",
   "haproxy.certificateFailed": "Certificate operation failed.",
   "haproxy.certificateDeleteConfirm": 'Delete certificate "{name}"?',
+  "haproxy.cluster": "Cluster",
+  "haproxy.noCluster": "No cluster",
+  "haproxy.clusterNamePrompt": "New cluster name",
+  "haproxy.clusterCreated": "Cluster created.",
+  "haproxy.clusterCreateFailed": "Cluster not created.",
   "haproxy.viaSsh": "via SSH",
 
   "serverUpdate.title": "Operating system updates",
