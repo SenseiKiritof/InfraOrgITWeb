@@ -40,6 +40,7 @@ export interface HaproxyInstance {
   certificateCount: number;
   username: string | null;
   statsUsername: string | null;
+  statsBaseUrl: string | null;
   caPem: string | null;
   hasCredentials: boolean;
   allowSelfSigned: boolean;
@@ -156,6 +157,42 @@ export function getHaproxyMetrics(
 ): Promise<HaproxyMetricPoint[]> {
   return apiFetch<HaproxyMetricPoint[]>(
     `/api/haproxy/instances/${id}/metrics?minutes=${minutes}&kind=frontend`,
+  );
+}
+
+export interface HaproxyProtocolMetrics {
+  proxy: string;
+  server: string;
+  h2Req: number;
+  h2Sess: number;
+  h3Req: number;
+  h3Sess: number;
+  h2OpenConnections: number;
+  h2BackendOpenStreams: number;
+  h2ConnErrors: number;
+  h2StreamErrors: number;
+  quicHandshakeFail: number;
+  quicDroppedPkt: number;
+  quicLostPkt: number;
+  quicSentPkt: number;
+  quicRetryError: number;
+  quicTooShortDgram: number;
+  quicRxbufFull: number;
+  quicSocketFull: number;
+  h3VersionFallback: number;
+  h3ProtocolErrors: number;
+  quicTransportErrors: number;
+  qpackEncoderErrors: number;
+  qpackDecoderErrors: number;
+  sslFailedHandshake: number;
+  bucket: string;
+}
+
+export function getHaproxyProtocol(
+  id: number,
+): Promise<HaproxyProtocolMetrics[]> {
+  return apiFetch<HaproxyProtocolMetrics[]>(
+    `/api/haproxy/instances/${id}/protocol?kind=frontend`,
   );
 }
 
@@ -287,6 +324,7 @@ export interface HaproxySettings {
   apiVersion: string;
   username: string;
   statsUsername: string;
+  statsBaseUrl: string;
   caPem: string;
   allowSelfSigned: boolean;
   serverApplicationId: number | null;

@@ -40,6 +40,7 @@ export function HaproxyInstanceForm({
   const [statsUsername, setStatsUsername] = useState(
     instance.statsUsername ?? "",
   );
+  const [statsBaseUrl, setStatsBaseUrl] = useState(instance.statsBaseUrl ?? "");
   const [caPem, setCaPem] = useState(instance.caPem ?? "");
   const [allowSelfSigned, setAllowSelfSigned] = useState(
     instance.allowSelfSigned,
@@ -93,6 +94,7 @@ export function HaproxyInstanceForm({
           apiVersion,
           username,
           statsUsername,
+          statsBaseUrl,
           caPem,
           allowSelfSigned,
           serverApplicationId: instance.serverApplicationId,
@@ -288,6 +290,16 @@ export function HaproxyInstanceForm({
             value={statsUsername}
             onChange={(event) => setStatsUsername(event.target.value)}
             className="rounded border border-slate-300 px-2 py-1 text-sm text-slate-900"
+            autoComplete="off"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-slate-500">
+          {t("haproxy.statsBaseUrl")}
+          <input
+            value={statsBaseUrl}
+            onChange={(event) => setStatsBaseUrl(event.target.value)}
+            className="rounded border border-slate-300 px-2 py-1 text-sm text-slate-900"
+            placeholder="https://host:8404"
             autoComplete="off"
           />
         </label>

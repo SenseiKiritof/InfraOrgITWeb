@@ -680,6 +680,7 @@ const it = {
   "haproxy.apiPort": "Porta API",
   "haproxy.username": "Utente API",
   "haproxy.statsUsername": "Utente stats",
+  "haproxy.statsBaseUrl": "URL stats (CSV)",
   "haproxy.caPem": "CA (PEM)",
   "haproxy.allowSelfSigned": "Accetta certificato self-signed",
   "haproxy.password": "Password API",
@@ -750,6 +751,9 @@ const it = {
   "haproxy.clusterCreated": "Cluster creato.",
   "haproxy.clusterCreateFailed": "Cluster non creato.",
   "haproxy.inventory": "Inventario",
+  "haproxy.protocol": "Protocollo",
+  "haproxy.noProtocolData":
+    "Nessun dato HTTP/2, HTTP/3 o QUIC. Configura l'URL stats e attendi il primo campione.",
   "haproxy.viaSsh": "via SSH",
 
   "serverUpdate.title": "Aggiornamenti sistema operativo",
@@ -1716,6 +1720,7 @@ const en: Record<TranslationKey, string> = {
   "haproxy.apiPort": "API port",
   "haproxy.username": "API user",
   "haproxy.statsUsername": "Stats user",
+  "haproxy.statsBaseUrl": "Stats URL (CSV)",
   "haproxy.caPem": "CA (PEM)",
   "haproxy.allowSelfSigned": "Accept self-signed certificate",
   "haproxy.password": "API password",
@@ -1787,6 +1792,9 @@ const en: Record<TranslationKey, string> = {
   "haproxy.clusterCreated": "Cluster created.",
   "haproxy.clusterCreateFailed": "Cluster not created.",
   "haproxy.inventory": "Inventory",
+  "haproxy.protocol": "Protocol",
+  "haproxy.noProtocolData":
+    "No HTTP/2, HTTP/3 or QUIC data. Set the stats URL and wait for the first sample.",
   "haproxy.viaSsh": "via SSH",
 
   "serverUpdate.title": "Operating system updates",

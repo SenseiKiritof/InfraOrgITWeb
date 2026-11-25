@@ -10,6 +10,7 @@ import {
   getHaproxyInstances,
   getHaproxyLive,
   getHaproxyMetrics,
+  getHaproxyProtocol,
   getHaproxyRoutes,
   getHaproxyServers,
   type HaproxyMetricPoint,
@@ -24,7 +25,7 @@ export function HaproxyPage() {
   const csrf = session?.csrfToken ?? "";
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [tab, setTab] = useState<
-    "overview" | "routes" | "servers" | "certificates"
+    "overview" | "routes" | "servers" | "certificates" | "protocol"
   >("overview");
   const [range, setRange] = useState(60);
   const [filter, setFilter] = useState("");
@@ -63,6 +64,12 @@ export function HaproxyPage() {
     queryKey: ["haproxy", "certificates", selected?.id],
     queryFn: () => getHaproxyCertificates(selected?.id ?? 0),
     enabled: selected !== undefined && tab === "certificates",
+  });
+  const protocol = useQuery({
+    queryKey: ["haproxy", "protocol", selected?.id],
+    queryFn: () => getHaproxyProtocol(selected?.id ?? 0),
+    enabled: selected !== undefined && tab === "protocol",
+    refetchInterval: 30_000,
   });
 
   const uploadCertificate = async (file: File | undefined) => {
@@ -230,6 +237,13 @@ export function HaproxyPage() {
               >
                 {t("haproxy.certificates")}
               </button>
+              <button
+                type="button"
+                onClick={() => setTab("protocol")}
+                className={`rounded px-3 py-1 text-xs ${tab === "protocol" ? "bg-slate-900 text-white" : ""}`}
+              >
+                {t("haproxy.protocol")}
+              </button>
             </div>
             {(tab === "routes" || tab === "servers") && (
               <>
@@ -309,6 +323,58 @@ export function HaproxyPage() {
                   })}
                 </p>
               )}
+            </div>
+          ) : tab === "protocol" ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-slate-200 text-slate-500">
+                  <tr>
+                    <th className="px-2 py-1">{t("haproxy.frontend")}</th>
+                    <th className="px-2 py-1">H2 req/sess</th>
+                    <th className="px-2 py-1">H3 req/sess</th>
+                    <th className="px-2 py-1">QUIC handshake/drop/lost</th>
+                    <th className="px-2 py-1">H3/QUIC errors</th>
+                    <th className="px-2 py-1">QPACK</th>
+                    <th className="px-2 py-1">TLS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(protocol.data ?? []).map((row) => (
+                    <tr key={row.proxy} className="border-b border-slate-100">
+                      <td className="px-2 py-1 font-mono">{row.proxy}</td>
+                      <td className="px-2 py-1 tabular-nums">
+                        {row.h2Req} / {row.h2Sess}
+                      </td>
+                      <td className="px-2 py-1 tabular-nums">
+                        {row.h3Req} / {row.h3Sess}
+                      </td>
+                      <td className="px-2 py-1 tabular-nums">
+                        {row.quicHandshakeFail} / {row.quicDroppedPkt} /{" "}
+                        {row.quicLostPkt}
+                      </td>
+                      <td className="px-2 py-1 tabular-nums">
+                        {row.h3ProtocolErrors} / {row.quicTransportErrors}
+                      </td>
+                      <td className="px-2 py-1 tabular-nums">
+                        {row.qpackEncoderErrors} / {row.qpackDecoderErrors}
+                      </td>
+                      <td className="px-2 py-1 tabular-nums">
+                        {row.sslFailedHandshake}
+                      </td>
+                    </tr>
+                  ))}
+                  {(protocol.data ?? []).length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={7}
+                        className="px-2 py-4 text-center text-slate-500"
+                      >
+                        {t("haproxy.noProtocolData")}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           ) : tab === "certificates" ? (
             <div className="space-y-3">
