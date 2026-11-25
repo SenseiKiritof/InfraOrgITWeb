@@ -49,6 +49,7 @@ export function HaproxyInstanceForm({
   const [statsPassword, setStatsPassword] = useState("");
   const [clearPassword, setClearPassword] = useState(false);
   const [clearStatsPassword, setClearStatsPassword] = useState(false);
+  const statsOnly = apiVersion === "stats";
   const clusters = useQuery({
     queryKey: ["haproxy", "clusters"],
     queryFn: getHaproxyClusters,
@@ -237,14 +238,6 @@ export function HaproxyInstanceForm({
           </span>
         </label>
         <label className="flex flex-col gap-1 text-xs text-slate-500">
-          {t("haproxy.baseUrl")}
-          <input
-            value={baseUrl}
-            onChange={(event) => setBaseUrl(event.target.value)}
-            className="rounded border border-slate-300 px-2 py-1 text-sm text-slate-900"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-slate-500">
           {t("haproxy.apiVersion")}
           <select
             value={apiVersion}
@@ -254,33 +247,56 @@ export function HaproxyInstanceForm({
             <option value="auto">auto</option>
             <option value="v3">v3</option>
             <option value="v2">v2</option>
+            <option value="stats">stats</option>
           </select>
         </label>
+        {!statsOnly && (
+          <>
+            <label className="flex flex-col gap-1 text-xs text-slate-500">
+              {t("haproxy.baseUrl")}
+              <input
+                value={baseUrl}
+                onChange={(event) => setBaseUrl(event.target.value)}
+                className="rounded border border-slate-300 px-2 py-1 text-sm text-slate-900"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-slate-500">
+              {t("haproxy.apiHost")}
+              <input
+                value={apiHost}
+                onChange={(event) => setApiHost(event.target.value)}
+                className="rounded border border-slate-300 px-2 py-1 text-sm text-slate-900"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-slate-500">
+              {t("haproxy.apiPort")}
+              <input
+                type="number"
+                min={1}
+                max={65535}
+                value={apiPort}
+                onChange={(event) => setApiPort(event.target.value)}
+                className="rounded border border-slate-300 px-2 py-1 text-sm text-slate-900"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-slate-500">
+              {t("haproxy.username")}
+              <input
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                className="rounded border border-slate-300 px-2 py-1 text-sm text-slate-900"
+                autoComplete="off"
+              />
+            </label>
+          </>
+        )}
         <label className="flex flex-col gap-1 text-xs text-slate-500">
-          {t("haproxy.apiHost")}
+          {t("haproxy.statsBaseUrl")}
           <input
-            value={apiHost}
-            onChange={(event) => setApiHost(event.target.value)}
+            value={statsBaseUrl}
+            onChange={(event) => setStatsBaseUrl(event.target.value)}
             className="rounded border border-slate-300 px-2 py-1 text-sm text-slate-900"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-slate-500">
-          {t("haproxy.apiPort")}
-          <input
-            type="number"
-            min={1}
-            max={65535}
-            value={apiPort}
-            onChange={(event) => setApiPort(event.target.value)}
-            className="rounded border border-slate-300 px-2 py-1 text-sm text-slate-900"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-slate-500">
-          {t("haproxy.username")}
-          <input
-            value={username}
-            onChange={(event) => setUsername(event.target.value)}
-            className="rounded border border-slate-300 px-2 py-1 text-sm text-slate-900"
+            placeholder="https://host:8404"
             autoComplete="off"
           />
         </label>
@@ -293,17 +309,10 @@ export function HaproxyInstanceForm({
             autoComplete="off"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs text-slate-500">
-          {t("haproxy.statsBaseUrl")}
-          <input
-            value={statsBaseUrl}
-            onChange={(event) => setStatsBaseUrl(event.target.value)}
-            className="rounded border border-slate-300 px-2 py-1 text-sm text-slate-900"
-            placeholder="https://host:8404"
-            autoComplete="off"
-          />
-        </label>
       </div>
+      {statsOnly && (
+        <p className="text-xs text-slate-500">{t("haproxy.statsOnlyHint")}</p>
+      )}
 
       <label className="flex flex-col gap-1 text-xs text-slate-500">
         {t("haproxy.caPem")}
@@ -326,25 +335,27 @@ export function HaproxyInstanceForm({
 
       {canManageSecrets && (
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="flex flex-col gap-1 text-xs text-slate-500">
-            {t("haproxy.password")}
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="rounded border border-slate-300 px-2 py-1 text-sm text-slate-900"
-              autoComplete="new-password"
-              placeholder={instance.hasCredentials ? "********" : ""}
-            />
-            <span className="flex items-center gap-1">
+          {!statsOnly && (
+            <label className="flex flex-col gap-1 text-xs text-slate-500">
+              {t("haproxy.password")}
               <input
-                type="checkbox"
-                checked={clearPassword}
-                onChange={(event) => setClearPassword(event.target.checked)}
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                className="rounded border border-slate-300 px-2 py-1 text-sm text-slate-900"
+                autoComplete="new-password"
+                placeholder={instance.hasCredentials ? "********" : ""}
               />
-              {t("haproxy.clearPassword")}
-            </span>
-          </label>
+              <span className="flex items-center gap-1">
+                <input
+                  type="checkbox"
+                  checked={clearPassword}
+                  onChange={(event) => setClearPassword(event.target.checked)}
+                />
+                {t("haproxy.clearPassword")}
+              </span>
+            </label>
+          )}
           <label className="flex flex-col gap-1 text-xs text-slate-500">
             {t("haproxy.statsPassword")}
             <input

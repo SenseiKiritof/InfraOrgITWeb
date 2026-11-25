@@ -40,6 +40,7 @@ export function HaproxyPage() {
   const selected =
     instances.data?.find((item) => item.id === selectedId) ??
     instances.data?.[0];
+  const statsOnly = selected?.apiVersion === "stats";
   const routes = useQuery({
     queryKey: ["haproxy", "routes", selected?.id],
     queryFn: () => getHaproxyRoutes(selected?.id ?? 0),
@@ -404,19 +405,21 @@ export function HaproxyPage() {
           ) : tab === "certificates" ? (
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-2">
-                <label className="cursor-pointer rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium">
-                  {t("haproxy.uploadCertificate")}
-                  <input
-                    type="file"
-                    accept=".pem,.crt,.key"
-                    className="hidden"
-                    disabled={busy}
-                    onChange={(event) => {
-                      void uploadCertificate(event.target.files?.[0]);
-                      event.target.value = "";
-                    }}
-                  />
-                </label>
+                {!statsOnly && (
+                  <label className="cursor-pointer rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium">
+                    {t("haproxy.uploadCertificate")}
+                    <input
+                      type="file"
+                      accept=".pem,.crt,.key"
+                      className="hidden"
+                      disabled={busy}
+                      onChange={(event) => {
+                        void uploadCertificate(event.target.files?.[0]);
+                        event.target.value = "";
+                      }}
+                    />
+                  </label>
+                )}
                 {message && (
                   <span className="text-xs text-slate-600">{message}</span>
                 )}
@@ -465,32 +468,38 @@ export function HaproxyPage() {
                             {certificate.size > 0 ? certificate.size : "—"}
                           </td>
                           <td className="flex flex-wrap gap-2 px-2 py-1">
-                            <label className="cursor-pointer underline">
-                              {t("haproxy.replace")}
-                              <input
-                                type="file"
-                                accept=".pem,.crt,.key"
-                                className="hidden"
-                                disabled={busy}
-                                onChange={(event) => {
-                                  void replaceCertificate(
-                                    certificate.storageName,
-                                    event.target.files?.[0],
-                                  );
-                                  event.target.value = "";
-                                }}
-                              />
-                            </label>
-                            <button
-                              type="button"
-                              disabled={busy}
-                              onClick={() =>
-                                void removeCertificate(certificate.storageName)
-                              }
-                              className="text-red-600 underline disabled:opacity-50"
-                            >
-                              {t("common.delete")}
-                            </button>
+                            {!statsOnly && (
+                              <>
+                                <label className="cursor-pointer underline">
+                                  {t("haproxy.replace")}
+                                  <input
+                                    type="file"
+                                    accept=".pem,.crt,.key"
+                                    className="hidden"
+                                    disabled={busy}
+                                    onChange={(event) => {
+                                      void replaceCertificate(
+                                        certificate.storageName,
+                                        event.target.files?.[0],
+                                      );
+                                      event.target.value = "";
+                                    }}
+                                  />
+                                </label>
+                                <button
+                                  type="button"
+                                  disabled={busy}
+                                  onClick={() =>
+                                    void removeCertificate(
+                                      certificate.storageName,
+                                    )
+                                  }
+                                  className="text-red-600 underline disabled:opacity-50"
+                                >
+                                  {t("common.delete")}
+                                </button>
+                              </>
+                            )}
                           </td>
                         </tr>
                       );

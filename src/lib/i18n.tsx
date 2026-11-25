@@ -681,6 +681,8 @@ const it = {
   "haproxy.username": "Utente API",
   "haproxy.statsUsername": "Utente stats",
   "haproxy.statsBaseUrl": "URL stats (CSV)",
+  "haproxy.statsOnlyHint":
+    "Modalità solo stats: metriche e stato dei server dalla pagina stats; rotte, certificati e modifiche di configurazione non sono disponibili.",
   "haproxy.caPem": "CA (PEM)",
   "haproxy.allowSelfSigned": "Accetta certificato self-signed",
   "haproxy.password": "Password API",
@@ -1723,6 +1725,8 @@ const en: Record<TranslationKey, string> = {
   "haproxy.username": "API user",
   "haproxy.statsUsername": "Stats user",
   "haproxy.statsBaseUrl": "Stats URL (CSV)",
+  "haproxy.statsOnlyHint":
+    "Stats-only mode: metrics and server state come from the stats page; routes, certificates and configuration changes are unavailable.",
   "haproxy.caPem": "CA (PEM)",
   "haproxy.allowSelfSigned": "Accept self-signed certificate",
   "haproxy.password": "API password",
