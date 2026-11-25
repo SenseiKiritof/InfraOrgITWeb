@@ -35,6 +35,7 @@ export interface HaproxyInstance {
   lastRefreshDetail: string | null;
   routeCount: number;
   serverCount: number;
+  certificateCount: number;
   username: string | null;
   statsUsername: string | null;
   caPem: string | null;
@@ -151,6 +152,67 @@ export function getHaproxyMetrics(
 ): Promise<HaproxyMetricPoint[]> {
   return apiFetch<HaproxyMetricPoint[]>(
     `/api/haproxy/instances/${id}/metrics?minutes=${minutes}&kind=frontend`,
+  );
+}
+
+export interface HaproxyCertificate {
+  id: number;
+  storageName: string;
+  path: string;
+  domains: string;
+  issuer: string;
+  notBefore: string | null;
+  notAfter: string | null;
+  size: number;
+  collectedAt: string;
+}
+
+export function getHaproxyCertificates(
+  id: number,
+): Promise<HaproxyCertificate[]> {
+  return apiFetch<HaproxyCertificate[]>(
+    `/api/haproxy/instances/${id}/certificates`,
+  );
+}
+
+export function uploadHaproxyCertificate(
+  id: number,
+  file: File,
+  csrfToken: string,
+): Promise<void> {
+  const form = new FormData();
+  form.append("file", file);
+  return apiFetch<void>(
+    `/api/haproxy/instances/${id}/certificates`,
+    { method: "POST", body: form },
+    csrfToken,
+  );
+}
+
+export function replaceHaproxyCertificate(
+  id: number,
+  name: string,
+  file: File,
+  csrfToken: string,
+): Promise<void> {
+  const form = new FormData();
+  form.append("file", file);
+  return apiFetch<void>(
+    `/api/haproxy/instances/${id}/certificates/${encodeURIComponent(name)}`,
+    { method: "PUT", body: form },
+    csrfToken,
+  );
+}
+
+export function deleteHaproxyCertificate(
+  id: number,
+  name: string,
+  csrfToken: string,
+): Promise<void> {
+  return apiFetch<void>(
+    `/api/haproxy/instances/${id}/certificates/${encodeURIComponent(name)}`,
+    { method: "DELETE" },
+    csrfToken,
   );
 }
 

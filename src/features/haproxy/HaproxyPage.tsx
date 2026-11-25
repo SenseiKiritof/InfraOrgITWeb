@@ -1,24 +1,35 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../../app/AuthProvider";
 import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import { formatDateTime } from "../../lib/format";
 import {
+  deleteHaproxyCertificate,
+  getHaproxyCertificates,
   getHaproxyInstances,
   getHaproxyLive,
   getHaproxyMetrics,
   getHaproxyRoutes,
   getHaproxyServers,
   type HaproxyMetricPoint,
+  replaceHaproxyCertificate,
+  uploadHaproxyCertificate,
 } from "../../lib/haproxy";
 import { useI18n } from "../../lib/i18n";
 
 export function HaproxyPage() {
   const { t, language } = useI18n();
+  const { session } = useAuth();
+  const csrf = session?.csrfToken ?? "";
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [tab, setTab] = useState<"overview" | "routes" | "servers">("overview");
+  const [tab, setTab] = useState<
+    "overview" | "routes" | "servers" | "certificates"
+  >("overview");
   const [range, setRange] = useState(60);
   const [filter, setFilter] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
   const instances = useQuery({
     queryKey: ["haproxy", "instances"],
     queryFn: () => getHaproxyInstances(),
@@ -48,6 +59,66 @@ export function HaproxyPage() {
     queryFn: () => getHaproxyMetrics(selected?.id ?? 0, range),
     enabled: selected !== undefined,
   });
+  const certificates = useQuery({
+    queryKey: ["haproxy", "certificates", selected?.id],
+    queryFn: () => getHaproxyCertificates(selected?.id ?? 0),
+    enabled: selected !== undefined && tab === "certificates",
+  });
+
+  const uploadCertificate = async (file: File | undefined) => {
+    if (!file || !selected) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      await uploadHaproxyCertificate(selected.id, file, csrf);
+      await certificates.refetch();
+      setMessage(t("haproxy.certificateUploaded"));
+    } catch (cause) {
+      setMessage(
+        cause instanceof Error ? cause.message : t("haproxy.certificateFailed"),
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const replaceCertificate = async (name: string, file: File | undefined) => {
+    if (!file || !selected) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      await replaceHaproxyCertificate(selected.id, name, file, csrf);
+      await certificates.refetch();
+      setMessage(t("haproxy.certificateUploaded"));
+    } catch (cause) {
+      setMessage(
+        cause instanceof Error ? cause.message : t("haproxy.certificateFailed"),
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeCertificate = async (name: string) => {
+    if (
+      !selected ||
+      !window.confirm(t("haproxy.certificateDeleteConfirm", { name }))
+    )
+      return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      await deleteHaproxyCertificate(selected.id, name, csrf);
+      await certificates.refetch();
+      setMessage(t("haproxy.certificateDeleted"));
+    } catch (cause) {
+      setMessage(
+        cause instanceof Error ? cause.message : t("haproxy.certificateFailed"),
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
   const frontends =
     live.data?.series.filter((item) => item.kind === "frontend") ?? [];
   const liveReq = frontends.reduce((sum, item) => sum + item.reqRate, 0);
@@ -152,8 +223,15 @@ export function HaproxyPage() {
               >
                 {t("haproxy.servers")}
               </button>
+              <button
+                type="button"
+                onClick={() => setTab("certificates")}
+                className={`rounded px-3 py-1 text-xs ${tab === "certificates" ? "bg-slate-900 text-white" : ""}`}
+              >
+                {t("haproxy.certificates")}
+              </button>
             </div>
-            {tab !== "overview" && (
+            {(tab === "routes" || tab === "servers") && (
               <>
                 <input
                   value={filter}
@@ -231,6 +309,114 @@ export function HaproxyPage() {
                   })}
                 </p>
               )}
+            </div>
+          ) : tab === "certificates" ? (
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="cursor-pointer rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium">
+                  {t("haproxy.uploadCertificate")}
+                  <input
+                    type="file"
+                    accept=".pem,.crt,.key"
+                    className="hidden"
+                    disabled={busy}
+                    onChange={(event) => {
+                      void uploadCertificate(event.target.files?.[0]);
+                      event.target.value = "";
+                    }}
+                  />
+                </label>
+                {message && (
+                  <span className="text-xs text-slate-600">{message}</span>
+                )}
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-slate-200 text-slate-500">
+                    <tr>
+                      <th className="px-2 py-1">
+                        {t("haproxy.certificateName")}
+                      </th>
+                      <th className="px-2 py-1">{t("haproxy.domains")}</th>
+                      <th className="px-2 py-1">{t("haproxy.issuer")}</th>
+                      <th className="px-2 py-1">{t("haproxy.expires")}</th>
+                      <th className="px-2 py-1">{t("haproxy.size")}</th>
+                      <th className="px-2 py-1" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(certificates.data ?? []).map((certificate) => {
+                      const expired =
+                        certificate.notAfter !== null &&
+                        new Date(certificate.notAfter) < new Date();
+                      return (
+                        <tr
+                          key={certificate.id}
+                          className="border-b border-slate-100"
+                        >
+                          <td className="px-2 py-1 font-mono">
+                            {certificate.storageName}
+                          </td>
+                          <td className="px-2 py-1">
+                            {certificate.domains || "—"}
+                          </td>
+                          <td className="px-2 py-1">
+                            {certificate.issuer || "—"}
+                          </td>
+                          <td
+                            className={`px-2 py-1 ${expired ? "text-red-600 font-medium" : ""}`}
+                          >
+                            {certificate.notAfter
+                              ? formatDateTime(certificate.notAfter, language)
+                              : "—"}
+                          </td>
+                          <td className="px-2 py-1">
+                            {certificate.size > 0 ? certificate.size : "—"}
+                          </td>
+                          <td className="flex flex-wrap gap-2 px-2 py-1">
+                            <label className="cursor-pointer underline">
+                              {t("haproxy.replace")}
+                              <input
+                                type="file"
+                                accept=".pem,.crt,.key"
+                                className="hidden"
+                                disabled={busy}
+                                onChange={(event) => {
+                                  void replaceCertificate(
+                                    certificate.storageName,
+                                    event.target.files?.[0],
+                                  );
+                                  event.target.value = "";
+                                }}
+                              />
+                            </label>
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() =>
+                                void removeCertificate(certificate.storageName)
+                              }
+                              className="text-red-600 underline disabled:opacity-50"
+                            >
+                              {t("common.delete")}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {(certificates.data ?? []).length === 0 && (
+                      <tr>
+                        <td
+                          colSpan={6}
+                          className="px-2 py-4 text-center text-slate-500"
+                        >
+                          {t("haproxy.noCertificates")}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           ) : (
             <div className="overflow-x-auto">
