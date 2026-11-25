@@ -34,3 +34,15 @@ export function updateServerOsPolicy(
     csrfToken,
   );
 }
+
+/** Starts a manual OS check in the background and returns immediately. */
+export function runServerOsCheck(
+  serverId: number,
+  csrfToken: string,
+): Promise<{ started: boolean }> {
+  return apiFetch<{ started: boolean }>(
+    `/api/servers/${serverId}/os-update-check`,
+    { method: "POST" },
+    csrfToken,
+  );
+}
