@@ -71,8 +71,9 @@ are recognised; endoflife.date fills the upgrade and EOL data when the server
 tool is missing. The server list marks an EOL in orange within 60 days and in
 red after expiry. **Impostazioni → Aggiornamenti sistema operativo** enables
 the check and the LTS default; each server can inherit, force LTS or allow
-non-LTS (RHEL, SLES and Debian are always LTS). The check is read-only and
-never modifies the server.
+non-LTS (RHEL, SLES and Debian are always LTS). **Controlla ora** in the server
+detail starts the same check in the background and refreshes the result. The
+check is read-only and never modifies the server.
 
 ### Query databases
 

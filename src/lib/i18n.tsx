@@ -640,6 +640,12 @@ const it = {
   "servers.osAll": "Anche non-LTS",
   "servers.osLtsFixed": "LTS (non configurabile per questa distro)",
   "servers.osPolicySaved": "Politica aggiornata.",
+  "servers.osCheckNow": "Controlla ora",
+  "servers.osChecking": "Controllo in corso…",
+  "servers.osCheckStarted": "Controllo avviato in background.",
+  "servers.osCheckFinished": "Controllo completato.",
+  "servers.osCheckPending": "Controllo ancora in corso: aggiorna tra poco.",
+  "servers.osCheckFailed": "Avvio del controllo non riuscito.",
 
   "serverUpdate.title": "Aggiornamenti sistema operativo",
   "serverUpdate.description":
@@ -1565,6 +1571,12 @@ const en: Record<TranslationKey, string> = {
   "servers.osAll": "Non-LTS too",
   "servers.osLtsFixed": "LTS (not configurable for this distro)",
   "servers.osPolicySaved": "Policy updated.",
+  "servers.osCheckNow": "Check now",
+  "servers.osChecking": "Checking…",
+  "servers.osCheckStarted": "Check started in the background.",
+  "servers.osCheckFinished": "Check completed.",
+  "servers.osCheckPending": "Check still running: refresh shortly.",
+  "servers.osCheckFailed": "Could not start the check.",
 
   "serverUpdate.title": "Operating system updates",
   "serverUpdate.description":
@@ -2007,6 +2019,13 @@ const fr: Partial<Record<TranslationKey, string>> = {
   "files.downloadRunning": "Téléchargement en cours",
   "files.downloadCompleted": "Téléchargement terminé",
   "files.downloadFailedTitle": "Téléchargement échoué",
+  "servers.osCheckNow": "Vérifier maintenant",
+  "servers.osChecking": "Vérification en cours…",
+  "servers.osCheckStarted": "Vérification démarrée en arrière-plan.",
+  "servers.osCheckFinished": "Vérification terminée.",
+  "servers.osCheckPending":
+    "Vérification encore en cours : actualisez dans un instant.",
+  "servers.osCheckFailed": "Impossible de démarrer la vérification.",
 };
 
 const de: Partial<Record<TranslationKey, string>> = {
@@ -2148,6 +2167,12 @@ const de: Partial<Record<TranslationKey, string>> = {
   "files.downloadRunning": "Download läuft",
   "files.downloadCompleted": "Download abgeschlossen",
   "files.downloadFailedTitle": "Download fehlgeschlagen",
+  "servers.osCheckNow": "Jetzt prüfen",
+  "servers.osChecking": "Prüfung läuft…",
+  "servers.osCheckStarted": "Prüfung im Hintergrund gestartet.",
+  "servers.osCheckFinished": "Prüfung abgeschlossen.",
+  "servers.osCheckPending": "Prüfung läuft noch: in Kürze aktualisieren.",
+  "servers.osCheckFailed": "Prüfung konnte nicht gestartet werden.",
 };
 
 const es: Partial<Record<TranslationKey, string>> = {
@@ -2290,6 +2315,13 @@ const es: Partial<Record<TranslationKey, string>> = {
   "files.downloadRunning": "Descarga en curso",
   "files.downloadCompleted": "Descarga completada",
   "files.downloadFailedTitle": "Descarga fallida",
+  "servers.osCheckNow": "Comprobar ahora",
+  "servers.osChecking": "Comprobación en curso…",
+  "servers.osCheckStarted": "Comprobación iniciada en segundo plano.",
+  "servers.osCheckFinished": "Comprobación completada.",
+  "servers.osCheckPending":
+    "Comprobación aún en curso: actualiza en un momento.",
+  "servers.osCheckFailed": "No se pudo iniciar la comprobación.",
 };
 
 const dictionaries: Record<
