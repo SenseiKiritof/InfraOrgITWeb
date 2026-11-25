@@ -194,6 +194,8 @@ export function HaproxyPage() {
                   [360, t("haproxy.range6h")],
                   [1440, t("haproxy.range24h")],
                   [10080, t("haproxy.range7d")],
+                  [43200, t("haproxy.range30d")],
+                  [129600, t("haproxy.range90d")],
                 ].map(([value, label]) => (
                   <button
                     key={value}
