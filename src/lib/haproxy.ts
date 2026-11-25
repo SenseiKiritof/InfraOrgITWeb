@@ -81,6 +81,79 @@ export function getHaproxyServers(id: number): Promise<HaproxyServer[]> {
   return apiFetch<HaproxyServer[]>(`/api/haproxy/instances/${id}/servers`);
 }
 
+export interface HaproxyLiveSeries {
+  kind: string;
+  proxy: string;
+  server: string;
+  status: string;
+  checkStatus: string | null;
+  reqTotal: number;
+  h4xx: number;
+  h5xx: number;
+  scur: number;
+  qcur: number;
+  rate: number;
+  reqRate: number;
+  rtime: number;
+  ctime: number;
+  ttime: number;
+  bin: number;
+  bout: number;
+}
+
+export interface HaproxyLiveSnapshot {
+  at: string;
+  series: HaproxyLiveSeries[];
+  process: {
+    uptime: number;
+    currConns: number;
+    cumConns: number;
+    currSslConns: number;
+    cumSslConns: number;
+    maxConn: number;
+    sessRate: number;
+    connRate: number;
+    tasks: number;
+    runQueue: number;
+    idlePct: number;
+    threads: number;
+    activePeers: number;
+    connectedPeers: number;
+  } | null;
+}
+
+export interface HaproxyMetricPoint {
+  timestamp: string;
+  req: number;
+  h4xx: number;
+  h5xx: number;
+  bin: number;
+  bout: number;
+  scur: number;
+  qcur: number;
+  rtime: number;
+  ctime: number;
+  ttime: number;
+  qtime: number;
+}
+
+export function getHaproxyLive(
+  id: number,
+): Promise<HaproxyLiveSnapshot | null> {
+  return apiFetch<HaproxyLiveSnapshot | null>(
+    `/api/haproxy/instances/${id}/live`,
+  );
+}
+
+export function getHaproxyMetrics(
+  id: number,
+  minutes: number,
+): Promise<HaproxyMetricPoint[]> {
+  return apiFetch<HaproxyMetricPoint[]>(
+    `/api/haproxy/instances/${id}/metrics?minutes=${minutes}&kind=frontend`,
+  );
+}
+
 export function setHaproxyMonitoring(
   id: number,
   choice: HaproxyMonitoringChoice,

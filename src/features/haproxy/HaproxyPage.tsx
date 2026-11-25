@@ -5,15 +5,19 @@ import { PageHeaderSlot } from "../../components/PageHeaderSlot";
 import { formatDateTime } from "../../lib/format";
 import {
   getHaproxyInstances,
+  getHaproxyLive,
+  getHaproxyMetrics,
   getHaproxyRoutes,
   getHaproxyServers,
+  type HaproxyMetricPoint,
 } from "../../lib/haproxy";
 import { useI18n } from "../../lib/i18n";
 
 export function HaproxyPage() {
   const { t, language } = useI18n();
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [tab, setTab] = useState<"routes" | "servers">("routes");
+  const [tab, setTab] = useState<"overview" | "routes" | "servers">("overview");
+  const [range, setRange] = useState(60);
   const [filter, setFilter] = useState("");
   const instances = useQuery({
     queryKey: ["haproxy", "instances"],
@@ -33,6 +37,21 @@ export function HaproxyPage() {
     queryFn: () => getHaproxyServers(selected?.id ?? 0),
     enabled: selected !== undefined,
   });
+  const live = useQuery({
+    queryKey: ["haproxy", "live", selected?.id],
+    queryFn: () => getHaproxyLive(selected?.id ?? 0),
+    enabled: selected !== undefined,
+    refetchInterval: 5000,
+  });
+  const metrics = useQuery({
+    queryKey: ["haproxy", "metrics", selected?.id, range],
+    queryFn: () => getHaproxyMetrics(selected?.id ?? 0, range),
+    enabled: selected !== undefined,
+  });
+  const frontends =
+    live.data?.series.filter((item) => item.kind === "frontend") ?? [];
+  const liveReq = frontends.reduce((sum, item) => sum + item.reqRate, 0);
+  const liveSessions = frontends.reduce((sum, item) => sum + item.scur, 0);
   const query = filter.trim().toLocaleLowerCase();
   const routeRows = (routes.data ?? []).filter((row) =>
     `${row.host} ${row.path} ${row.frontend} ${row.backend}`
@@ -114,6 +133,13 @@ export function HaproxyPage() {
             <div className="flex rounded-md border border-slate-300 p-0.5">
               <button
                 type="button"
+                onClick={() => setTab("overview")}
+                className={`rounded px-3 py-1 text-xs ${tab === "overview" ? "bg-slate-900 text-white" : ""}`}
+              >
+                {t("haproxy.overview")}
+              </button>
+              <button
+                type="button"
                 onClick={() => setTab("routes")}
                 className={`rounded px-3 py-1 text-xs ${tab === "routes" ? "bg-slate-900 text-white" : ""}`}
               >
@@ -127,96 +153,236 @@ export function HaproxyPage() {
                 {t("haproxy.servers")}
               </button>
             </div>
-            <input
-              value={filter}
-              onChange={(event) => setFilter(event.target.value)}
-              placeholder={t("haproxy.filter")}
-              className="min-w-48 flex-1 rounded-md border border-slate-300 px-3 py-1.5 text-sm"
-            />
-            <span className="text-xs text-slate-500">
-              {tab === "routes" ? routeRows.length : serverRows.length}
-            </span>
-          </div>
-
-          <div className="overflow-x-auto">
-            {tab === "routes" ? (
-              <table className="w-full text-left text-xs">
-                <thead className="border-b border-slate-200 text-slate-500">
-                  <tr>
-                    <th className="px-2 py-1">{t("haproxy.host")}</th>
-                    <th className="px-2 py-1">{t("haproxy.frontend")}</th>
-                    <th className="px-2 py-1">{t("haproxy.backend")}</th>
-                    <th className="px-2 py-1">{t("haproxy.bind")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {routeRows.map((row) => (
-                    <tr key={row.id} className="border-b border-slate-100">
-                      <td className="px-2 py-1 font-mono">
-                        {row.host || "—"}
-                        {row.isDefault && (
-                          <span className="ml-2 rounded bg-slate-100 px-1 text-[10px] text-slate-500">
-                            {t("haproxy.defaultRoute")}
-                          </span>
-                        )}
-                        <span className="text-slate-400">{row.path}</span>
-                      </td>
-                      <td className="px-2 py-1">{row.frontend}</td>
-                      <td className="px-2 py-1">{row.backend}</td>
-                      <td className="px-2 py-1 font-mono">{row.bind || "—"}</td>
-                    </tr>
-                  ))}
-                  {routeRows.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={4}
-                        className="px-2 py-4 text-center text-slate-500"
-                      >
-                        {t("haproxy.noRoutes")}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            ) : (
-              <table className="w-full text-left text-xs">
-                <thead className="border-b border-slate-200 text-slate-500">
-                  <tr>
-                    <th className="px-2 py-1">{t("haproxy.backend")}</th>
-                    <th className="px-2 py-1">{t("haproxy.serverName")}</th>
-                    <th className="px-2 py-1">{t("haproxy.address")}</th>
-                    <th className="px-2 py-1">{t("common.status")}</th>
-                    <th className="px-2 py-1">{t("haproxy.check")}</th>
-                    <th className="px-2 py-1">{t("haproxy.weight")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {serverRows.map((row) => (
-                    <tr key={row.id} className="border-b border-slate-100">
-                      <td className="px-2 py-1">{row.backend}</td>
-                      <td className="px-2 py-1">{row.server}</td>
-                      <td className="px-2 py-1 font-mono">{row.address}</td>
-                      <td className="px-2 py-1">{row.status || "—"}</td>
-                      <td className="px-2 py-1">{row.checkStatus ?? "—"}</td>
-                      <td className="px-2 py-1">{row.weight ?? "—"}</td>
-                    </tr>
-                  ))}
-                  {serverRows.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={6}
-                        className="px-2 py-4 text-center text-slate-500"
-                      >
-                        {t("haproxy.noServers")}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+            {tab !== "overview" && (
+              <>
+                <input
+                  value={filter}
+                  onChange={(event) => setFilter(event.target.value)}
+                  placeholder={t("haproxy.filter")}
+                  className="min-w-48 flex-1 rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                />
+                <span className="text-xs text-slate-500">
+                  {tab === "routes" ? routeRows.length : serverRows.length}
+                </span>
+              </>
             )}
           </div>
+
+          {tab === "overview" ? (
+            <div className="space-y-3">
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                <Kpi
+                  label={t("haproxy.requestsPerMinute")}
+                  value={String(Math.round(liveReq))}
+                />
+                <Kpi
+                  label={t("haproxy.sessions")}
+                  value={String(liveSessions)}
+                />
+                <Kpi
+                  label={t("haproxy.errors5xx")}
+                  value={String(metrics.data?.at(-1)?.h5xx ?? 0)}
+                />
+                <Kpi
+                  label={t("haproxy.currentConnections")}
+                  value={String(live.data?.process?.currConns ?? 0)}
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {[
+                  [60, t("haproxy.range1h")],
+                  [360, t("haproxy.range6h")],
+                  [1440, t("haproxy.range24h")],
+                  [10080, t("haproxy.range7d")],
+                ].map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setRange(Number(value))}
+                    className={`rounded border px-2 py-0.5 text-xs ${
+                      range === Number(value)
+                        ? "border-slate-900 bg-slate-900 text-white"
+                        : "border-slate-300"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+                <span className="text-xs text-slate-500">
+                  {t("haproxy.liveAt", {
+                    date: live.data?.at
+                      ? formatDateTime(live.data.at, language)
+                      : "—",
+                  })}
+                </span>
+                <span className="text-xs text-slate-500">
+                  {t("haproxy.uptime", {
+                    value: live.data?.process?.uptime ?? 0,
+                  })}
+                </span>
+              </div>
+              <MetricChart points={metrics.data ?? []} />
+              {live.data && live.data.series.length > 0 && (
+                <p className="text-xs text-slate-500">
+                  {t("haproxy.liveSeries", {
+                    count: live.data.series.length,
+                  })}
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              {tab === "routes" ? (
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-slate-200 text-slate-500">
+                    <tr>
+                      <th className="px-2 py-1">{t("haproxy.host")}</th>
+                      <th className="px-2 py-1">{t("haproxy.frontend")}</th>
+                      <th className="px-2 py-1">{t("haproxy.backend")}</th>
+                      <th className="px-2 py-1">{t("haproxy.bind")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {routeRows.map((row) => (
+                      <tr key={row.id} className="border-b border-slate-100">
+                        <td className="px-2 py-1 font-mono">
+                          {row.host || "—"}
+                          {row.isDefault && (
+                            <span className="ml-2 rounded bg-slate-100 px-1 text-[10px] text-slate-500">
+                              {t("haproxy.defaultRoute")}
+                            </span>
+                          )}
+                          <span className="text-slate-400">{row.path}</span>
+                        </td>
+                        <td className="px-2 py-1">{row.frontend}</td>
+                        <td className="px-2 py-1">{row.backend}</td>
+                        <td className="px-2 py-1 font-mono">
+                          {row.bind || "—"}
+                        </td>
+                      </tr>
+                    ))}
+                    {routeRows.length === 0 && (
+                      <tr>
+                        <td
+                          colSpan={4}
+                          className="px-2 py-4 text-center text-slate-500"
+                        >
+                          {t("haproxy.noRoutes")}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              ) : (
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-slate-200 text-slate-500">
+                    <tr>
+                      <th className="px-2 py-1">{t("haproxy.backend")}</th>
+                      <th className="px-2 py-1">{t("haproxy.serverName")}</th>
+                      <th className="px-2 py-1">{t("haproxy.address")}</th>
+                      <th className="px-2 py-1">{t("common.status")}</th>
+                      <th className="px-2 py-1">{t("haproxy.check")}</th>
+                      <th className="px-2 py-1">{t("haproxy.weight")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {serverRows.map((row) => (
+                      <tr key={row.id} className="border-b border-slate-100">
+                        <td className="px-2 py-1">{row.backend}</td>
+                        <td className="px-2 py-1">{row.server}</td>
+                        <td className="px-2 py-1 font-mono">{row.address}</td>
+                        <td className="px-2 py-1">{row.status || "—"}</td>
+                        <td className="px-2 py-1">{row.checkStatus ?? "—"}</td>
+                        <td className="px-2 py-1">{row.weight ?? "—"}</td>
+                      </tr>
+                    ))}
+                    {serverRows.length === 0 && (
+                      <tr>
+                        <td
+                          colSpan={6}
+                          className="px-2 py-4 text-center text-slate-500"
+                        >
+                          {t("haproxy.noServers")}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
         </div>
       )}
     </section>
+  );
+}
+
+function Kpi({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+      <p className="text-xs text-slate-500">{label}</p>
+      <p className="mt-1 text-xl font-semibold tabular-nums">{value}</p>
+    </div>
+  );
+}
+
+function MetricChart({ points }: { points: HaproxyMetricPoint[] }) {
+  if (points.length === 0) {
+    return (
+      <div className="rounded-md border border-slate-200 bg-slate-50 p-6 text-center text-xs text-slate-500">
+        —
+      </div>
+    );
+  }
+  const width = 600;
+  const height = 160;
+  const pad = 8;
+  const maxReq = Math.max(1, ...points.map((point) => point.req));
+  const maxErr = Math.max(1, ...points.map((point) => point.h5xx));
+  const x = (index: number) =>
+    pad + (index / Math.max(1, points.length - 1)) * (width - pad * 2);
+  const y = (value: number, max: number) =>
+    height - pad - (value / max) * (height - pad * 2);
+  const reqPath = points
+    .map(
+      (point, index) =>
+        `${index === 0 ? "M" : "L"}${x(index)},${y(point.req, maxReq)}`,
+    )
+    .join(" ");
+  const errPath = points
+    .map(
+      (point, index) =>
+        `${index === 0 ? "M" : "L"}${x(index)},${y(point.h5xx, maxErr)}`,
+    )
+    .join(" ");
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-4 text-xs text-slate-500">
+        <span className="flex items-center gap-1">
+          <span className="h-0.5 w-4 bg-sky-500" />
+          req/min
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="h-0.5 w-4 bg-red-500" />
+          5xx/min
+        </span>
+        <span className="ml-auto">
+          max {maxReq}/min · 5xx max {maxErr}
+        </span>
+      </div>
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        role="img"
+        aria-label="HAProxy req/min e 5xx/min"
+        className="h-40 w-full rounded-md border border-slate-200 bg-slate-50"
+      >
+        <path
+          d={`${reqPath} L${x(points.length - 1)},${height - pad} L${x(0)},${height - pad} Z`}
+          fill="rgba(14,165,233,0.12)"
+        />
+        <path d={reqPath} fill="none" stroke="#0ea5e9" strokeWidth="1.5" />
+        <path d={errPath} fill="none" stroke="#ef4444" strokeWidth="1.5" />
+      </svg>
+    </div>
   );
 }
