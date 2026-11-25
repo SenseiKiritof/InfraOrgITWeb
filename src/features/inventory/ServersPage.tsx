@@ -754,7 +754,10 @@ export function ServerDetailPage() {
       )}
 
       {server.data && isAdmin && (
-        <HaproxyServerCard serverId={server.data.id} />
+        <HaproxyServerCard
+          serverId={server.data.id}
+          isSystemAdmin={isSystemAdmin}
+        />
       )}
 
       {isSystemAdmin && (

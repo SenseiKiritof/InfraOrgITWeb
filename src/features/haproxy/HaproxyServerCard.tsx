@@ -10,6 +10,7 @@ import {
   setHaproxyMonitoring,
 } from "../../lib/haproxy";
 import { type TranslationKey, useI18n } from "../../lib/i18n";
+import { HaproxyInstanceForm } from "./HaproxyInstanceForm";
 
 const statusKey: Record<HaproxyDiscoveryStatus, TranslationKey> = {
   Found: "haproxy.statusFound",
@@ -19,7 +20,13 @@ const statusKey: Record<HaproxyDiscoveryStatus, TranslationKey> = {
   Ready: "haproxy.statusReady",
 };
 
-export function HaproxyServerCard({ serverId }: { serverId: number }) {
+export function HaproxyServerCard({
+  serverId,
+  isSystemAdmin,
+}: {
+  serverId: number;
+  isSystemAdmin: boolean;
+}) {
   const { session } = useAuth();
   const { t, language } = useI18n();
   const queryClient = useQueryClient();
@@ -127,7 +134,25 @@ export function HaproxyServerCard({ serverId }: { serverId: number }) {
                 ? formatDateTime(instance.lastSeenAt, language)
                 : "—"}
             </p>
+            <p>
+              <span className="text-slate-500">{t("haproxy.routes")}: </span>
+              {instance.routeCount}
+            </p>
+            <p>
+              <span className="text-slate-500">{t("haproxy.servers")}: </span>
+              {instance.serverCount}
+            </p>
           </div>
+
+          {instance.lastRefreshAt && (
+            <p className="text-xs text-slate-500">
+              {t("haproxy.lastRefresh", {
+                date: formatDateTime(instance.lastRefreshAt, language),
+              })}
+              {instance.lastRefreshStatus === "Error" &&
+                ` · ${instance.lastRefreshDetail ?? t("haproxy.refreshFailed")}`}
+            </p>
+          )}
 
           {instance.monitoringChoice === "Enabled" &&
             !instance.hasCredentials && (
@@ -174,6 +199,12 @@ export function HaproxyServerCard({ serverId }: { serverId: number }) {
               </button>
             )}
           </div>
+
+          <HaproxyInstanceForm
+            instance={instance}
+            canManageSecrets={isSystemAdmin}
+            onSaved={() => void refresh()}
+          />
         </>
       )}
 
