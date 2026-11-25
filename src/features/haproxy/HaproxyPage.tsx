@@ -304,7 +304,11 @@ export function HaproxyPage() {
                 />
                 <Kpi
                   label={t("haproxy.currentConnections")}
-                  value={String(live.data?.process?.currConns ?? 0)}
+                  value={
+                    live.data?.process
+                      ? String(live.data.process.currConns)
+                      : "—"
+                  }
                 />
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -337,9 +341,11 @@ export function HaproxyPage() {
                   })}
                 </span>
                 <span className="text-xs text-slate-500">
-                  {t("haproxy.uptime", {
-                    value: live.data?.process?.uptime ?? 0,
-                  })}
+                  {live.data?.process
+                    ? t("haproxy.uptime", {
+                        value: live.data.process.uptime,
+                      })
+                    : "—"}
                 </span>
               </div>
               <MetricChart points={metrics.data ?? []} />
