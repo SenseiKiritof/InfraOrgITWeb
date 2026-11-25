@@ -40,6 +40,7 @@ import {
   runServerReachability,
 } from "../../lib/remote";
 import { useServerAccess } from "../../lib/useServerAccess";
+import { HaproxyServerCard } from "../haproxy/HaproxyServerCard";
 import { useConsole } from "../remote/ConsoleProvider";
 import { OsUpdateBadge, ServerOsCard } from "./ServerOsUpdate";
 import { connectionChanged } from "./serverConnection";
@@ -750,6 +751,10 @@ export function ServerDetailPage() {
           canWrite={isSystemAdmin}
           canRun={isAdmin}
         />
+      )}
+
+      {server.data && isAdmin && (
+        <HaproxyServerCard serverId={server.data.id} />
       )}
 
       {isSystemAdmin && (
