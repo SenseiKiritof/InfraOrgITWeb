@@ -204,6 +204,7 @@ export function HaproxyPage() {
             </div>
             <p className="mt-1 truncate text-xs text-slate-500">
               {instance.serverName} · {instance.environmentLabel}
+              {instance.clusterName ? ` · ${instance.clusterName}` : ""}
             </p>
             <p className="mt-2 text-xs text-slate-600">
               {t("haproxy.routes")}: {instance.routeCount} ·{" "}
