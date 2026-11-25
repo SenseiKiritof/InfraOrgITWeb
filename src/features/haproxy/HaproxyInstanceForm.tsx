@@ -192,7 +192,6 @@ export function HaproxyInstanceForm({
             <option value="auto">auto</option>
             <option value="v3">v3</option>
             <option value="v2">v2</option>
-            <option value="stats">stats</option>
           </select>
         </label>
         <label className="flex flex-col gap-1 text-xs text-slate-500">
