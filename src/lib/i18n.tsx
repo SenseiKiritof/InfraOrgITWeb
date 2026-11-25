@@ -640,6 +640,12 @@ const it = {
   "servers.osAll": "Anche non-LTS",
   "servers.osLtsFixed": "LTS (non configurabile per questa distro)",
   "servers.osPolicySaved": "Politica aggiornata.",
+  "servers.osCheckNow": "Controlla ora",
+  "servers.osChecking": "Controllo in corso…",
+  "servers.osCheckStarted": "Controllo avviato in background.",
+  "servers.osCheckFinished": "Controllo completato.",
+  "servers.osCheckPending": "Controllo ancora in corso: aggiorna tra poco.",
+  "servers.osCheckFailed": "Avvio del controllo non riuscito.",
 
   "serverUpdate.title": "Aggiornamenti sistema operativo",
   "serverUpdate.description":
@@ -846,10 +852,9 @@ const it = {
   "files.dropUpload": "Rilascia i file per caricarli in questa cartella",
   "files.uploading": "Caricamento {name}: {percent}% ({done}/{total})…",
   "files.dropUnavailable": "Apri una cartella per caricare i file.",
-  "files.downloading": "Download di {name}: {percent}%",
-  "files.downloadingUnknown": "Download di {name}…",
-  "files.downloadDone": "Download completato: {name}",
-  "files.downloadFailed": "Download non riuscito: {name}",
+  "files.downloadRunning": "Download in corso",
+  "files.downloadCompleted": "Download completato",
+  "files.downloadFailedTitle": "Download non riuscito",
   "files.filterPlaceholder": "Filtra i file…",
   "files.up": "Su",
   "files.refresh": "Aggiorna",
@@ -1566,6 +1571,12 @@ const en: Record<TranslationKey, string> = {
   "servers.osAll": "Non-LTS too",
   "servers.osLtsFixed": "LTS (not configurable for this distro)",
   "servers.osPolicySaved": "Policy updated.",
+  "servers.osCheckNow": "Check now",
+  "servers.osChecking": "Checking…",
+  "servers.osCheckStarted": "Check started in the background.",
+  "servers.osCheckFinished": "Check completed.",
+  "servers.osCheckPending": "Check still running: refresh shortly.",
+  "servers.osCheckFailed": "Could not start the check.",
 
   "serverUpdate.title": "Operating system updates",
   "serverUpdate.description":
@@ -1767,10 +1778,9 @@ const en: Record<TranslationKey, string> = {
   "files.dropUpload": "Drop files to upload them into this folder",
   "files.uploading": "Uploading {name}: {percent}% ({done}/{total})…",
   "files.dropUnavailable": "Open a folder before uploading files.",
-  "files.downloading": "Downloading {name}: {percent}%",
-  "files.downloadingUnknown": "Downloading {name}…",
-  "files.downloadDone": "Download completed: {name}",
-  "files.downloadFailed": "Download failed: {name}",
+  "files.downloadRunning": "Downloading",
+  "files.downloadCompleted": "Download completed",
+  "files.downloadFailedTitle": "Download failed",
   "files.filterPlaceholder": "Filter files…",
   "files.up": "Up",
   "files.refresh": "Refresh",
@@ -2006,6 +2016,16 @@ const fr: Partial<Record<TranslationKey, string>> = {
   "executions.date": "Date",
   "executions.output": "Sortie",
   "executions.empty": "Aucune exécution.",
+  "files.downloadRunning": "Téléchargement en cours",
+  "files.downloadCompleted": "Téléchargement terminé",
+  "files.downloadFailedTitle": "Téléchargement échoué",
+  "servers.osCheckNow": "Vérifier maintenant",
+  "servers.osChecking": "Vérification en cours…",
+  "servers.osCheckStarted": "Vérification démarrée en arrière-plan.",
+  "servers.osCheckFinished": "Vérification terminée.",
+  "servers.osCheckPending":
+    "Vérification encore en cours : actualisez dans un instant.",
+  "servers.osCheckFailed": "Impossible de démarrer la vérification.",
 };
 
 const de: Partial<Record<TranslationKey, string>> = {
@@ -2144,6 +2164,15 @@ const de: Partial<Record<TranslationKey, string>> = {
   "executions.date": "Datum",
   "executions.output": "Ausgabe",
   "executions.empty": "Keine Ausführungen.",
+  "files.downloadRunning": "Download läuft",
+  "files.downloadCompleted": "Download abgeschlossen",
+  "files.downloadFailedTitle": "Download fehlgeschlagen",
+  "servers.osCheckNow": "Jetzt prüfen",
+  "servers.osChecking": "Prüfung läuft…",
+  "servers.osCheckStarted": "Prüfung im Hintergrund gestartet.",
+  "servers.osCheckFinished": "Prüfung abgeschlossen.",
+  "servers.osCheckPending": "Prüfung läuft noch: in Kürze aktualisieren.",
+  "servers.osCheckFailed": "Prüfung konnte nicht gestartet werden.",
 };
 
 const es: Partial<Record<TranslationKey, string>> = {
@@ -2283,6 +2312,16 @@ const es: Partial<Record<TranslationKey, string>> = {
   "executions.date": "Fecha",
   "executions.output": "Salida",
   "executions.empty": "Sin ejecuciones.",
+  "files.downloadRunning": "Descarga en curso",
+  "files.downloadCompleted": "Descarga completada",
+  "files.downloadFailedTitle": "Descarga fallida",
+  "servers.osCheckNow": "Comprobar ahora",
+  "servers.osChecking": "Comprobación en curso…",
+  "servers.osCheckStarted": "Comprobación iniciada en segundo plano.",
+  "servers.osCheckFinished": "Comprobación completada.",
+  "servers.osCheckPending":
+    "Comprobación aún en curso: actualiza en un momento.",
+  "servers.osCheckFailed": "No se pudo iniciar la comprobación.",
 };
 
 const dictionaries: Record<

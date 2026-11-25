@@ -745,7 +745,11 @@ export function ServerDetailPage() {
       />
 
       {server.data && (
-        <ServerOsCard server={server.data} canWrite={isSystemAdmin} />
+        <ServerOsCard
+          server={server.data}
+          canWrite={isSystemAdmin}
+          canRun={isAdmin}
+        />
       )}
 
       {isSystemAdmin && (
