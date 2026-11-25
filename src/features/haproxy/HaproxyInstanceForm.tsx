@@ -171,7 +171,6 @@ export function HaproxyInstanceForm({
           >
             <option value="SshForward">SshForward</option>
             <option value="Direct">Direct</option>
-            <option value="DesktopRelay">DesktopRelay</option>
           </select>
         </label>
         <label className="flex flex-col gap-1 text-xs text-slate-500">
