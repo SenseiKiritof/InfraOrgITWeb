@@ -43,11 +43,42 @@ export interface HaproxyInstance {
 }
 
 export function getHaproxyInstances(
-  serverId: number,
+  serverId?: number,
 ): Promise<HaproxyInstance[]> {
-  return apiFetch<HaproxyInstance[]>(
-    `/api/haproxy/instances?serverId=${serverId}`,
-  );
+  const query = serverId === undefined ? "" : `?serverId=${serverId}`;
+  return apiFetch<HaproxyInstance[]>(`/api/haproxy/instances${query}`);
+}
+
+export interface HaproxyRoute {
+  id: number;
+  frontend: string;
+  bind: string;
+  host: string;
+  path: string;
+  backend: string;
+  isDefault: boolean;
+  rawCondition: string | null;
+  configurationVersion: number | null;
+  collectedAt: string;
+}
+
+export interface HaproxyServer {
+  id: number;
+  backend: string;
+  server: string;
+  address: string;
+  status: string;
+  checkStatus: string | null;
+  weight: number | null;
+  collectedAt: string;
+}
+
+export function getHaproxyRoutes(id: number): Promise<HaproxyRoute[]> {
+  return apiFetch<HaproxyRoute[]>(`/api/haproxy/instances/${id}/routes`);
+}
+
+export function getHaproxyServers(id: number): Promise<HaproxyServer[]> {
+  return apiFetch<HaproxyServer[]>(`/api/haproxy/instances/${id}/servers`);
 }
 
 export function setHaproxyMonitoring(

@@ -35,6 +35,7 @@ import {
   ProjectDetailPage,
   ProjectsPage,
 } from "../features/catalog/ProjectsPage";
+import { HaproxyPage } from "../features/haproxy/HaproxyPage";
 import {
   EnvironmentDetailPage,
   EnvironmentsPage,
@@ -127,6 +128,7 @@ function AuthenticatedApp() {
             />
             <Route path="servers" element={<ServersPage />} />
             <Route path="servers/:id" element={<ServerDetailPage />} />
+            <Route path="haproxy" element={<HaproxyPage />} />
             <Route
               path="users"
               element={
