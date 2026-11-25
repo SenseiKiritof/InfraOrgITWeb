@@ -196,6 +196,23 @@ export function getHaproxyProtocol(
   );
 }
 
+export function setHaproxyServerState(
+  id: number,
+  backend: string,
+  server: string,
+  action: "ready" | "drain" | "maint",
+  csrfToken: string,
+): Promise<void> {
+  return apiFetch<void>(
+    `/api/haproxy/instances/${id}/server-actions`,
+    {
+      method: "POST",
+      body: JSON.stringify({ backend, server, action }),
+    },
+    csrfToken,
+  );
+}
+
 export interface HaproxyCertificate {
   id: number;
   storageName: string;

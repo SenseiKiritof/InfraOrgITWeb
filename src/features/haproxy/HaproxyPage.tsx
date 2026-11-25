@@ -15,6 +15,7 @@ import {
   getHaproxyServers,
   type HaproxyMetricPoint,
   replaceHaproxyCertificate,
+  setHaproxyServerState,
   uploadHaproxyCertificate,
 } from "../../lib/haproxy";
 import { useI18n } from "../../lib/i18n";
@@ -121,6 +122,30 @@ export function HaproxyPage() {
     } catch (cause) {
       setMessage(
         cause instanceof Error ? cause.message : t("haproxy.certificateFailed"),
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const serverAction = async (
+    backend: string,
+    server: string,
+    action: "ready" | "drain" | "maint",
+  ) => {
+    if (!selected) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      await setHaproxyServerState(selected.id, backend, server, action, csrf);
+      await servers.refetch();
+      await live.refetch();
+      setMessage(t("haproxy.serverActionOk"));
+    } catch (cause) {
+      setMessage(
+        cause instanceof Error
+          ? cause.message
+          : t("haproxy.serverActionFailed"),
       );
     } finally {
       setBusy(false);
@@ -547,6 +572,7 @@ export function HaproxyPage() {
                       <th className="px-2 py-1">{t("common.status")}</th>
                       <th className="px-2 py-1">{t("haproxy.check")}</th>
                       <th className="px-2 py-1">{t("haproxy.weight")}</th>
+                      <th className="px-2 py-1" />
                     </tr>
                   </thead>
                   <tbody>
@@ -558,12 +584,33 @@ export function HaproxyPage() {
                         <td className="px-2 py-1">{row.status || "—"}</td>
                         <td className="px-2 py-1">{row.checkStatus ?? "—"}</td>
                         <td className="px-2 py-1">{row.weight ?? "—"}</td>
+                        <td className="flex flex-wrap gap-1 px-2 py-1">
+                          {(["ready", "drain", "maint"] as const).map(
+                            (action) => (
+                              <button
+                                key={action}
+                                type="button"
+                                disabled={busy}
+                                onClick={() =>
+                                  void serverAction(
+                                    row.backend,
+                                    row.server,
+                                    action,
+                                  )
+                                }
+                                className="rounded border border-slate-300 px-1.5 py-0.5 text-[10px] uppercase disabled:opacity-50"
+                              >
+                                {action}
+                              </button>
+                            ),
+                          )}
+                        </td>
                       </tr>
                     ))}
                     {serverRows.length === 0 && (
                       <tr>
                         <td
-                          colSpan={6}
+                          colSpan={7}
                           className="px-2 py-4 text-center text-slate-500"
                         >
                           {t("haproxy.noServers")}

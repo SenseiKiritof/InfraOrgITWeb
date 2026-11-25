@@ -754,6 +754,8 @@ const it = {
   "haproxy.protocol": "Protocollo",
   "haproxy.noProtocolData":
     "Nessun dato HTTP/2, HTTP/3 o QUIC. Configura l'URL stats e attendi il primo campione.",
+  "haproxy.serverActionOk": "Stato del server aggiornato.",
+  "haproxy.serverActionFailed": "Stato del server non aggiornato.",
   "haproxy.viaSsh": "via SSH",
 
   "serverUpdate.title": "Aggiornamenti sistema operativo",
@@ -1795,6 +1797,8 @@ const en: Record<TranslationKey, string> = {
   "haproxy.protocol": "Protocol",
   "haproxy.noProtocolData":
     "No HTTP/2, HTTP/3 or QUIC data. Set the stats URL and wait for the first sample.",
+  "haproxy.serverActionOk": "Server state updated.",
+  "haproxy.serverActionFailed": "Server state not updated.",
   "haproxy.viaSsh": "via SSH",
 
   "serverUpdate.title": "Operating system updates",
