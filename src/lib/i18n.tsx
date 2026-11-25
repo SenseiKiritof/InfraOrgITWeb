@@ -846,10 +846,9 @@ const it = {
   "files.dropUpload": "Rilascia i file per caricarli in questa cartella",
   "files.uploading": "Caricamento {name}: {percent}% ({done}/{total})…",
   "files.dropUnavailable": "Apri una cartella per caricare i file.",
-  "files.downloading": "Download di {name}: {percent}%",
-  "files.downloadingUnknown": "Download di {name}…",
-  "files.downloadDone": "Download completato: {name}",
-  "files.downloadFailed": "Download non riuscito: {name}",
+  "files.downloadRunning": "Download in corso",
+  "files.downloadCompleted": "Download completato",
+  "files.downloadFailedTitle": "Download non riuscito",
   "files.filterPlaceholder": "Filtra i file…",
   "files.up": "Su",
   "files.refresh": "Aggiorna",
@@ -1767,10 +1766,9 @@ const en: Record<TranslationKey, string> = {
   "files.dropUpload": "Drop files to upload them into this folder",
   "files.uploading": "Uploading {name}: {percent}% ({done}/{total})…",
   "files.dropUnavailable": "Open a folder before uploading files.",
-  "files.downloading": "Downloading {name}: {percent}%",
-  "files.downloadingUnknown": "Downloading {name}…",
-  "files.downloadDone": "Download completed: {name}",
-  "files.downloadFailed": "Download failed: {name}",
+  "files.downloadRunning": "Downloading",
+  "files.downloadCompleted": "Download completed",
+  "files.downloadFailedTitle": "Download failed",
   "files.filterPlaceholder": "Filter files…",
   "files.up": "Up",
   "files.refresh": "Refresh",
@@ -2006,6 +2004,9 @@ const fr: Partial<Record<TranslationKey, string>> = {
   "executions.date": "Date",
   "executions.output": "Sortie",
   "executions.empty": "Aucune exécution.",
+  "files.downloadRunning": "Téléchargement en cours",
+  "files.downloadCompleted": "Téléchargement terminé",
+  "files.downloadFailedTitle": "Téléchargement échoué",
 };
 
 const de: Partial<Record<TranslationKey, string>> = {
@@ -2144,6 +2145,9 @@ const de: Partial<Record<TranslationKey, string>> = {
   "executions.date": "Datum",
   "executions.output": "Ausgabe",
   "executions.empty": "Keine Ausführungen.",
+  "files.downloadRunning": "Download läuft",
+  "files.downloadCompleted": "Download abgeschlossen",
+  "files.downloadFailedTitle": "Download fehlgeschlagen",
 };
 
 const es: Partial<Record<TranslationKey, string>> = {
@@ -2283,6 +2287,9 @@ const es: Partial<Record<TranslationKey, string>> = {
   "executions.date": "Fecha",
   "executions.output": "Salida",
   "executions.empty": "Sin ejecuciones.",
+  "files.downloadRunning": "Descarga en curso",
+  "files.downloadCompleted": "Descarga completada",
+  "files.downloadFailedTitle": "Descarga fallida",
 };
 
 const dictionaries: Record<

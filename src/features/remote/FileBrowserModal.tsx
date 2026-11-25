@@ -108,6 +108,16 @@ function storedShowHidden(): boolean {
   }
 }
 
+type DownloadNote = {
+  name: string;
+  state: "running" | "done" | "failed";
+  percent: number | null;
+  receivedBytes: number | null;
+  totalBytes: number | null;
+  /** Messaggio aggiuntivo, ad esempio l'invio al desktop. */
+  message?: string;
+};
+
 /** Pannello file SFTP/FTPS/FTP dei server configurati. */
 export function FileBrowserModal({
   open,
@@ -172,10 +182,7 @@ export function FileBrowserModal({
   const [actionError, setActionError] = useState<string | null>(null);
   const [downloadRoute, setDownloadRoute] =
     useState<DesktopDownloadRoute>("normal");
-  const [downloadNote, setDownloadNote] = useState<{
-    text: string;
-    tone: "info" | "warning";
-  } | null>(null);
+  const [downloadNote, setDownloadNote] = useState<DownloadNote | null>(null);
   const [localServers, setLocalServers] = useState<Server[]>([]);
   const [localAdminIds, setLocalAdminIds] = useState<number[]>([]);
   const [localSystemAdmin, setLocalSystemAdmin] = useState(false);
@@ -332,33 +339,43 @@ export function FileBrowserModal({
           ? message.fileName
           : t("files.title");
       const state = typeof message.state === "string" ? message.state : "";
+      const total =
+        typeof message.totalBytes === "number" && message.totalBytes > 0
+          ? message.totalBytes
+          : null;
+      const received =
+        typeof message.receivedBytes === "number"
+          ? message.receivedBytes
+          : null;
       if (state === "completed") {
         setDownloadNote({
-          text: t("files.downloadDone", { name }),
-          tone: "info",
+          name,
+          state: "done",
+          percent: 100,
+          receivedBytes: received ?? total,
+          totalBytes: total,
         });
         return;
       }
       if (state === "failed" || state === "cancelled") {
         setDownloadNote({
-          text: t("files.downloadFailed", { name }),
-          tone: "warning",
+          name,
+          state: "failed",
+          percent: null,
+          receivedBytes: received,
+          totalBytes: total,
         });
         return;
       }
-      const total =
-        typeof message.totalBytes === "number" ? message.totalBytes : 0;
-      const received =
-        typeof message.receivedBytes === "number" ? message.receivedBytes : 0;
       setDownloadNote({
-        text:
-          total > 0
-            ? t("files.downloading", {
-                name,
-                percent: Math.min(100, Math.round((received / total) * 100)),
-              })
-            : t("files.downloadingUnknown", { name }),
-        tone: "info",
+        name,
+        state: "running",
+        percent:
+          received !== null && total !== null
+            ? Math.min(100, Math.round((received / total) * 100))
+            : null,
+        receivedBytes: received,
+        totalBytes: total,
       });
     });
   }, [open, t]);
@@ -850,24 +867,41 @@ export function FileBrowserModal({
   const downloadEntry = async (entry: RemoteFileEntry) => {
     if (selectedId === null || entry.isDirectory) return;
     if (directFiles) {
+      const last = {
+        received: null as number | null,
+        total: null as number | null,
+      };
+      setDownloadNote({
+        name: entry.name,
+        state: "running",
+        percent: null,
+        receivedBytes: null,
+        totalBytes: null,
+      });
       const local = await desktopDownloadFile(
         selectedId,
         entry.path,
-        (progress) =>
+        (progress) => {
+          last.received = progress.transferredBytes;
+          last.total = progress.totalBytes;
           setDownloadNote({
-            text: t("files.downloading", {
-              name: entry.name,
-              percent: progress.percent,
-            }),
-            tone: "info",
-          }),
+            name: entry.name,
+            state: "running",
+            percent: progress.percent,
+            receivedBytes: progress.transferredBytes,
+            totalBytes: progress.totalBytes,
+          });
+        },
       );
       if (local) {
         setDownloadNote(
           local.saved
             ? {
-                text: t("files.downloadDone", { name: entry.name }),
-                tone: "info",
+                name: entry.name,
+                state: "done",
+                percent: 100,
+                receivedBytes: last.received,
+                totalBytes: last.total || null,
               }
             : null,
         );
@@ -877,10 +911,20 @@ export function FileBrowserModal({
     const url = serverFileDownloadUrl(selectedId, entry.path);
     // Native e web: navigazione normale, il webview desktop la intercetta.
     if (downloadRoute !== "bridge") {
+      // Il download nativo arriva da desktop.download.status, quello del
+      // browser ha la sua UI: il riquadro dell'app non deve restare indietro.
+      setDownloadNote(null);
       window.location.assign(url);
       return;
     }
-    setDownloadNote({ text: t("desktopDownload.sending"), tone: "info" });
+    setDownloadNote({
+      name: entry.name,
+      state: "running",
+      percent: null,
+      receivedBytes: null,
+      totalBytes: null,
+      message: t("desktopDownload.sending"),
+    });
     const sent = await desktopDownloads.sendServerFile({
       serverId: selectedId,
       path: entry.path,
@@ -888,14 +932,48 @@ export function FileBrowserModal({
       csrfToken: csrf,
     });
     if (sent) {
-      setDownloadNote({ text: t("desktopDownload.sent"), tone: "info" });
+      // Gli eventi di avanzamento arrivano dal desktop e completano il riquadro.
+      setDownloadNote((current) =>
+        current?.name === entry.name
+          ? { ...current, message: undefined }
+          : current,
+      );
       return;
     }
-    setDownloadNote({ text: t("desktopDownload.failed"), tone: "warning" });
+    setDownloadNote({
+      name: entry.name,
+      state: "failed",
+      percent: null,
+      receivedBytes: null,
+      totalBytes: null,
+      message: t("desktopDownload.failed"),
+    });
     window.location.assign(url);
   };
 
   if (!open) return null;
+
+  const downloadLabel = downloadNote
+    ? t(
+        downloadNote.state === "done"
+          ? "files.downloadCompleted"
+          : downloadNote.state === "failed"
+            ? "files.downloadFailedTitle"
+            : "files.downloadRunning",
+      )
+    : "";
+  const downloadTone =
+    downloadNote?.state === "done"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+      : downloadNote?.state === "failed"
+        ? "border-amber-200 bg-amber-50 text-amber-800"
+        : "border-sky-200 bg-sky-50 text-sky-900";
+  const downloadBytes =
+    downloadNote?.receivedBytes != null
+      ? downloadNote.totalBytes != null && downloadNote.totalBytes > 0
+        ? `${formatBytes(downloadNote.receivedBytes, language)} / ${formatBytes(downloadNote.totalBytes, language)}`
+        : formatBytes(downloadNote.receivedBytes, language)
+      : null;
 
   const segments = (path ?? "/").split("/").filter(Boolean);
 
@@ -1554,16 +1632,40 @@ export function FileBrowserModal({
         </div>
 
         {downloadNote && (
-          <p
+          <div
             role="status"
-            className={`border-t px-4 py-2 text-sm ${
-              downloadNote.tone === "warning"
-                ? "border-amber-200 bg-amber-50 text-amber-800"
-                : "border-slate-200 bg-slate-50 text-slate-600"
-            }`}
+            className={`border-t px-4 py-2 text-sm ${downloadTone}`}
           >
-            {downloadNote.text}
-          </p>
+            <div className="flex items-center justify-between gap-3">
+              <p className="min-w-0 truncate font-medium">
+                {`${downloadLabel} · ${downloadNote.name}`}
+              </p>
+              {downloadNote.percent !== null && (
+                <span className="shrink-0 tabular-nums">
+                  {downloadNote.percent}%
+                </span>
+              )}
+            </div>
+            {downloadNote.state !== "failed" && (
+              <progress
+                className={`mt-1 h-1.5 w-full ${
+                  downloadNote.state === "done"
+                    ? "accent-emerald-600"
+                    : "accent-sky-600"
+                }`}
+                max={100}
+                value={downloadNote.percent ?? undefined}
+                aria-label={downloadLabel}
+              />
+            )}
+            {(downloadBytes || downloadNote.message) && (
+              <p className="mt-1 text-xs opacity-75">
+                {[downloadBytes, downloadNote.message]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            )}
+          </div>
         )}
 
         {actionError && (

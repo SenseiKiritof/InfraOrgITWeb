@@ -287,8 +287,28 @@ describe("FileBrowserModal", () => {
     );
 
     expect(
-      await screen.findByText("Download di dump.sql.gz: 45%"),
+      await screen.findByText("Download in corso · dump.sql.gz"),
     ).toBeTruthy();
+    expect(screen.getByText("45%")).toBeTruthy();
+    expect(screen.getByText("45 B / 100 B")).toBeTruthy();
+
+    act(() =>
+      receive?.(
+        JSON.stringify({
+          type: "desktop.download.status",
+          state: "completed",
+          fileName: "dump.sql.gz",
+          receivedBytes: 100,
+          totalBytes: 100,
+        }),
+      ),
+    );
+
+    expect(
+      await screen.findByText("Download completato · dump.sql.gz"),
+    ).toBeTruthy();
+    expect(screen.getByText("100%")).toBeTruthy();
+    expect(screen.getByText("100 B / 100 B")).toBeTruthy();
   });
 
   it("mostra l'avviso e configura accesso e credenziale mancanti", async () => {
