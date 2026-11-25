@@ -63,6 +63,8 @@ export interface HaproxyRoute {
   rawCondition: string | null;
   configurationVersion: number | null;
   collectedAt: string;
+  proxyRouteId: number | null;
+  proxyRouteLabel: string | null;
 }
 
 export interface HaproxyServer {

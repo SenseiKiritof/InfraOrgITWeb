@@ -749,6 +749,7 @@ const it = {
   "haproxy.clusterNamePrompt": "Nome del nuovo cluster",
   "haproxy.clusterCreated": "Cluster creato.",
   "haproxy.clusterCreateFailed": "Cluster non creato.",
+  "haproxy.inventory": "Inventario",
   "haproxy.viaSsh": "via SSH",
 
   "serverUpdate.title": "Aggiornamenti sistema operativo",
@@ -1785,6 +1786,7 @@ const en: Record<TranslationKey, string> = {
   "haproxy.clusterNamePrompt": "New cluster name",
   "haproxy.clusterCreated": "Cluster created.",
   "haproxy.clusterCreateFailed": "Cluster not created.",
+  "haproxy.inventory": "Inventory",
   "haproxy.viaSsh": "via SSH",
 
   "serverUpdate.title": "Operating system updates",

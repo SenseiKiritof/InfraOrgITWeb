@@ -428,6 +428,7 @@ export function HaproxyPage() {
                       <th className="px-2 py-1">{t("haproxy.frontend")}</th>
                       <th className="px-2 py-1">{t("haproxy.backend")}</th>
                       <th className="px-2 py-1">{t("haproxy.bind")}</th>
+                      <th className="px-2 py-1">{t("haproxy.inventory")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -447,12 +448,21 @@ export function HaproxyPage() {
                         <td className="px-2 py-1 font-mono">
                           {row.bind || "—"}
                         </td>
+                        <td className="px-2 py-1">
+                          {row.proxyRouteLabel ? (
+                            <span className="text-emerald-700">
+                              {row.proxyRouteLabel}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                     {routeRows.length === 0 && (
                       <tr>
                         <td
-                          colSpan={4}
+                          colSpan={5}
                           className="px-2 py-4 text-center text-slate-500"
                         >
                           {t("haproxy.noRoutes")}
