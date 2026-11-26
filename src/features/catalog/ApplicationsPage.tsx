@@ -46,17 +46,6 @@ import { ApiSpecImport } from "./ApiSpecImport";
 import { DatabaseQueryModal } from "./DatabaseQueryModal";
 import { SavedCallModal } from "./SavedCallModal";
 
-const translationLanguages = [
-  { code: "it", label: "Italiano" },
-  { code: "fr", label: "Français" },
-  { code: "de", label: "Deutsch" },
-  { code: "es", label: "Español" },
-] as const;
-
-function applicationName(application: Application, language: string): string {
-  return application.translations?.[language]?.name || application.name;
-}
-
 const requestTypes = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
 const paramTypes = [
   "Int",
@@ -69,7 +58,7 @@ const paramTypes = [
 
 export function ApplicationsPage() {
   const { session } = useAuth();
-  const { t, language } = useI18n();
+  const { t } = useI18n();
   const csrf = session?.csrfToken ?? "";
   const isAdmin = useIsSystemAdmin();
   const queryClient = useQueryClient();
@@ -119,7 +108,7 @@ export function ApplicationsPage() {
           {
             key: "name",
             label: t("common.name"),
-            render: (row) => applicationName(row, language),
+            render: (row) => row.name,
           },
           {
             key: "basePath",
@@ -192,7 +181,7 @@ export function ApplicationDetailPage() {
   const { id } = useParams();
   const applicationId = Number(id);
   const { session } = useAuth();
-  const { t, language } = useI18n();
+  const { t } = useI18n();
   const csrf = session?.csrfToken ?? "";
   const { options: typeOptions } = useApplicationTypes();
   const isAdmin = useIsSystemAdmin();
@@ -418,28 +407,6 @@ export function ApplicationDetailPage() {
     type: "Backend",
   });
   const [message, setMessage] = useState<string | null>(null);
-  const [translations, setTranslations] = useState<
-    Record<string, { name: string; description: string }>
-  >({});
-  const [translationMessage, setTranslationMessage] = useState<string | null>(
-    null,
-  );
-
-  useEffect(() => {
-    if (!application.data) return;
-    setTranslations(
-      Object.fromEntries(
-        translationLanguages.map((entry) => [
-          entry.code,
-          {
-            name: application.data.translations?.[entry.code]?.name ?? "",
-            description:
-              application.data.translations?.[entry.code]?.description ?? "",
-          },
-        ]),
-      ),
-    );
-  }, [application.data]);
 
   useEffect(() => {
     if (!application.data) return;
@@ -472,32 +439,6 @@ export function ApplicationDetailPage() {
       setMessage(t("applications.updated"));
     } catch (cause) {
       setMessage(
-        cause instanceof Error ? cause.message : t("common.saveError"),
-      );
-    }
-  };
-
-  const saveTranslation = async (code: string) => {
-    if (!application.data) return;
-    setTranslationMessage(null);
-    try {
-      await saveEntity(
-        "/api/applications",
-        application.data.id,
-        {
-          name: application.data.name,
-          description: application.data.description,
-          basePath: application.data.basePath,
-          listeningOnPort: application.data.listeningOnPort,
-          type: application.data.type,
-          translations: { [code]: translations[code] },
-        },
-        csrf,
-      );
-      await queryClient.invalidateQueries({ queryKey: ["applications"] });
-      setTranslationMessage(t("applications.translationsSaved"));
-    } catch (cause) {
-      setTranslationMessage(
         cause instanceof Error ? cause.message : t("common.saveError"),
       );
     }
@@ -559,9 +500,7 @@ export function ApplicationDetailPage() {
     <section className="space-y-4">
       <PageHeaderSlot
         title={
-          application.data
-            ? applicationName(application.data, language)
-            : t("applications.detail")
+          application.data ? application.data.name : t("applications.detail")
         }
       />
       <RecordCard
@@ -593,10 +532,8 @@ export function ApplicationDetailPage() {
             ? edit
             : {
                 ...edit,
-                name: applicationName(application.data, language),
-                description:
-                  application.data.translations?.[language]?.description ||
-                  application.data.description,
+                name: application.data.name,
+                description: application.data.description,
               }
         }
         onChange={setEdit}
@@ -604,36 +541,6 @@ export function ApplicationDetailPage() {
         onSubmit={() => void saveApplication()}
         message={message}
       />
-      {isAdmin &&
-        translationLanguages.map((entry) => (
-          <RecordCard
-            key={entry.code}
-            title={`${t("applications.translations")} · ${entry.label}`}
-            fields={[
-              { name: "name", label: t("common.name") },
-              {
-                name: "description",
-                label: t("common.description"),
-                type: "textarea",
-              },
-            ]}
-            values={translations[entry.code] ?? { name: "", description: "" }}
-            onChange={(values) =>
-              setTranslations((current) => ({
-                ...current,
-                [entry.code]: values,
-              }))
-            }
-            canWrite
-            onSubmit={() => void saveTranslation(entry.code)}
-            message={translationMessage}
-          />
-        ))}
-      {isAdmin && (
-        <p className="text-xs text-slate-500">
-          {t("applications.translationsHint")}
-        </p>
-      )}
       <EntitySection
         title={t("common.versions")}
         rows={versions.data?.items}
