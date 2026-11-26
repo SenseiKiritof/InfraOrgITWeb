@@ -80,6 +80,7 @@ export interface HaproxyServer {
   checkStatus: string | null;
   weight: number | null;
   collectedAt: string;
+  applicationNames: string[];
 }
 
 export function getHaproxyRoutes(id: number): Promise<HaproxyRoute[]> {

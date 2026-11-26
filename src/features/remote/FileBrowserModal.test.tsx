@@ -9,6 +9,7 @@ import {
 } from "@testing-library/react";
 import { BrowserRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { getSession, redirectToLogin } from "../../lib/api";
 import { LanguageProvider } from "../../lib/i18n";
 import type { Server } from "../../lib/inventory";
 import { FileBrowserModal, HIDDEN_FILES_STORAGE_KEY } from "./FileBrowserModal";
@@ -16,6 +17,11 @@ import { FileBrowserModal, HIDDEN_FILES_STORAGE_KEY } from "./FileBrowserModal";
 vi.mock("../../app/AuthProvider", () => ({
   useAuth: () => ({ session: { csrfToken: "csrf" } }),
 }));
+
+vi.mock("../../lib/api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../lib/api")>();
+  return { ...actual, getSession: vi.fn(), redirectToLogin: vi.fn() };
+});
 
 const json = (body: unknown) =>
   new Response(JSON.stringify(body), {
@@ -94,6 +100,13 @@ describe("FileBrowserModal", () => {
     fileRequests = [];
     uploadRequests = [];
     localStorage.clear();
+    vi.mocked(getSession).mockResolvedValue({
+      user: { username: "test", name: "Test", surname: "User" },
+      expiresIn: 300,
+      refreshExpiresIn: 1800,
+      csrfToken: "fresh",
+    });
+    vi.mocked(redirectToLogin).mockImplementation(() => undefined);
     vi.stubGlobal("XMLHttpRequest", FakeUploadRequest);
     vi.stubGlobal(
       "fetch",
@@ -776,6 +789,31 @@ describe("FileBrowserModal", () => {
         filename: "hello.txt",
       },
     ]);
+  });
+
+  it("con sessione scaduta il download porta al login senza navigare al file", async () => {
+    vi.mocked(getSession).mockResolvedValueOnce(null);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/api/server-access/me")) return access();
+        if (url.includes("/api/servers/7/files")) {
+          return json({
+            path: "/home/test",
+            items: [fileEntry("hello.txt")],
+          });
+        }
+        return serversPage([sftpServer]);
+      }),
+    );
+
+    renderPanel();
+    await screen.findByText("hello.txt");
+    fireEvent.click(screen.getByRole("link", { name: "Scarica" }));
+
+    await waitFor(() => expect(redirectToLogin).toHaveBeenCalledTimes(1));
+    expect(getSession).toHaveBeenCalled();
   });
 
   it("filtra per nome, estensione e tipo e svuota il filtro", async () => {

@@ -270,6 +270,145 @@ function choosePane(
   return { pane: Math.min(Math.max(fallback, 0), layout - 1), layout };
 }
 
+type PaneOwner = { kind: "console" | "files"; id: string } | null;
+
+type CompactedPanes = {
+  sessions: Session[];
+  files: FileSession[];
+  layout: PaneCount;
+  activePane: number | null;
+};
+
+/** Console o sessione file che occupa un pannello, se presente. */
+function paneOwnerAt(
+  sessions: Session[],
+  files: FileSession[],
+  pane: number,
+): PaneOwner {
+  const console = sessions.find((session) => session.pane === pane);
+  if (console) return { kind: "console", id: console.id };
+  const file = files.find((session) => session.pane === pane);
+  return file ? { kind: "files", id: file.id } : null;
+}
+
+/**
+ * Compatta a sinistra i pannelli occupati e riduce il layout al numero di
+ * pannelli usati (default) o a `target`; le sessioni in eccesso tornano ridotte.
+ * `active` è la sessione attiva prima della compattazione: `activePane` resta
+ * sul suo nuovo pannello se è ancora visibile.
+ */
+function compactPanes(
+  sessions: Session[],
+  files: FileSession[],
+  active?: PaneOwner,
+  target?: PaneCount,
+): CompactedPanes {
+  const occupied = [
+    ...sessions.map((session) => ({
+      kind: "console" as const,
+      id: session.id,
+      pane: session.pane,
+    })),
+    ...files.map((session) => ({
+      kind: "files" as const,
+      id: session.id,
+      pane: session.pane,
+    })),
+  ]
+    .filter((item) => item.pane !== null)
+    .sort((a, b) => (a.pane ?? 0) - (b.pane ?? 0));
+  const layout = Math.min(
+    3,
+    Math.max(1, target ?? occupied.length),
+  ) as PaneCount;
+  const assigned = new Map<string, number>();
+  occupied.forEach((item, index) => {
+    if (index < layout) assigned.set(`${item.kind}:${item.id}`, index);
+  });
+  const paneOf = (kind: "console" | "files", id: string) =>
+    assigned.get(`${kind}:${id}`) ?? null;
+  const first = occupied.length > 0 ? 0 : null;
+  return {
+    sessions: sessions.map((session) => {
+      const pane = paneOf("console", session.id);
+      return pane === session.pane ? session : { ...session, pane };
+    }),
+    files: files.map((session) => {
+      const pane = paneOf("files", session.id);
+      return pane === session.pane ? session : { ...session, pane };
+    }),
+    layout,
+    activePane: active
+      ? (assigned.get(`${active.kind}:${active.id}`) ?? first)
+      : first,
+  };
+}
+
+/**
+ * Chiude le sessioni indicate e, se restano pannelli liberi, fa subentrare le
+ * prime sessioni minimizzate (prima le console, poi i file, in ordine di
+ * barra); compatta poi a sinistra e ricalcola layout e pannello attivo.
+ * `active` è la sessione attiva prima della chiusura: se è ancora presente
+ * resta attiva, altrimenti lo diventa la prima promossa.
+ */
+function closeWithPromotion(
+  sessions: Session[],
+  files: FileSession[],
+  removedSessions: string[],
+  removedFiles: string[],
+  active?: PaneOwner,
+): CompactedPanes {
+  const removedConsoleIds = new Set(removedSessions);
+  const removedFileIds = new Set(removedFiles);
+  const freed = [
+    ...sessions
+      .filter((session) => removedConsoleIds.has(session.id))
+      .map((session) => session.pane),
+    ...files
+      .filter((session) => removedFileIds.has(session.id))
+      .map((session) => session.pane),
+  ]
+    .filter((pane): pane is number => pane !== null)
+    .sort((a, b) => a - b);
+  const remainingSessions = sessions.filter(
+    (session) => !removedConsoleIds.has(session.id),
+  );
+  const remainingFiles = files.filter(
+    (session) => !removedFileIds.has(session.id),
+  );
+  const minimised: { kind: "console" | "files"; id: string }[] = [
+    ...remainingSessions
+      .filter((session) => session.pane === null)
+      .map((session) => ({ kind: "console" as const, id: session.id })),
+    ...remainingFiles
+      .filter((session) => session.pane === null)
+      .map((session) => ({ kind: "files" as const, id: session.id })),
+  ];
+  const promoted = minimised.slice(0, freed.length);
+  promoted.forEach((owner, index) => {
+    const pane = freed[index];
+    if (owner.kind === "console") {
+      const at = remainingSessions.findIndex(
+        (session) => session.id === owner.id,
+      );
+      remainingSessions[at] = { ...remainingSessions[at], pane };
+      return;
+    }
+    const at = remainingFiles.findIndex((session) => session.id === owner.id);
+    remainingFiles[at] = { ...remainingFiles[at], pane };
+  });
+  const activeStillPresent =
+    active != null &&
+    (active.kind === "console"
+      ? remainingSessions.some((session) => session.id === active.id)
+      : remainingFiles.some((session) => session.id === active.id));
+  return compactPanes(
+    remainingSessions,
+    remainingFiles,
+    activeStillPresent ? active : (promoted[0] ?? null),
+  );
+}
+
 function detailsOf(info?: ConsoleServerInfo) {
   return {
     ipAddress: info?.ipAddress ?? undefined,
@@ -668,8 +807,17 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const remove = useCallback((id: string) => {
-    const target = sessionsRef.current.find((session) => session.id === id);
-    setSessions((current) => current.filter((session) => session.id !== id));
+    const sessionsNow = sessionsRef.current;
+    const filesNow = fileSessionsRef.current;
+    const compacted = closeWithPromotion(
+      sessionsNow,
+      filesNow,
+      [id],
+      [],
+      paneOwnerAt(sessionsNow, filesNow, activePaneRef.current),
+    );
+    setSessions(compacted.sessions);
+    setLayout(compacted.layout);
     const timer = timers.current.get(id);
     if (timer) clearTimeout(timer);
     timers.current.delete(id);
@@ -679,14 +827,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
       delete next[id];
       return next;
     });
-    if (target?.pane != null && target.pane === activePaneRef.current) {
-      const next = firstRenderedPane(
-        sessionsRef.current.filter((session) => session.id !== id),
-        fileSessionsRef.current,
-        layoutRef.current,
-      );
-      if (next !== null) setActivePane(next);
-    }
+    setActivePane(compacted.activePane ?? 0);
   }, []);
 
   const attach = useCallback((id: string, resumeId: string) => {
@@ -705,43 +846,36 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
   );
 
   const closeServer = useCallback((serverId: number) => {
-    const removed = sessionsRef.current.filter(
+    const sessionsNow = sessionsRef.current;
+    const filesNow = fileSessionsRef.current;
+    const removed = sessionsNow.filter(
       (session) => session.serverId === serverId,
     );
-    const removedFiles = fileSessionsRef.current.filter(
+    const removedFiles = filesNow.filter(
       (session) => session.serverId === serverId,
+    );
+    const compacted = closeWithPromotion(
+      sessionsNow,
+      filesNow,
+      removed.map((session) => session.id),
+      removedFiles.map((session) => session.id),
+      paneOwnerAt(sessionsNow, filesNow, activePaneRef.current),
     );
     for (const session of removed) {
       const timer = timers.current.get(session.id);
       if (timer) clearTimeout(timer);
       timers.current.delete(session.id);
     }
-    setSessions((current) =>
-      current.filter((session) => session.serverId !== serverId),
-    );
+    setSessions(compacted.sessions);
     setActivity((current) => {
       if (!removed.some((session) => session.id in current)) return current;
       const next = { ...current };
       for (const session of removed) delete next[session.id];
       return next;
     });
-    setFileSessions((current) =>
-      current.filter((session) => session.serverId !== serverId),
-    );
-    if (
-      [...removed, ...removedFiles].some(
-        (session) => session.pane === activePaneRef.current,
-      )
-    ) {
-      const next = firstRenderedPane(
-        sessionsRef.current.filter((session) => session.serverId !== serverId),
-        fileSessionsRef.current.filter(
-          (session) => session.serverId !== serverId,
-        ),
-        layoutRef.current,
-      );
-      if (next !== null) setActivePane(next);
-    }
+    setFileSessions(compacted.files);
+    setLayout(compacted.layout);
+    setActivePane(compacted.activePane ?? 0);
   }, []);
 
   const showFileSession = useCallback(
@@ -856,18 +990,18 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const closeFileSession = useCallback((id: string) => {
-    const target = fileSessionsRef.current.find((session) => session.id === id);
-    setFileSessions((current) =>
-      current.filter((session) => session.id !== id),
+    const sessionsNow = sessionsRef.current;
+    const filesNow = fileSessionsRef.current;
+    const compacted = closeWithPromotion(
+      sessionsNow,
+      filesNow,
+      [],
+      [id],
+      paneOwnerAt(sessionsNow, filesNow, activePaneRef.current),
     );
-    if (target?.pane != null && target.pane === activePaneRef.current) {
-      const next = firstRenderedPane(
-        sessionsRef.current,
-        fileSessionsRef.current.filter((session) => session.id !== id),
-        layoutRef.current,
-      );
-      if (next !== null) setActivePane(next);
-    }
+    setFileSessions(compacted.files);
+    setLayout(compacted.layout);
+    setActivePane(compacted.activePane ?? 0);
   }, []);
 
   const updateServer = useCallback(
@@ -914,12 +1048,14 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
     const clear = () => {
       for (const timer of timers.current.values()) clearTimeout(timer);
       timers.current.clear();
-      setSessions([]);
+      const compacted = compactPanes([], []);
+      setSessions(compacted.sessions);
       setActivity({});
+      setLayout(compacted.layout);
       setActivePane(0);
       setLauncherOpen(false);
       setExpanded(false);
-      setFileSessions([]);
+      setFileSessions(compacted.files);
       setFilesOpen(false);
     };
     window.addEventListener(FILE_SESSIONS_CLEAR_EVENT, clear);
@@ -932,24 +1068,22 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
   );
 
   const changeLayout = useCallback((next: PaneCount) => {
-    setLayout(next);
-    setActivePane((current) => Math.min(current, next - 1));
-    // Console e sessioni file dei pannelli rimossi restano nella barra,
-    // pronte a riaprirsi.
-    setSessions((current) =>
-      current.map((session) =>
-        session.pane !== null && session.pane >= next
-          ? { ...session, pane: null }
-          : session,
+    // Compatta i pannelli occupati a sinistra; quelli oltre il nuovo layout
+    // restano nella barra, pronti a riaprirsi.
+    const compacted = compactPanes(
+      sessionsRef.current,
+      fileSessionsRef.current,
+      paneOwnerAt(
+        sessionsRef.current,
+        fileSessionsRef.current,
+        activePaneRef.current,
       ),
+      next,
     );
-    setFileSessions((current) =>
-      current.map((session) =>
-        session.pane !== null && session.pane >= next
-          ? { ...session, pane: null }
-          : session,
-      ),
-    );
+    setSessions(compacted.sessions);
+    setFileSessions(compacted.files);
+    setLayout(compacted.layout);
+    setActivePane(compacted.activePane ?? 0);
   }, []);
 
   useEffect(() => {

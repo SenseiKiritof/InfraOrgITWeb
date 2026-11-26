@@ -1,5 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import {
+  type PointerEvent as ReactPointerEvent,
+  useMemo,
+  useState,
+} from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../app/AuthProvider";
 import { PageHeaderSlot } from "../../components/PageHeaderSlot";
@@ -14,6 +18,7 @@ import {
   getHaproxyProtocol,
   getHaproxyRoutes,
   getHaproxyServers,
+  type HaproxyInstance,
   type HaproxyMetricPoint,
   type HaproxyRoute,
   type HaproxyServer,
@@ -21,7 +26,17 @@ import {
   setHaproxyServerState,
   uploadHaproxyCertificate,
 } from "../../lib/haproxy";
-import { type Language, localeFor, useI18n } from "../../lib/i18n";
+import {
+  errorPercent,
+  sumSeriesByTimestamp,
+  toPerMinute,
+} from "../../lib/haproxyMetrics";
+import {
+  type Language,
+  localeFor,
+  type TranslationKey,
+  useI18n,
+} from "../../lib/i18n";
 
 export function HaproxyPage() {
   const { t, language } = useI18n();
@@ -32,6 +47,7 @@ export function HaproxyPage() {
     "overview" | "routes" | "servers" | "certificates" | "protocol"
   >("overview");
   const [range, setRange] = useState(60);
+  const [aggregateRange, setAggregateRange] = useState(60);
   const [routeFilters, setRouteFilters] = useState({
     mode: "",
     text: "",
@@ -45,6 +61,7 @@ export function HaproxyPage() {
     backend: "",
     server: "",
     address: "",
+    application: "",
     status: "",
     check: "",
     weight: "",
@@ -62,12 +79,59 @@ export function HaproxyPage() {
   );
   const [showCompare, setShowCompare] = useState(false);
   const [compareRange, setCompareRange] = useState(60);
+  const [compareMetric, setCompareMetric] = useState<ChartMetric>("req");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const instances = useQuery({
     queryKey: ["haproxy", "instances"],
     queryFn: () => getHaproxyInstances(),
     refetchInterval: 30_000,
+  });
+  const monitoredInstances = (instances.data ?? []).filter(
+    (item) => item.monitoringChoice === "Enabled",
+  );
+  const aggregateMetrics = useQuery({
+    queryKey: [
+      "haproxy",
+      "aggregate-metrics",
+      aggregateRange,
+      monitoredInstances.map((item) => item.id).join(","),
+    ],
+    queryFn: async () => {
+      const settled = await Promise.allSettled(
+        monitoredInstances.map((item) =>
+          getHaproxyMetrics(item.id, aggregateRange),
+        ),
+      );
+      return settled.flatMap((result, index) =>
+        result.status === "fulfilled"
+          ? [{ instance: monitoredInstances[index], points: result.value }]
+          : [],
+      );
+    },
+    enabled: monitoredInstances.length > 0,
+    refetchInterval: 60_000,
+  });
+  const aggregateServers = useQuery({
+    queryKey: [
+      "haproxy",
+      "aggregate-servers",
+      monitoredInstances.map((item) => item.id).join(","),
+    ],
+    queryFn: async (): Promise<
+      { instance: HaproxyInstance; servers: HaproxyServer[] }[]
+    > => {
+      const settled = await Promise.allSettled(
+        monitoredInstances.map((item) => getHaproxyServers(item.id)),
+      );
+      return settled.flatMap((result, index) =>
+        result.status === "fulfilled"
+          ? [{ instance: monitoredInstances[index], servers: result.value }]
+          : [],
+      );
+    },
+    enabled: monitoredInstances.length > 0,
+    refetchInterval: 60_000,
   });
   const selected =
     instances.data?.find((item) => item.id === selectedId) ??
@@ -199,8 +263,21 @@ export function HaproxyPage() {
   };
   const frontends =
     live.data?.series.filter((item) => item.kind === "frontend") ?? [];
-  const liveReq = frontends.reduce((sum, item) => sum + item.reqRate, 0);
+  const liveReqPerMin = Math.round(
+    frontends.reduce((sum, item) => sum + item.reqRate, 0) * 60,
+  );
   const liveSessions = frontends.reduce((sum, item) => sum + item.scur, 0);
+  const lastMetricPoint = toPerMinute(metrics.data ?? []).at(-1);
+  const errors5xxPerMin = Math.round(lastMetricPoint?.h5xx ?? 0);
+  const avgResponseMs = lastMetricPoint
+    ? Math.round(lastMetricPoint.rtime)
+    : null;
+  const errors4xxPercent = lastMetricPoint
+    ? errorPercent(lastMetricPoint.h4xx, lastMetricPoint.req)
+    : null;
+  const errors5xxPercent = lastMetricPoint
+    ? errorPercent(lastMetricPoint.h5xx, lastMetricPoint.req)
+    : null;
   const matches = (value: string, needle: string) => {
     const term = needle.trim().toLowerCase();
     return term.length === 0 || value.toLowerCase().includes(term);
@@ -246,6 +323,7 @@ export function HaproxyPage() {
       matches(row.backend, serverFilters.backend) &&
       matches(row.server, serverFilters.server) &&
       matches(row.address, serverFilters.address) &&
+      matches(row.applicationNames.join(" "), serverFilters.application) &&
       matches(row.status, serverFilters.status) &&
       matches(row.checkStatus ?? "", serverFilters.check) &&
       matches(String(row.weight ?? ""), serverFilters.weight) &&
@@ -296,6 +374,80 @@ export function HaproxyPage() {
         }))
         .filter((series) => series.points.length > 0)
     : [];
+  const aggregatePointsById = new Map(
+    (aggregateMetrics.data ?? []).map((entry) => [
+      entry.instance.id,
+      entry.points,
+    ]),
+  );
+  const aggregateRows = (instances.data ?? []).map((instance) => ({
+    instance,
+    last: toPerMinute(aggregatePointsById.get(instance.id) ?? []).at(-1),
+  }));
+  const aggregateSeries: ChartSeries[] = (instances.data ?? []).flatMap(
+    (instance, index) => {
+      const points = aggregatePointsById.get(instance.id) ?? [];
+      return points.length > 0
+        ? [
+            {
+              label: instance.name,
+              color: chartColors[index % chartColors.length],
+              points,
+            },
+          ]
+        : [];
+    },
+  );
+  const aggregateChartSeries: ChartSeries[] =
+    aggregateSeries.length > 0
+      ? [
+          ...aggregateSeries,
+          {
+            label: t("haproxy.aggregateTotal"),
+            color: "#e11d48",
+            points: sumSeriesByTimestamp(
+              aggregateSeries.map((item) => item.points),
+            ),
+          },
+        ]
+      : [];
+  const aggregateMonitoredCount = aggregateRows.filter(
+    (row) => row.instance.monitoringChoice === "Enabled",
+  ).length;
+  const aggregateReqPerMin = Math.round(
+    aggregateRows.reduce((sum, row) => sum + (row.last?.req ?? 0), 0),
+  );
+  const aggregate5xxPerMin = Math.round(
+    aggregateRows.reduce((sum, row) => sum + (row.last?.h5xx ?? 0), 0),
+  );
+  const aggregateRouteCount = (instances.data ?? []).reduce(
+    (sum, instance) => sum + instance.routeCount,
+    0,
+  );
+  const aggregateServerCount = (instances.data ?? []).reduce(
+    (sum, instance) => sum + instance.serverCount,
+    0,
+  );
+  const aggregateServerRows = (aggregateServers.data ?? []).flatMap((entry) =>
+    entry.servers.map((server) => ({ instance: entry.instance, server })),
+  );
+  const aggregateStatusCounts = new Map<ServerStatusKey, number>();
+  for (const row of aggregateServerRows) {
+    const key = aggregateServerStatusKey(row.server.status);
+    aggregateStatusCounts.set(key, (aggregateStatusCounts.get(key) ?? 0) + 1);
+  }
+  const nonUpServers = aggregateServerRows
+    .filter((row) => aggregateServerStatusKey(row.server.status) !== "UP")
+    .sort(
+      (a, b) =>
+        a.instance.name.localeCompare(b.instance.name) ||
+        a.server.backend.localeCompare(b.server.backend) ||
+        a.server.server.localeCompare(b.server.server),
+    );
+  const reachableProxyCount = (instances.data ?? []).filter(
+    (instance) =>
+      instance.lastTestStatus === "Ok" || instance.lastRefreshStatus === "Ok",
+  ).length;
   const toggleGroup = (backend: string) =>
     setCollapsedBackends((current) => {
       const next = new Set(current);
@@ -417,7 +569,7 @@ export function HaproxyPage() {
         selectedChartProjects.map(async (project, index) => ({
           label: project.label,
           color: chartColors[index % chartColors.length],
-          points: mergePoints(
+          points: sumSeriesByTimestamp(
             await Promise.all(
               project.elements.map((element) =>
                 getHaproxyMetrics(
@@ -449,6 +601,232 @@ export function HaproxyPage() {
       {!instances.isLoading && (instances.data?.length ?? 0) === 0 && (
         <div className="rounded-lg border border-slate-200 bg-white p-6 text-sm text-slate-600">
           {t("haproxy.pageEmpty")}
+        </div>
+      )}
+
+      {(instances.data?.length ?? 0) > 0 && (
+        <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-4 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-semibold">{t("haproxy.allProxies")}</h2>
+            <div className="flex items-center gap-1">
+              {(
+                [
+                  [60, t("haproxy.range1h")],
+                  [360, t("haproxy.range6h")],
+                  [1440, t("haproxy.range24h")],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setAggregateRange(value)}
+                  className={`rounded border px-2 py-0.5 text-[10px] ${
+                    aggregateRange === value
+                      ? "border-slate-900 bg-slate-900 text-white"
+                      : "border-slate-300"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+            <Kpi
+              label={t("haproxy.monitoredProxies")}
+              value={`${aggregateMonitoredCount} / ${instances.data?.length ?? 0}`}
+            />
+            <Kpi
+              label={t("haproxy.reachableProxies")}
+              value={`${reachableProxyCount} / ${instances.data?.length ?? 0}`}
+            />
+            <Kpi
+              label={t("haproxy.requestsPerMinute")}
+              value={
+                aggregateMonitoredCount === 0 ? "—" : String(aggregateReqPerMin)
+              }
+            />
+            <Kpi
+              label={t("haproxy.errors5xx")}
+              value={
+                aggregateMonitoredCount === 0 ? "—" : String(aggregate5xxPerMin)
+              }
+            />
+            <Kpi
+              label={t("haproxy.totalRoutesServers")}
+              value={`${aggregateRouteCount} · ${aggregateServerCount}`}
+            />
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-xs font-medium text-slate-600">
+                  {t("haproxy.serversByStatus")}
+                </h3>
+                <span className="text-xs text-slate-500">
+                  {t("haproxy.servers")}: {aggregateServerRows.length}
+                </span>
+              </div>
+              {aggregateServerRows.length === 0 ? (
+                <p className="mt-2 text-xs text-slate-500">—</p>
+              ) : (
+                <>
+                  <div className="mt-2 flex h-3 overflow-hidden rounded bg-slate-200">
+                    {serverStatusKeys.map((key) => {
+                      const count = aggregateStatusCounts.get(key) ?? 0;
+                      return count === 0 ? null : (
+                        <span
+                          key={key}
+                          className={
+                            serverStatusBarColors[key] ?? "bg-slate-400"
+                          }
+                          style={{
+                            width: `${(count / aggregateServerRows.length) * 100}%`,
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-1">
+                    {serverStatusKeys.map((key) => (
+                      <span
+                        key={key}
+                        className={`rounded px-1 text-[10px] ${
+                          serverStatusColors[key] ??
+                          "bg-slate-100 text-slate-600"
+                        }`}
+                      >
+                        {key === "OTHER" ? t("haproxy.serverStatusOther") : key}{" "}
+                        {aggregateStatusCounts.get(key) ?? 0}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+              <h3 className="text-xs font-medium text-slate-600">
+                {t("haproxy.serversNotUp")}
+              </h3>
+              {nonUpServers.length === 0 ? (
+                <p className="mt-2 text-xs text-slate-500">
+                  {t("haproxy.serversAllUp")}
+                </p>
+              ) : (
+                <ul className="mt-1">
+                  {nonUpServers.slice(0, 8).map((row) => (
+                    <li
+                      key={`${row.instance.id}-${row.server.backend}-${row.server.server}`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedId(row.instance.id);
+                          setTab("servers");
+                        }}
+                        className="flex w-full items-center gap-2 rounded px-1 py-0.5 text-left text-xs hover:bg-white"
+                      >
+                        <span className="truncate font-medium">
+                          {row.instance.name}
+                        </span>
+                        <span className="truncate font-mono text-slate-500">
+                          {row.server.backend} / {row.server.server}
+                        </span>
+                        <span className="ml-auto shrink-0">
+                          <ServerStatusBadge status={row.server.status} />
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                  {nonUpServers.length > 8 && (
+                    <li className="px-1 pt-1 text-[10px] text-slate-500">
+                      +{nonUpServers.length - 8}
+                    </li>
+                  )}
+                </ul>
+              )}
+            </div>
+          </div>
+          <MetricChart
+            points={[]}
+            series={
+              aggregateChartSeries.length > 0 ? aggregateChartSeries : undefined
+            }
+            language={language}
+          />
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="border-b border-slate-200 text-slate-500">
+                <tr>
+                  <th className="px-2 py-1">{t("haproxy.proxyName")}</th>
+                  <th className="px-2 py-1">
+                    {t("haproxy.clusterEnvironment")}
+                  </th>
+                  <th className="px-2 py-1">{t("haproxy.apiVersion")}</th>
+                  <th className="px-2 py-1">{t("haproxy.monitoring")}</th>
+                  <th className="px-2 py-1">
+                    {t("haproxy.reqPerMinuteShort")}
+                  </th>
+                  <th className="px-2 py-1">{t("haproxy.errors5xxShort")}</th>
+                  <th className="px-2 py-1">{t("haproxy.routes")}</th>
+                  <th className="px-2 py-1">{t("haproxy.servers")}</th>
+                  <th className="px-2 py-1">{t("haproxy.sampleAge")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {aggregateRows.map(({ instance, last }) => {
+                  const monitored = instance.monitoringChoice === "Enabled";
+                  return (
+                    <tr
+                      key={instance.id}
+                      onClick={() => setSelectedId(instance.id)}
+                      className={`cursor-pointer border-b border-slate-100 hover:bg-slate-50 ${
+                        selected?.id === instance.id ? "bg-emerald-50" : ""
+                      }`}
+                    >
+                      <td className="px-2 py-1 font-medium">{instance.name}</td>
+                      <td className="px-2 py-1">
+                        {instance.environmentLabel}
+                        {instance.clusterName
+                          ? ` · ${instance.clusterName}`
+                          : ""}
+                      </td>
+                      <td className="px-2 py-1">
+                        {instance.effectiveApiVersion ?? instance.apiVersion}
+                      </td>
+                      <td className="px-2 py-1">
+                        <span
+                          className={`rounded px-1 text-[10px] ${
+                            monitoringColors[instance.monitoringChoice] ??
+                            "bg-slate-100 text-slate-600"
+                          }`}
+                        >
+                          {t(monitoringLabels[instance.monitoringChoice])}
+                        </span>
+                      </td>
+                      <td className="px-2 py-1 tabular-nums">
+                        {monitored && last ? Math.round(last.req) : "—"}
+                      </td>
+                      <td className="px-2 py-1 tabular-nums">
+                        {monitored && last ? Math.round(last.h5xx) : "—"}
+                      </td>
+                      <td className="px-2 py-1 tabular-nums">
+                        {instance.routeCount}
+                      </td>
+                      <td className="px-2 py-1 tabular-nums">
+                        {instance.serverCount}
+                      </td>
+                      <td className="px-2 py-1 tabular-nums">
+                        {monitored && last
+                          ? formatSampleAge(last.timestamp, language)
+                          : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -552,7 +930,7 @@ export function HaproxyPage() {
               <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                 <Kpi
                   label={t("haproxy.requestsPerMinute")}
-                  value={String(Math.round(liveReq))}
+                  value={String(liveReqPerMin)}
                 />
                 <Kpi
                   label={t("haproxy.sessions")}
@@ -560,7 +938,7 @@ export function HaproxyPage() {
                 />
                 <Kpi
                   label={t("haproxy.errors5xx")}
-                  value={String(metrics.data?.at(-1)?.h5xx ?? 0)}
+                  value={String(errors5xxPerMin)}
                 />
                 <Kpi
                   label={t("haproxy.currentConnections")}
@@ -569,6 +947,18 @@ export function HaproxyPage() {
                       ? String(live.data.process.currConns)
                       : "—"
                   }
+                />
+                <Kpi
+                  label={t("haproxy.responseTime")}
+                  value={avgResponseMs === null ? "—" : `${avgResponseMs} ms`}
+                />
+                <Kpi
+                  label={t("haproxy.errors4xxPercent")}
+                  value={formatPercent(errors4xxPercent, language)}
+                />
+                <Kpi
+                  label={t("haproxy.errors5xxPercent")}
+                  value={formatPercent(errors5xxPercent, language)}
                 />
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -667,6 +1057,11 @@ export function HaproxyPage() {
                 series={
                   chartSelected.size > 0 ? (chartData.data ?? []) : undefined
                 }
+                language={language}
+              />
+              <MetricChart
+                points={metrics.data ?? []}
+                metric="rtime"
                 language={language}
               />
               {live.data && live.data.series.length > 0 && (
@@ -889,11 +1284,27 @@ export function HaproxyPage() {
                       {t("haproxy.compare")}
                     </span>
                     <div className="flex items-center gap-1">
+                      <select
+                        value={compareMetric}
+                        onChange={(event) =>
+                          setCompareMetric(event.target.value as ChartMetric)
+                        }
+                        className="rounded border border-slate-300 px-1 py-0.5 text-[10px]"
+                      >
+                        <option value="req">
+                          {t("haproxy.requestsPerMinute")}
+                        </option>
+                        <option value="h5xx">{t("haproxy.errors5xx")}</option>
+                        <option value="rtime">
+                          {t("haproxy.metricResponseTime")}
+                        </option>
+                      </select>
                       {(
                         [
                           [60, t("haproxy.range1h")],
                           [360, t("haproxy.range6h")],
                           [1440, t("haproxy.range24h")],
+                          [10080, t("haproxy.range7d")],
                         ] as const
                       ).map(([value, label]) => (
                         <button
@@ -923,6 +1334,7 @@ export function HaproxyPage() {
                       points={[]}
                       series={compareSeries}
                       language={language}
+                      metric={compareMetric}
                     />
                   ) : (
                     <p className="p-2 text-xs text-slate-500">—</p>
@@ -1129,6 +1541,9 @@ export function HaproxyPage() {
                         <th className="px-2 py-1">{t("haproxy.type")}</th>
                         <th className="px-2 py-1">{t("haproxy.serverName")}</th>
                         <th className="px-2 py-1">{t("haproxy.address")}</th>
+                        <th className="px-2 py-1">
+                          {t("haproxy.application")}
+                        </th>
                         <th className="px-2 py-1">{t("common.status")}</th>
                         <th className="px-2 py-1">{t("haproxy.check")}</th>
                         <th className="px-2 py-1">{t("haproxy.weight")}</th>
@@ -1176,6 +1591,7 @@ export function HaproxyPage() {
                           [
                             "server",
                             "address",
+                            "application",
                             "status",
                             "check",
                             "weight",
@@ -1237,7 +1653,7 @@ export function HaproxyPage() {
                               </span>
                             </span>
                           </td>
-                          <td colSpan={10} className="px-2 py-1">
+                          <td colSpan={11} className="px-2 py-1">
                             {group.mode && (
                               <span
                                 className={`ml-2 rounded px-1 text-[10px] ${
@@ -1308,7 +1724,34 @@ export function HaproxyPage() {
                                   {row.address}
                                 </td>
                                 <td className="px-2 py-1">
-                                  {row.status || "—"}
+                                  {row.applicationNames.length === 0 ? (
+                                    "—"
+                                  ) : (
+                                    <span className="flex flex-wrap gap-1">
+                                      {row.applicationNames
+                                        .slice(0, 2)
+                                        .map((name) => (
+                                          <span
+                                            key={name}
+                                            className="rounded bg-slate-100 px-1 text-[10px] text-slate-700"
+                                          >
+                                            {name}
+                                          </span>
+                                        ))}
+                                      {row.applicationNames.length > 2 && (
+                                        <span className="text-[10px] text-slate-500">
+                                          +{row.applicationNames.length - 2}
+                                        </span>
+                                      )}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-2 py-1">
+                                  {row.status ? (
+                                    <ServerStatusBadge status={row.status} />
+                                  ) : (
+                                    "—"
+                                  )}
                                 </td>
                                 <td className="px-2 py-1">
                                   {row.checkStatus ?? "—"}
@@ -1362,7 +1805,7 @@ export function HaproxyPage() {
                       <tbody>
                         <tr>
                           <td
-                            colSpan={12}
+                            colSpan={13}
                             className="px-2 py-4 text-center text-slate-500"
                           >
                             {t("haproxy.noServers")}
@@ -1387,6 +1830,85 @@ function Kpi({ label, value }: { label: string; value: string }) {
       <p className="text-xs text-slate-500">{label}</p>
       <p className="mt-1 text-xl font-semibold tabular-nums">{value}</p>
     </div>
+  );
+}
+
+const monitoringColors: Record<string, string> = {
+  Enabled: "bg-emerald-100 text-emerald-800",
+  Disabled: "bg-slate-100 text-slate-600",
+  Undecided: "bg-amber-100 text-amber-800",
+};
+
+const monitoringLabels: Record<string, TranslationKey> = {
+  Enabled: "haproxy.monitoringEnabled",
+  Disabled: "haproxy.monitoringDisabled",
+  Undecided: "haproxy.monitoringUndecided",
+};
+
+function formatSampleAge(value: string, language: Language): string {
+  const minutes = Math.round((Date.now() - Date.parse(value)) / 60_000);
+  const relative = new Intl.RelativeTimeFormat(localeFor(language), {
+    numeric: "auto",
+  });
+  if (Math.abs(minutes) < 60) return relative.format(-minutes, "minute");
+  const hours = Math.round(minutes / 60);
+  if (Math.abs(hours) < 24) return relative.format(-hours, "hour");
+  return relative.format(-Math.round(hours / 24), "day");
+}
+
+const serverStatusColors: Record<string, string> = {
+  UP: "bg-emerald-100 text-emerald-800",
+  DOWN: "bg-red-100 text-red-700",
+  MAINT: "bg-amber-100 text-amber-800",
+  DRAIN: "bg-sky-100 text-sky-800",
+  NOLB: "bg-violet-100 text-violet-800",
+  NOCHECK: "bg-slate-100 text-slate-600",
+};
+
+const serverStatusBarColors: Record<string, string> = {
+  UP: "bg-emerald-500",
+  DOWN: "bg-red-500",
+  MAINT: "bg-amber-500",
+  DRAIN: "bg-sky-500",
+  NOLB: "bg-violet-500",
+  NOCHECK: "bg-slate-400",
+  OTHER: "bg-slate-400",
+};
+
+function serverStatusLabel(status: string): string {
+  const tokens = status
+    .trim()
+    .toUpperCase()
+    .split(/[\s(]+/);
+  if (tokens[0] === "NO" && tokens[1] === "CHECK") return "NOCHECK";
+  return tokens[0] ?? "";
+}
+
+const serverStatusKeys = [
+  "UP",
+  "DOWN",
+  "MAINT",
+  "DRAIN",
+  "NOLB",
+  "NOCHECK",
+  "OTHER",
+] as const;
+
+type ServerStatusKey = (typeof serverStatusKeys)[number];
+
+function aggregateServerStatusKey(status: string): ServerStatusKey {
+  const label = serverStatusLabel(status);
+  return serverStatusKeys.find((key) => key === label) ?? "OTHER";
+}
+
+function ServerStatusBadge({ status }: { status: string }) {
+  const label = serverStatusLabel(status);
+  return (
+    <span
+      className={`rounded px-1 text-[10px] ${serverStatusColors[label] ?? "bg-slate-100 text-slate-600"}`}
+    >
+      {label || status}
+    </span>
   );
 }
 
@@ -1418,29 +1940,6 @@ interface ChartProjectOption {
   mode: string;
 }
 
-function mergePoints(groups: HaproxyMetricPoint[][]): HaproxyMetricPoint[] {
-  const byTime = new Map<string, HaproxyMetricPoint>();
-  for (const points of groups) {
-    for (const point of points) {
-      const current = byTime.get(point.timestamp);
-      if (!current) {
-        byTime.set(point.timestamp, { ...point });
-        continue;
-      }
-      current.req += point.req;
-      current.h4xx += point.h4xx;
-      current.h5xx += point.h5xx;
-      current.bin += point.bin;
-      current.bout += point.bout;
-      current.scur += point.scur;
-      current.qcur += point.qcur;
-    }
-  }
-  return [...byTime.values()].sort((a, b) =>
-    a.timestamp.localeCompare(b.timestamp),
-  );
-}
-
 interface ChartSeries {
   label: string;
   color: string;
@@ -1451,7 +1950,7 @@ function buildTicks(
   points: HaproxyMetricPoint[],
   language: Language,
   count = 5,
-): string[] {
+): { index: number; label: string }[] {
   if (points.length === 0) return [];
   const format = new Intl.DateTimeFormat(localeFor(language), {
     day: "2-digit",
@@ -1469,7 +1968,10 @@ function buildTicks(
       seen.add(index);
       return true;
     })
-    .map((index) => format.format(new Date(points[index].timestamp)));
+    .map((index) => ({
+      index,
+      label: format.format(new Date(points[index].timestamp)),
+    }));
 }
 
 function niceMax(value: number): number {
@@ -1495,15 +1997,51 @@ function formatAxis(value: number, language: Language): string {
   }).format(value);
 }
 
+function formatPercent(value: number | null, language: Language): string {
+  if (value === null) return "—";
+  return `${new Intl.NumberFormat(localeFor(language), {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(value)} %`;
+}
+
+type ChartMetric = "req" | "h5xx" | "rtime";
+
+function metricValue(point: HaproxyMetricPoint, metric: ChartMetric): number {
+  if (metric === "rtime") return point.rtime;
+  return metric === "h5xx" ? point.h5xx : point.req;
+}
+
+/** Unit appended to a metric value in legend, tooltip and axis: rate or ms. */
+function metricUnit(metric: ChartMetric): string {
+  return metric === "rtime" ? " ms" : "/min";
+}
+
+interface ChartLine {
+  label: string;
+  color: string;
+  value: (point: HaproxyMetricPoint) => number;
+  /** Own y scale, so errors stay visible next to the request axis. */
+  scale: number;
+  /** Value shown in the legend. */
+  max: number;
+  area?: string;
+}
+
 function MetricChart({
   points,
   series,
   language,
+  metric = "req",
 }: {
   points: HaproxyMetricPoint[];
   series?: ChartSeries[];
   language: Language;
+  metric?: ChartMetric;
 }) {
+  const { t } = useI18n();
+  const [hover, setHover] = useState<number | null>(null);
+  const unit = metricUnit(metric);
   if (series && series.length > 0) {
     const width = 600;
     const height = 160;
@@ -1513,12 +2051,18 @@ function MetricChart({
     const bottom = 8;
     const plotWidth = width - left - right;
     const plotHeight = height - top - bottom;
-    const maxReq = Math.max(
+    const chartSeries = series.map((item) => ({
+      ...item,
+      points: metric === "rtime" ? item.points : toPerMinute(item.points),
+    }));
+    const maxValue = Math.max(
       0,
-      ...series.flatMap((item) => item.points.map((point) => point.req)),
+      ...chartSeries.flatMap((item) =>
+        item.points.map((point) => metricValue(point, metric)),
+      ),
     );
-    const axisMax = niceMax(maxReq);
-    const count = Math.max(...series.map((item) => item.points.length), 1);
+    const axisMax = niceMax(maxValue);
+    const count = Math.max(...chartSeries.map((item) => item.points.length), 1);
     const x = (index: number) =>
       left + (index / Math.max(1, count - 1)) * plotWidth;
     const y = (value: number) => top + (1 - value / axisMax) * plotHeight;
@@ -1548,13 +2092,29 @@ function MetricChart({
         </g>
       );
     });
+    const tickSeries = chartSeries.reduce((best, item) =>
+      item.points.length > best.points.length ? item : best,
+    );
+    const hoverIndex = hover !== null && hover < count ? hover : null;
+    const hoverX = hoverIndex !== null ? x(hoverIndex) : 0;
+    const move = (event: ReactPointerEvent<SVGSVGElement>) => {
+      const matrix = event.currentTarget.getScreenCTM();
+      if (!matrix) return;
+      const inverse = matrix.inverse();
+      const px =
+        inverse.a * event.clientX + inverse.c * event.clientY + inverse.e;
+      const index = Math.round(
+        ((px - left) / plotWidth) * Math.max(1, count - 1),
+      );
+      setHover(Math.max(0, Math.min(count - 1, index)));
+    };
     return (
       <div className="space-y-1">
         <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-          {series.map((item) => {
+          {chartSeries.map((item) => {
             const seriesMax = Math.max(
               0,
-              ...item.points.map((point) => point.req),
+              ...item.points.map((point) => metricValue(point, metric)),
             );
             return (
               <span key={item.label} className="flex items-center gap-1">
@@ -1563,43 +2123,132 @@ function MetricChart({
                   style={{ backgroundColor: item.color }}
                 />
                 {item.label}
-                <span className="text-slate-400">max {seriesMax}/min</span>
+                <span className="text-slate-400">
+                  max {formatAxis(seriesMax, language)}
+                  {unit}
+                </span>
               </span>
             );
           })}
-          <span className="ml-auto">max {maxReq}/min</span>
+          <span className="ml-auto">
+            max {formatAxis(maxValue, language)}
+            {unit}
+          </span>
         </div>
-        <svg
-          viewBox={`0 0 ${width} ${height}`}
-          role="img"
-          aria-label="HAProxy req/min per serie"
-          className="h-40 w-full rounded-md border border-slate-200 bg-slate-50"
-        >
-          {grid}
-          {series.map((item) => (
-            <path
-              key={item.label}
-              d={item.points
-                .map(
-                  (point, index) =>
-                    `${index === 0 ? "M" : "L"}${x(index)},${y(point.req)}`,
-                )
-                .join(" ")}
-              fill="none"
-              stroke={item.color}
-              strokeWidth={1.5}
-            />
-          ))}
-        </svg>
-        <div className="flex justify-between gap-1 px-1 text-[10px] text-slate-500">
-          {buildTicks(
-            series.reduce((best, item) =>
-              item.points.length > best.points.length ? item : best,
-            ).points,
-            language,
-          ).map((label) => (
-            <span key={label}>{label}</span>
-          ))}
+        <div className="relative">
+          <svg
+            viewBox={`0 0 ${width} ${height}`}
+            role="img"
+            aria-label={`HAProxy ${metric} per serie`}
+            className="aspect-[15/4] w-full cursor-crosshair rounded-md bg-slate-50 ring-1 ring-slate-200"
+            onPointerMove={move}
+            onPointerLeave={() => setHover(null)}
+          >
+            {grid}
+            {chartSeries.map((item) => (
+              <path
+                key={item.label}
+                d={item.points
+                  .map(
+                    (point, index) =>
+                      `${index === 0 ? "M" : "L"}${x(index)},${y(metricValue(point, metric))}`,
+                  )
+                  .join(" ")}
+                fill="none"
+                stroke={item.color}
+                strokeWidth={1.5}
+              />
+            ))}
+            {hoverIndex !== null && (
+              <>
+                <line
+                  x1={hoverX}
+                  x2={hoverX}
+                  y1={top}
+                  y2={top + plotHeight}
+                  stroke="#94a3b8"
+                  strokeWidth={1}
+                  strokeDasharray="3 3"
+                />
+                {chartSeries.map((item) => {
+                  const point = item.points[hoverIndex];
+                  return point ? (
+                    <circle
+                      key={item.label}
+                      cx={x(hoverIndex)}
+                      cy={y(metricValue(point, metric))}
+                      r={2.5}
+                      fill={item.color}
+                    />
+                  ) : null;
+                })}
+              </>
+            )}
+          </svg>
+          {hoverIndex !== null && tickSeries.points[hoverIndex] && (
+            <div
+              className="pointer-events-none absolute z-10 w-48 rounded-md border border-slate-200 bg-white p-2 text-[10px] shadow-lg"
+              style={{
+                left: `${(hoverX / width) * 100}%`,
+                top: 4,
+                transform:
+                  hoverX > width / 2
+                    ? "translateX(calc(-100% - 8px))"
+                    : "translateX(8px)",
+              }}
+            >
+              <p className="mb-1 font-medium text-slate-700">
+                {formatDateTime(
+                  tickSeries.points[hoverIndex].timestamp,
+                  language,
+                )}
+              </p>
+              {chartSeries.map((item) => {
+                const point = item.points[hoverIndex];
+                return (
+                  <p key={item.label} className="flex items-center gap-1">
+                    <span
+                      className="h-2 w-2"
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <span className="truncate">{item.label}</span>
+                    <span className="ml-auto font-medium tabular-nums">
+                      {point
+                        ? `${formatAxis(metricValue(point, metric), language)}${unit}`
+                        : "—"}
+                    </span>
+                  </p>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        <div className="relative h-3 text-[10px] text-slate-500">
+          {buildTicks(tickSeries.points, language).map(
+            (tick, tickIndex, ticks) => (
+              <span
+                key={tick.index}
+                className="absolute top-0 whitespace-nowrap"
+                style={{
+                  left: `${
+                    ((left +
+                      (tick.index / Math.max(1, tickSeries.points.length - 1)) *
+                        plotWidth) /
+                      width) *
+                    100
+                  }%`,
+                  transform:
+                    tickIndex === 0
+                      ? undefined
+                      : tickIndex === ticks.length - 1
+                        ? "translateX(-100%)"
+                        : "translateX(-50%)",
+                }}
+              >
+                {tick.label}
+              </span>
+            ),
+          )}
         </div>
       </div>
     );
@@ -1611,6 +2260,77 @@ function MetricChart({
       </div>
     );
   }
+  const chartPoints = metric === "rtime" ? points : toPerMinute(points);
+  const maxOf = (pick: (point: HaproxyMetricPoint) => number) =>
+    Math.max(0, ...chartPoints.map(pick));
+  const maxReq = maxOf((point) => point.req);
+  const errorMax = (pick: (point: HaproxyMetricPoint) => number) =>
+    Math.max(1, maxOf(pick));
+  const lines: ChartLine[] =
+    metric === "rtime"
+      ? [
+          {
+            label: t("haproxy.responseTimeMs"),
+            color: "#0ea5e9",
+            value: (point) => point.rtime,
+            scale: niceMax(maxOf((point) => point.rtime)),
+            max: maxOf((point) => point.rtime),
+            area: "rgba(14,165,233,0.12)",
+          },
+        ]
+      : [
+          {
+            label: "req/min",
+            color: "#0ea5e9",
+            value: (point) => point.req,
+            scale: niceMax(maxReq),
+            max: maxReq,
+            area: "rgba(14,165,233,0.12)",
+          },
+          {
+            label: t("haproxy.errors4xx"),
+            color: "#f59e0b",
+            value: (point) => point.h4xx,
+            scale: errorMax((point) => point.h4xx),
+            max: errorMax((point) => point.h4xx),
+          },
+          {
+            label: t("haproxy.errors5xx"),
+            color: "#ef4444",
+            value: (point) => point.h5xx,
+            scale: errorMax((point) => point.h5xx),
+            max: errorMax((point) => point.h5xx),
+          },
+        ];
+  return (
+    <MetricLineChart
+      points={chartPoints}
+      lines={lines}
+      unit={unit}
+      language={language}
+      label={
+        metric === "rtime"
+          ? "HAProxy tempo di risposta (ms)"
+          : "HAProxy req/min, 4xx/min e 5xx/min"
+      }
+    />
+  );
+}
+
+function MetricLineChart({
+  points,
+  lines,
+  unit,
+  language,
+  label,
+}: {
+  points: HaproxyMetricPoint[];
+  lines: ChartLine[];
+  unit: string;
+  language: Language;
+  label: string;
+}) {
+  const [hover, setHover] = useState<number | null>(null);
   const width = 600;
   const height = 160;
   const left = 46;
@@ -1619,13 +2339,24 @@ function MetricChart({
   const bottom = 8;
   const plotWidth = width - left - right;
   const plotHeight = height - top - bottom;
-  const maxReq = Math.max(0, ...points.map((point) => point.req));
-  const axisMax = niceMax(maxReq);
-  const maxErr = Math.max(1, ...points.map((point) => point.h5xx));
+  const axisMax = lines[0].scale;
   const x = (index: number) =>
     left + (index / Math.max(1, points.length - 1)) * plotWidth;
-  const y = (value: number, max: number) =>
-    top + (1 - value / max) * plotHeight;
+  const y = (value: number, scale: number) =>
+    top + (1 - value / scale) * plotHeight;
+  const paths = lines.map((line) => {
+    const values = points.map((point) => line.value(point));
+    return {
+      ...line,
+      values,
+      path: values
+        .map(
+          (value, index) =>
+            `${index === 0 ? "M" : "L"}${x(index)},${y(value, line.scale)}`,
+        )
+        .join(" "),
+    };
+  });
   const grid = Array.from({ length: 5 }, (_, index) => {
     const value = (axisMax * index) / 4;
     const lineY = y(value, axisMax);
@@ -1652,50 +2383,141 @@ function MetricChart({
       </g>
     );
   });
-  const reqPath = points
-    .map(
-      (point, index) =>
-        `${index === 0 ? "M" : "L"}${x(index)},${y(point.req, axisMax)}`,
-    )
-    .join(" ");
-  const errPath = points
-    .map(
-      (point, index) =>
-        `${index === 0 ? "M" : "L"}${x(index)},${y(point.h5xx, maxErr)}`,
-    )
-    .join(" ");
+  const hoverIndex = hover !== null && hover < points.length ? hover : null;
+  const hoverX = hoverIndex !== null ? x(hoverIndex) : 0;
+  const move = (event: ReactPointerEvent<SVGSVGElement>) => {
+    const matrix = event.currentTarget.getScreenCTM();
+    if (!matrix) return;
+    const inverse = matrix.inverse();
+    const px =
+      inverse.a * event.clientX + inverse.c * event.clientY + inverse.e;
+    const index = Math.round(
+      ((px - left) / plotWidth) * Math.max(1, points.length - 1),
+    );
+    setHover(Math.max(0, Math.min(points.length - 1, index)));
+  };
   return (
     <div className="space-y-1">
-      <div className="flex items-center gap-4 text-xs text-slate-500">
-        <span className="flex items-center gap-1">
-          <span className="h-0.5 w-4 bg-sky-500" />
-          req/min
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="h-0.5 w-4 bg-red-500" />
-          5xx/min
-        </span>
-        <span className="ml-auto">
-          max {maxReq}/min · 5xx max {maxErr}
-        </span>
+      <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
+        {paths.map((line) => (
+          <span key={line.label} className="flex items-center gap-1">
+            <span
+              className="h-0.5 w-4"
+              style={{ backgroundColor: line.color }}
+            />
+            {line.label}
+            <span className="text-slate-400">
+              max {formatAxis(line.max, language)}
+              {unit}
+            </span>
+          </span>
+        ))}
       </div>
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        role="img"
-        aria-label="HAProxy req/min e 5xx/min"
-        className="h-40 w-full rounded-md border border-slate-200 bg-slate-50"
-      >
-        {grid}
-        <path
-          d={`${reqPath} L${x(points.length - 1)},${top + plotHeight} L${x(0)},${top + plotHeight} Z`}
-          fill="rgba(14,165,233,0.12)"
-        />
-        <path d={reqPath} fill="none" stroke="#0ea5e9" strokeWidth="1.5" />
-        <path d={errPath} fill="none" stroke="#ef4444" strokeWidth="1.5" />
-      </svg>
-      <div className="flex justify-between gap-1 px-1 text-[10px] text-slate-500">
-        {buildTicks(points, language).map((label) => (
-          <span key={label}>{label}</span>
+      <div className="relative">
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          role="img"
+          aria-label={label}
+          className="aspect-[15/4] w-full cursor-crosshair rounded-md bg-slate-50 ring-1 ring-slate-200"
+          onPointerMove={move}
+          onPointerLeave={() => setHover(null)}
+        >
+          {grid}
+          {paths.map(
+            (line) =>
+              line.area && (
+                <path
+                  key={`${line.label}-area`}
+                  d={`${line.path} L${x(points.length - 1)},${top + plotHeight} L${x(0)},${top + plotHeight} Z`}
+                  fill={line.area}
+                />
+              ),
+          )}
+          {paths.map((line) => (
+            <path
+              key={line.label}
+              d={line.path}
+              fill="none"
+              stroke={line.color}
+              strokeWidth={1.5}
+            />
+          ))}
+          {hoverIndex !== null && (
+            <>
+              <line
+                x1={hoverX}
+                x2={hoverX}
+                y1={top}
+                y2={top + plotHeight}
+                stroke="#94a3b8"
+                strokeWidth={1}
+                strokeDasharray="3 3"
+              />
+              {paths.map((line) => (
+                <circle
+                  key={line.label}
+                  cx={hoverX}
+                  cy={y(line.values[hoverIndex], line.scale)}
+                  r={2.5}
+                  fill={line.color}
+                />
+              ))}
+            </>
+          )}
+        </svg>
+        {hoverIndex !== null && (
+          <div
+            className="pointer-events-none absolute z-10 w-48 rounded-md border border-slate-200 bg-white p-2 text-[10px] shadow-lg"
+            style={{
+              left: `${(hoverX / width) * 100}%`,
+              top: 4,
+              transform:
+                hoverX > width / 2
+                  ? "translateX(calc(-100% - 8px))"
+                  : "translateX(8px)",
+            }}
+          >
+            <p className="mb-1 font-medium text-slate-700">
+              {formatDateTime(points[hoverIndex].timestamp, language)}
+            </p>
+            {paths.map((line) => (
+              <p key={line.label} className="flex items-center gap-1">
+                <span
+                  className="h-2 w-2"
+                  style={{ backgroundColor: line.color }}
+                />
+                <span className="truncate">{line.label}</span>
+                <span className="ml-auto font-medium tabular-nums">
+                  {formatAxis(line.values[hoverIndex], language)}
+                  {unit}
+                </span>
+              </p>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="relative h-3 text-[10px] text-slate-500">
+        {buildTicks(points, language).map((tick, tickIndex, ticks) => (
+          <span
+            key={tick.index}
+            className="absolute top-0 whitespace-nowrap"
+            style={{
+              left: `${
+                ((left +
+                  (tick.index / Math.max(1, points.length - 1)) * plotWidth) /
+                  width) *
+                100
+              }%`,
+              transform:
+                tickIndex === 0
+                  ? undefined
+                  : tickIndex === ticks.length - 1
+                    ? "translateX(-100%)"
+                    : "translateX(-50%)",
+            }}
+          >
+            {tick.label}
+          </span>
         ))}
       </div>
     </div>
