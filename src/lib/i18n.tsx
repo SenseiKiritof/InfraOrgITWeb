@@ -322,10 +322,6 @@ const it = {
   "applications.listeningPort": "Porta in ascolto",
   "applications.type": "Tipo applicazione",
   "applications.updated": "Applicazione aggiornata.",
-  "applications.translations": "Traduzioni",
-  "applications.translationsSaved": "Traduzioni salvate.",
-  "applications.translationsHint":
-    "Nome e descrizione base sono in inglese; qui le versioni localizzate. Vuoto = inglese.",
   "applications.versionNumber": "Numero versione",
   "applications.createVersion": "Nuova versione",
   "applications.versionApis": "API della versione {version}",
@@ -1366,10 +1362,6 @@ const en: Record<TranslationKey, string> = {
   "applications.listeningPort": "Listening port",
   "applications.type": "Application type",
   "applications.updated": "Application updated.",
-  "applications.translations": "Translations",
-  "applications.translationsSaved": "Translations saved.",
-  "applications.translationsHint":
-    "The base name and description are English; add localized versions here. Empty falls back to English.",
   "applications.versionNumber": "Version number",
   "applications.createVersion": "New version",
   "applications.versionApis": "APIs of version {version}",
