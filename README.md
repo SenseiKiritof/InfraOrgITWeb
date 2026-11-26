@@ -50,8 +50,12 @@ browser can stay side by side, and one height handle resizes both. The file
 browser offers breadcrumb navigation, hidden-file toggle, sorting, filtering,
 multi-select bulk delete, drag-and-drop upload and download; refresh keeps the
 current rows visible while the new listing loads, and both console and SFTP tabs
-come back after a page refresh. Downloads and uploads show the transferred bytes
-and percentage. If the server has no file
+come back after a page refresh. Closing a pane compacts the layout; a minimized
+console or file session first takes the freed pane, and the layout shrinks only
+when no minimized sessions remain. Downloads and uploads renew the BFF session
+before starting, so an expired session goes through the normal login instead of
+leaving the page on a `401` response. Transferred bytes and percentage are shown
+for both. If the server has no file
 protocol or no usable credential, the browser shows a warning and lets a
 SystemAdmin configure protocol, port and credential inline (or open the
 Credentials page) before retrying. Command templates and application actions
@@ -61,6 +65,25 @@ and test is written to the audit log.
 ![SSH session with hostname, uptime, disk usage, application log and health endpoint](docs/screenshots/console.gif)
 
 ![Two consoles side by side, minimized to the bar and reopened](docs/screenshots/console-split.gif)
+
+### Monitor HAProxy
+
+`/haproxy` lists discovered HAProxy installations and keeps monitoring opt-in:
+the discovery only reads over SSH, and nothing is collected until the instance
+is enabled. The **All proxies** section sums requests, 5xx and reachable
+instances, draws one series per installation plus the total, and lists every
+proxy with routes, servers and sample age. It also shows a stacked server
+distribution, the servers that are not `UP` (with a link to the instance
+Servers tab) and the applications reached through the route inventory.
+
+Each instance has **Overview**, **Routes**, **Servers**, **Certificates** and
+**Protocol** tabs. Overview normalizes one- and five-minute samples to
+requests/min, adds 4xx and 5xx and a response-time chart, and exposes 4xx/5xx
+percentages, response time and live connection counters. Routes and servers
+support per-column filters, backend grouping, bulk server actions and a compare
+chart for 1/6/24 h or 7 days by requests, 5xx or response time. The Servers tab
+includes the application column from the route inventory, and the certificate
+and protocol tabs show expiry metadata, HTTP/2, HTTP/3 and QUIC counters.
 
 ### Check OS lifecycle
 
