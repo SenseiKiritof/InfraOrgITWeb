@@ -26,7 +26,7 @@ import {
 import { Link } from "react-router-dom";
 import { useAuth } from "../../app/AuthProvider";
 import { SortableTh } from "../../components/SortableTh";
-import { ApiError } from "../../lib/api";
+import { ApiError, getSession, redirectToLogin } from "../../lib/api";
 import { subscribeDesktopMessages } from "../../lib/desktopBridge";
 import {
   type DesktopDownloadRoute,
@@ -698,6 +698,13 @@ export function FileBrowserModal({
       files.length === 0
     )
       return;
+    // La sessione può essere scaduta: rinnovala prima del primo upload e usa
+    // il CSRF appena emesso (quello della prop può essere stale).
+    const fresh = await getSession();
+    if (!fresh) {
+      redirectToLogin();
+      return;
+    }
     setBusy(true);
     setActionError(null);
     try {
@@ -708,13 +715,18 @@ export function FileBrowserModal({
           name: file.name,
           percent: 0,
         });
-        await uploadServerFile(selectedId, path, file, csrf, (percent) =>
-          setUploadStatus({
-            done: index,
-            total: files.length,
-            name: file.name,
-            percent,
-          }),
+        await uploadServerFile(
+          selectedId,
+          path,
+          file,
+          fresh.csrfToken,
+          (percent) =>
+            setUploadStatus({
+              done: index,
+              total: files.length,
+              name: file.name,
+              percent,
+            }),
         );
       }
       await refresh();
@@ -864,6 +876,17 @@ export function FileBrowserModal({
     }
   };
 
+  // La navigazione nativa non passa da apiFetch: un 401 mostrerebbe il
+  // ProblemDetails al posto della SPA. La sessione va rinnovata prima.
+  const navigateToDownload = async (url: string) => {
+    const fresh = await getSession();
+    if (!fresh) {
+      redirectToLogin();
+      return;
+    }
+    window.location.assign(url);
+  };
+
   const downloadEntry = async (entry: RemoteFileEntry) => {
     if (selectedId === null || entry.isDirectory) return;
     if (directFiles) {
@@ -914,7 +937,7 @@ export function FileBrowserModal({
       // Il download nativo arriva da desktop.download.status, quello del
       // browser ha la sua UI: il riquadro dell'app non deve restare indietro.
       setDownloadNote(null);
-      window.location.assign(url);
+      await navigateToDownload(url);
       return;
     }
     setDownloadNote({
@@ -948,7 +971,7 @@ export function FileBrowserModal({
       totalBytes: null,
       message: t("desktopDownload.failed"),
     });
-    window.location.assign(url);
+    await navigateToDownload(url);
   };
 
   if (!open) return null;
@@ -1564,10 +1587,8 @@ export function FileBrowserModal({
                             aria-label={t("files.download")}
                             title={t("files.download")}
                             onClick={(event) => {
-                              // In direct mode the desktop owns the file; the
-                              // ticket/native path stays for the server mode.
-                              if (!directFiles && downloadRoute !== "bridge")
-                                return;
+                              // Ogni clic passa dal preflight di sessione di
+                              // downloadEntry; l'href resta per contesto.
                               event.preventDefault();
                               void downloadEntry(entry);
                             }}

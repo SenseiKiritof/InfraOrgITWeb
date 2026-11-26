@@ -427,6 +427,250 @@ describe("ConsoleProvider", () => {
     expect(visiblePanes()).toHaveLength(2);
   });
 
+  it("compatta i pannelli chiudendo la console del primo pannello", () => {
+    renderIt(
+      <ConsoleProvider>
+        <Opener serverId={44} serverName="srv-alpha" />
+        <Opener serverId={45} serverName="srv-beta" />
+      </ConsoleProvider>,
+    );
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
+    fireEvent.click(screen.getByText("Apri console srv-beta"));
+    expect(visiblePanes()).toHaveLength(2);
+
+    fireEvent.click(within(visiblePanes()[0]).getByText("Chiudi"));
+
+    expect(visiblePanes()).toHaveLength(1);
+    expect(visiblePanes()[0]).toHaveTextContent("srv-beta");
+    expect(visiblePanes()[0].style.left).toBe("0%");
+    expect(screen.queryByTestId("console-empty-pane-0")).toBeNull();
+    expect(screen.getByLabelText("1 pannello")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("compatta i pannelli chiudendo una console tra tre", () => {
+    renderIt(
+      <ConsoleProvider>
+        <Opener serverId={44} serverName="srv-alpha" />
+        <Opener serverId={45} serverName="srv-beta" />
+        <Opener serverId={46} serverName="srv-gamma" />
+      </ConsoleProvider>,
+    );
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
+    fireEvent.click(screen.getByText("Apri console srv-beta"));
+    fireEvent.click(screen.getByText("Apri console srv-gamma"));
+    expect(visiblePanes()).toHaveLength(3);
+
+    fireEvent.click(within(visiblePanes()[0]).getByText("Chiudi"));
+
+    expect(visiblePanes()).toHaveLength(2);
+    expect(visiblePanes()[0]).toHaveTextContent("srv-beta");
+    expect(visiblePanes()[0].style.left).toBe("0%");
+    expect(visiblePanes()[1]).toHaveTextContent("srv-gamma");
+    expect(visiblePanes()[1].style.left).toBe("50%");
+    expect(screen.queryByTestId("console-empty-pane-0")).toBeNull();
+    expect(screen.queryByTestId("console-empty-pane-1")).toBeNull();
+    expect(screen.getByLabelText("2 pannelli")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("compatta nei pannelli 0 e 1 le sessioni spostate su 1 e 2", () => {
+    renderIt(
+      <ConsoleProvider>
+        <Opener serverId={44} serverName="srv-alpha" />
+        <Opener serverId={45} serverName="srv-beta" />
+        <Opener serverId={46} serverName="srv-gamma" />
+      </ConsoleProvider>,
+    );
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
+    fireEvent.click(screen.getByText("Apri console srv-beta"));
+    fireEvent.click(screen.getByText("Apri console srv-gamma"));
+
+    const alphaPane = screen
+      .getAllByTestId(/console-pane-/)
+      .find((pane) => pane.textContent?.includes("srv-alpha")) as HTMLElement;
+    fireEvent.change(
+      within(alphaPane).getByLabelText("Pannello della console"),
+      { target: { value: "1" } },
+    );
+    expect(visiblePanes()).toHaveLength(2);
+
+    fireEvent.click(screen.getByLabelText("2 pannelli"));
+
+    expect(visiblePanes()).toHaveLength(2);
+    expect(visiblePanes()[0]).toHaveTextContent("srv-alpha");
+    expect(visiblePanes()[0].style.left).toBe("0%");
+    expect(visiblePanes()[1]).toHaveTextContent("srv-gamma");
+    expect(visiblePanes()[1].style.left).toBe("50%");
+  });
+
+  it("mantiene attiva la console che cambia pannello chiudendone un'altra", () => {
+    renderIt(
+      <ConsoleProvider>
+        <Opener serverId={44} serverName="srv-alpha" />
+        <Opener serverId={45} serverName="srv-beta" />
+        <Opener serverId={46} serverName="srv-gamma" />
+      </ConsoleProvider>,
+    );
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
+    fireEvent.click(screen.getByText("Apri console srv-beta"));
+    fireEvent.click(screen.getByText("Apri console srv-gamma"));
+
+    const gammaPane = screen
+      .getAllByTestId(/^console-pane-/)
+      .find((pane) => pane.textContent?.includes("srv-gamma")) as HTMLElement;
+    fireEvent.pointerDown(
+      within(gammaPane).getByText(/Console SSH · srv-gamma/),
+    );
+    expect(gammaPane.getAttribute("data-active")).toBe("true");
+
+    fireEvent.click(within(visiblePanes()[0]).getByText("Chiudi"));
+
+    expect(visiblePanes()).toHaveLength(2);
+    const moved = visiblePanes().find((pane) =>
+      pane.textContent?.includes("srv-gamma"),
+    ) as HTMLElement;
+    expect(moved.getAttribute("data-active")).toBe("true");
+  });
+
+  it("fa subentrare la console minimizzata chiudendone una visibile non attiva", () => {
+    renderIt(
+      <ConsoleProvider>
+        <Opener serverId={44} serverName="srv-alpha" />
+        <Opener serverId={45} serverName="srv-beta" />
+        <Opener serverId={46} serverName="srv-gamma" />
+        <Opener serverId={47} serverName="srv-delta" />
+      </ConsoleProvider>,
+    );
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
+    fireEvent.click(screen.getByText("Apri console srv-beta"));
+    fireEvent.click(screen.getByText("Apri console srv-gamma"));
+    fireEvent.click(screen.getByText("Apri console srv-delta"));
+    // La quarta console prende il pannello attivo e manda gamma in barra.
+    expect(visiblePanes()).toHaveLength(3);
+    expect(
+      visiblePanes().some((pane) => pane.textContent?.includes("srv-gamma")),
+    ).toBe(false);
+
+    fireEvent.click(within(visiblePanes()[0]).getByText("Chiudi"));
+
+    const promoted = visiblePanes().find((pane) =>
+      pane.textContent?.includes("srv-gamma"),
+    ) as HTMLElement;
+    expect(promoted).toBeTruthy();
+    expect(visiblePanes()).toHaveLength(3);
+    expect(screen.queryByTestId("console-empty-pane-0")).toBeNull();
+    expect(screen.queryByTestId("console-empty-pane-1")).toBeNull();
+    expect(screen.queryByTestId("console-empty-pane-2")).toBeNull();
+    expect(screen.getByLabelText("3 pannelli")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("fa subentrare la minimizzata rendendola attiva chiudendo la console attiva", () => {
+    renderIt(
+      <ConsoleProvider>
+        <Opener serverId={44} serverName="srv-alpha" />
+        <Opener serverId={45} serverName="srv-beta" />
+        <Opener serverId={46} serverName="srv-gamma" />
+        <Opener serverId={47} serverName="srv-delta" />
+      </ConsoleProvider>,
+    );
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
+    fireEvent.click(screen.getByText("Apri console srv-beta"));
+    fireEvent.click(screen.getByText("Apri console srv-gamma"));
+    fireEvent.click(screen.getByText("Apri console srv-delta"));
+
+    const deltaPane = screen
+      .getAllByTestId(/^console-pane-/)
+      .find((pane) => pane.textContent?.includes("srv-delta")) as HTMLElement;
+    expect(deltaPane.getAttribute("data-active")).toBe("true");
+    fireEvent.click(within(deltaPane).getByText("Chiudi"));
+
+    expect(visiblePanes()).toHaveLength(3);
+    const promoted = visiblePanes().find((pane) =>
+      pane.textContent?.includes("srv-gamma"),
+    ) as HTMLElement;
+    expect(promoted.getAttribute("data-active")).toBe("true");
+    expect(screen.getByLabelText("3 pannelli")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("fa subentrare la minimizzata mantenendo due pannelli", () => {
+    renderIt(
+      <ConsoleProvider>
+        <Opener serverId={44} serverName="srv-alpha" />
+        <Opener serverId={45} serverName="srv-beta" />
+        <Opener serverId={46} serverName="srv-gamma" />
+      </ConsoleProvider>,
+    );
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
+    fireEvent.click(screen.getByText("Apri console srv-beta"));
+    fireEvent.click(screen.getByText("Apri console srv-gamma"));
+
+    const gammaPane = screen
+      .getAllByTestId(/^console-pane-/)
+      .find((pane) => pane.textContent?.includes("srv-gamma")) as HTMLElement;
+    fireEvent.click(within(gammaPane).getByText("Riduci"));
+    expect(visiblePanes()).toHaveLength(2);
+
+    fireEvent.click(within(visiblePanes()[0]).getByText("Chiudi"));
+
+    expect(visiblePanes()).toHaveLength(2);
+    expect(
+      visiblePanes().some((pane) => pane.textContent?.includes("srv-gamma")),
+    ).toBe(true);
+    expect(screen.getByLabelText("2 pannelli")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("mantiene attiva la sessione compattata riducendo il layout", () => {
+    renderIt(
+      <ConsoleProvider>
+        <Opener serverId={44} serverName="srv-alpha" />
+        <Opener serverId={45} serverName="srv-beta" />
+        <Opener serverId={46} serverName="srv-gamma" />
+      </ConsoleProvider>,
+    );
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
+    fireEvent.click(screen.getByText("Apri console srv-beta"));
+    fireEvent.click(screen.getByText("Apri console srv-gamma"));
+
+    const alphaPane = screen
+      .getAllByTestId(/^console-pane-/)
+      .find((pane) => pane.textContent?.includes("srv-alpha")) as HTMLElement;
+    fireEvent.change(
+      within(alphaPane).getByLabelText("Pannello della console"),
+      { target: { value: "1" } },
+    );
+
+    const gammaPane = screen
+      .getAllByTestId(/^console-pane-/)
+      .find((pane) => pane.textContent?.includes("srv-gamma")) as HTMLElement;
+    fireEvent.pointerDown(
+      within(gammaPane).getByText(/Console SSH · srv-gamma/),
+    );
+    expect(gammaPane.getAttribute("data-active")).toBe("true");
+
+    fireEvent.click(screen.getByLabelText("2 pannelli"));
+
+    expect(visiblePanes()).toHaveLength(2);
+    const moved = visiblePanes().find((pane) =>
+      pane.textContent?.includes("srv-gamma"),
+    ) as HTMLElement;
+    expect(moved.getAttribute("data-active")).toBe("true");
+    expect(screen.queryByTestId("console-empty-pane-0")).toBeNull();
+  });
+
   it("apre due console dello stesso server in due pannelli", () => {
     renderWithProvider();
     fireEvent.click(screen.getByText("Apri console srv-alpha"));
