@@ -1470,6 +1470,29 @@ function buildTicks(
     .map((index) => format.format(new Date(points[index].timestamp)));
 }
 
+function niceMax(value: number): number {
+  if (value <= 0) return 1;
+  const exponent = 10 ** Math.floor(Math.log10(value));
+  const fraction = value / exponent;
+  const factor =
+    fraction <= 1
+      ? 1
+      : fraction <= 2
+        ? 2
+        : fraction <= 2.5
+          ? 2.5
+          : fraction <= 5
+            ? 5
+            : 10;
+  return factor * exponent;
+}
+
+function formatAxis(value: number, language: Language): string {
+  return new Intl.NumberFormat(localeFor(language), {
+    maximumFractionDigits: value < 10 ? 1 : 0,
+  }).format(value);
+}
+
 function MetricChart({
   points,
   series,
@@ -1482,16 +1505,47 @@ function MetricChart({
   if (series && series.length > 0) {
     const width = 600;
     const height = 160;
-    const pad = 8;
+    const left = 46;
+    const right = 12;
+    const top = 8;
+    const bottom = 8;
+    const plotWidth = width - left - right;
+    const plotHeight = height - top - bottom;
     const maxReq = Math.max(
-      1,
+      0,
       ...series.flatMap((item) => item.points.map((point) => point.req)),
     );
+    const axisMax = niceMax(maxReq);
     const count = Math.max(...series.map((item) => item.points.length), 1);
     const x = (index: number) =>
-      pad + (index / Math.max(1, count - 1)) * (width - pad * 2);
-    const y = (value: number) =>
-      height - pad - (value / maxReq) * (height - pad * 2);
+      left + (index / Math.max(1, count - 1)) * plotWidth;
+    const y = (value: number) => top + (1 - value / axisMax) * plotHeight;
+    const grid = Array.from({ length: 5 }, (_, index) => {
+      const value = (axisMax * index) / 4;
+      const lineY = y(value);
+      return (
+        <g key={index}>
+          <line
+            x1={left}
+            x2={width - right}
+            y1={lineY}
+            y2={lineY}
+            stroke="#cbd5e1"
+            strokeWidth={0.7}
+            strokeDasharray={index === 0 ? undefined : "3 3"}
+          />
+          <text
+            x={left - 6}
+            y={lineY + 4}
+            textAnchor="end"
+            fontSize={10}
+            fill="#64748b"
+          >
+            {formatAxis(value, language)}
+          </text>
+        </g>
+      );
+    });
     return (
       <div className="space-y-1">
         <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
@@ -1519,6 +1573,7 @@ function MetricChart({
           aria-label="HAProxy req/min per serie"
           className="h-40 w-full rounded-md border border-slate-200 bg-slate-50"
         >
+          {grid}
           {series.map((item) => (
             <path
               key={item.label}
@@ -1556,17 +1611,49 @@ function MetricChart({
   }
   const width = 600;
   const height = 160;
-  const pad = 8;
-  const maxReq = Math.max(1, ...points.map((point) => point.req));
+  const left = 46;
+  const right = 12;
+  const top = 8;
+  const bottom = 8;
+  const plotWidth = width - left - right;
+  const plotHeight = height - top - bottom;
+  const maxReq = Math.max(0, ...points.map((point) => point.req));
+  const axisMax = niceMax(maxReq);
   const maxErr = Math.max(1, ...points.map((point) => point.h5xx));
   const x = (index: number) =>
-    pad + (index / Math.max(1, points.length - 1)) * (width - pad * 2);
+    left + (index / Math.max(1, points.length - 1)) * plotWidth;
   const y = (value: number, max: number) =>
-    height - pad - (value / max) * (height - pad * 2);
+    top + (1 - value / max) * plotHeight;
+  const grid = Array.from({ length: 5 }, (_, index) => {
+    const value = (axisMax * index) / 4;
+    const lineY = y(value, axisMax);
+    return (
+      <g key={index}>
+        <line
+          x1={left}
+          x2={width - right}
+          y1={lineY}
+          y2={lineY}
+          stroke="#cbd5e1"
+          strokeWidth={0.7}
+          strokeDasharray={index === 0 ? undefined : "3 3"}
+        />
+        <text
+          x={left - 6}
+          y={lineY + 4}
+          textAnchor="end"
+          fontSize={10}
+          fill="#64748b"
+        >
+          {formatAxis(value, language)}
+        </text>
+      </g>
+    );
+  });
   const reqPath = points
     .map(
       (point, index) =>
-        `${index === 0 ? "M" : "L"}${x(index)},${y(point.req, maxReq)}`,
+        `${index === 0 ? "M" : "L"}${x(index)},${y(point.req, axisMax)}`,
     )
     .join(" ");
   const errPath = points
@@ -1596,8 +1683,9 @@ function MetricChart({
         aria-label="HAProxy req/min e 5xx/min"
         className="h-40 w-full rounded-md border border-slate-200 bg-slate-50"
       >
+        {grid}
         <path
-          d={`${reqPath} L${x(points.length - 1)},${height - pad} L${x(0)},${height - pad} Z`}
+          d={`${reqPath} L${x(points.length - 1)},${top + plotHeight} L${x(0)},${top + plotHeight} Z`}
           fill="rgba(14,165,233,0.12)"
         />
         <path d={reqPath} fill="none" stroke="#0ea5e9" strokeWidth="1.5" />
