@@ -21,7 +21,7 @@ import {
   setHaproxyServerState,
   uploadHaproxyCertificate,
 } from "../../lib/haproxy";
-import { useI18n } from "../../lib/i18n";
+import { type Language, localeFor, useI18n } from "../../lib/i18n";
 
 export function HaproxyPage() {
   const { t, language } = useI18n();
@@ -296,11 +296,6 @@ export function HaproxyPage() {
         }))
         .filter((series) => series.points.length > 0)
     : [];
-  const compareTimestamps = compareSeries
-    .flatMap((series) => series.points.map((point) => point.timestamp))
-    .sort();
-  const compareStart = compareTimestamps[0];
-  const compareEnd = compareTimestamps.at(-1);
   const toggleGroup = (backend: string) =>
     setCollapsedBackends((current) => {
       const next = new Set(current);
@@ -672,6 +667,7 @@ export function HaproxyPage() {
                 series={
                   chartSelected.size > 0 ? (chartData.data ?? []) : undefined
                 }
+                language={language}
               />
               {live.data && live.data.series.length > 0 && (
                 <p className="text-xs text-slate-500">
@@ -922,24 +918,11 @@ export function HaproxyPage() {
                       </button>
                     </div>
                   </div>
-                  {compareStart && compareEnd && (
-                    <p className="px-1 pt-1 text-[10px] text-slate-500">
-                      {formatDateTime(compareStart, language)} →{" "}
-                      {formatDateTime(compareEnd, language)}
-                    </p>
-                  )}
                   {compareSeries.length > 0 ? (
                     <MetricChart
                       points={[]}
                       series={compareSeries}
-                      axis={
-                        compareStart && compareEnd
-                          ? {
-                              start: formatDateTime(compareStart, language),
-                              end: formatDateTime(compareEnd, language),
-                            }
-                          : undefined
-                      }
+                      language={language}
                     />
                   ) : (
                     <p className="p-2 text-xs text-slate-500">—</p>
@@ -1462,14 +1445,39 @@ interface ChartSeries {
   points: HaproxyMetricPoint[];
 }
 
+function buildTicks(
+  points: HaproxyMetricPoint[],
+  language: Language,
+  count = 5,
+): string[] {
+  if (points.length === 0) return [];
+  const format = new Intl.DateTimeFormat(localeFor(language), {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const indices = Array.from({ length: count }, (_, index) =>
+    Math.round((index * (points.length - 1)) / Math.max(1, count - 1)),
+  );
+  const seen = new Set<number>();
+  return indices
+    .filter((index) => {
+      if (seen.has(index)) return false;
+      seen.add(index);
+      return true;
+    })
+    .map((index) => format.format(new Date(points[index].timestamp)));
+}
+
 function MetricChart({
   points,
   series,
-  axis,
+  language,
 }: {
   points: HaproxyMetricPoint[];
   series?: ChartSeries[];
-  axis?: { start: string; end: string };
+  language: Language;
 }) {
   if (series && series.length > 0) {
     const width = 600;
@@ -1526,12 +1534,16 @@ function MetricChart({
             />
           ))}
         </svg>
-        {axis && (
-          <div className="flex justify-between px-1 text-[10px] text-slate-500">
-            <span>{axis.start}</span>
-            <span>{axis.end}</span>
-          </div>
-        )}
+        <div className="flex justify-between gap-1 px-1 text-[10px] text-slate-500">
+          {buildTicks(
+            series.reduce((best, item) =>
+              item.points.length > best.points.length ? item : best,
+            ).points,
+            language,
+          ).map((label) => (
+            <span key={label}>{label}</span>
+          ))}
+        </div>
       </div>
     );
   }
@@ -1591,6 +1603,11 @@ function MetricChart({
         <path d={reqPath} fill="none" stroke="#0ea5e9" strokeWidth="1.5" />
         <path d={errPath} fill="none" stroke="#ef4444" strokeWidth="1.5" />
       </svg>
+      <div className="flex justify-between gap-1 px-1 text-[10px] text-slate-500">
+        {buildTicks(points, language).map((label) => (
+          <span key={label}>{label}</span>
+        ))}
+      </div>
     </div>
   );
 }
