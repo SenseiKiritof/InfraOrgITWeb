@@ -1139,7 +1139,7 @@ export function HaproxyPage() {
                         <th className="px-2 py-1">
                           {t("haproxy.errors5xxShort")}
                         </th>
-                        <th className="sticky right-0 w-24 bg-white px-2 py-1" />
+                        <th className="px-2 py-1" />
                       </tr>
                       <tr>
                         <th />
@@ -1198,7 +1198,7 @@ export function HaproxyPage() {
                             />
                           </th>
                         ))}
-                        <th className="sticky right-0 bg-white" />
+                        <th />
                       </tr>
                     </thead>
                     {serverGroups.map((group) => (
@@ -1330,8 +1330,8 @@ export function HaproxyPage() {
                                 <td className="px-2 py-1 tabular-nums">
                                   {rate?.h5xx ?? "—"}
                                 </td>
-                                <td className="sticky right-0 whitespace-nowrap bg-white px-2 py-1">
-                                  <span className="inline-flex gap-1">
+                                <td className="px-2 py-1">
+                                  <span className="flex flex-wrap gap-1">
                                     {(["ready", "drain", "maint"] as const).map(
                                       (action) => (
                                         <button
@@ -1345,7 +1345,7 @@ export function HaproxyPage() {
                                               action,
                                             )
                                           }
-                                          className="rounded border border-slate-300 px-1 py-0.5 text-[10px] uppercase disabled:opacity-50"
+                                          className="rounded border border-slate-300 px-1.5 py-0.5 text-[10px] uppercase disabled:opacity-50"
                                         >
                                           {action}
                                         </button>
