@@ -21,7 +21,7 @@ import {
   setHaproxyServerState,
   uploadHaproxyCertificate,
 } from "../../lib/haproxy";
-import { useI18n } from "../../lib/i18n";
+import { type Language, localeFor, useI18n } from "../../lib/i18n";
 
 export function HaproxyPage() {
   const { t, language } = useI18n();
@@ -49,6 +49,8 @@ export function HaproxyPage() {
     check: "",
     weight: "",
     paths: "",
+    req: "",
+    h5xx: "",
   });
   const [selectedServers, setSelectedServers] = useState<Set<string>>(
     new Set(),
@@ -59,6 +61,7 @@ export function HaproxyPage() {
     new Set(),
   );
   const [showCompare, setShowCompare] = useState(false);
+  const [compareRange, setCompareRange] = useState(60);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const instances = useQuery({
@@ -106,6 +109,13 @@ export function HaproxyPage() {
     queryKey: ["haproxy", "server-metrics", selected?.id],
     queryFn: () => getHaproxyMetricsSeries(selected?.id ?? 0, 60, "server"),
     enabled: selected !== undefined && tab === "servers",
+    refetchInterval: 30_000,
+  });
+  const compareMetrics = useQuery({
+    queryKey: ["haproxy", "compare-metrics", selected?.id, compareRange],
+    queryFn: () =>
+      getHaproxyMetricsSeries(selected?.id ?? 0, compareRange, "server"),
+    enabled: selected !== undefined && tab === "servers" && showCompare,
     refetchInterval: 30_000,
   });
 
@@ -222,6 +232,13 @@ export function HaproxyPage() {
     const entry = routesByBackend.get(backend);
     return entry?.mode === "tcp" ? [] : (entry?.paths ?? []);
   };
+  const serverKey = (row: HaproxyServer) => `${row.backend}\u0000${row.server}`;
+  const serverRates = new Map<string, HaproxyMetricPoint>();
+  for (const series of serverMetrics.data ?? []) {
+    const last = series.points.at(-1);
+    if (last) serverRates.set(`${series.proxy}\u0000${series.server}`, last);
+  }
+  const rateFor = (row: HaproxyServer) => serverRates.get(serverKey(row));
   const serverRows = (servers.data ?? []).filter((row) => {
     const mode = routesByBackend.get(row.backend)?.mode ?? "";
     return (
@@ -232,10 +249,11 @@ export function HaproxyPage() {
       matches(row.status, serverFilters.status) &&
       matches(row.checkStatus ?? "", serverFilters.check) &&
       matches(String(row.weight ?? ""), serverFilters.weight) &&
-      matches(pathsFor(row.backend).join(" "), serverFilters.paths)
+      matches(pathsFor(row.backend).join(" "), serverFilters.paths) &&
+      matches(String(rateFor(row)?.req ?? ""), serverFilters.req) &&
+      matches(String(rateFor(row)?.h5xx ?? ""), serverFilters.h5xx)
     );
   });
-  const serverKey = (row: HaproxyServer) => `${row.backend}\u0000${row.server}`;
   const toggleServer = (key: string) =>
     setSelectedServers((current) => {
       const next = new Set(current);
@@ -245,18 +263,6 @@ export function HaproxyPage() {
     });
   const visibleSelected = serverRows.filter((row) =>
     selectedServers.has(serverKey(row)),
-  );
-  const serverRates = new Map<string, HaproxyMetricPoint>();
-  for (const series of serverMetrics.data ?? []) {
-    const last = series.points.at(-1);
-    if (last) serverRates.set(`${series.proxy}\u0000${series.server}`, last);
-  }
-  const rateFor = (row: HaproxyServer) => serverRates.get(serverKey(row));
-  const seriesByKey = new Map(
-    (serverMetrics.data ?? []).map((series) => [
-      `${series.proxy}\u0000${series.server}`,
-      series,
-    ]),
   );
   const serverGroups = (() => {
     const groups = new Map<string, HaproxyServer[]>();
@@ -275,12 +281,18 @@ export function HaproxyPage() {
         h5xx: rows.reduce((sum, row) => sum + (rateFor(row)?.h5xx ?? 0), 0),
       }));
   })();
+  const compareSeriesByKey = new Map(
+    (compareMetrics.data ?? []).map((series) => [
+      `${series.proxy}\u0000${series.server}`,
+      series,
+    ]),
+  );
   const compareSeries: ChartSeries[] = showCompare
     ? visibleSelected
         .map((row, index) => ({
           label: `${row.backend} / ${row.server}`,
           color: chartColors[index % chartColors.length],
-          points: seriesByKey.get(serverKey(row))?.points ?? [],
+          points: compareSeriesByKey.get(serverKey(row))?.points ?? [],
         }))
         .filter((series) => series.points.length > 0)
     : [];
@@ -655,6 +667,7 @@ export function HaproxyPage() {
                 series={
                   chartSelected.size > 0 ? (chartData.data ?? []) : undefined
                 }
+                language={language}
               />
               {live.data && live.data.series.length > 0 && (
                 <p className="text-xs text-slate-500">
@@ -839,17 +852,6 @@ export function HaproxyPage() {
                   <span className="text-slate-600">
                     {t("haproxy.selected", { count: selectedServers.size })}
                   </span>
-                  <input
-                    value={serverFilters.backend}
-                    onChange={(event) =>
-                      setServerFilters((current) => ({
-                        ...current,
-                        backend: event.target.value,
-                      }))
-                    }
-                    placeholder={t("haproxy.backend")}
-                    className="w-40 rounded border border-slate-300 px-2 py-0.5 text-[10px]"
-                  />
                   {(["ready", "drain", "maint"] as const).map((action) => (
                     <button
                       key={action}
@@ -882,20 +884,46 @@ export function HaproxyPage() {
               )}
               {tab === "servers" && showCompare && (
                 <div className="rounded-md border border-slate-200 bg-white p-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-xs font-medium">
                       {t("haproxy.compare")}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => setShowCompare(false)}
-                      className="text-xs underline"
-                    >
-                      {t("common.close")}
-                    </button>
+                    <div className="flex items-center gap-1">
+                      {(
+                        [
+                          [60, t("haproxy.range1h")],
+                          [360, t("haproxy.range6h")],
+                          [1440, t("haproxy.range24h")],
+                        ] as const
+                      ).map(([value, label]) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setCompareRange(value)}
+                          className={`rounded border px-2 py-0.5 text-[10px] ${
+                            compareRange === value
+                              ? "border-slate-900 bg-slate-900 text-white"
+                              : "border-slate-300"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setShowCompare(false)}
+                        className="ml-2 text-xs underline"
+                      >
+                        {t("common.close")}
+                      </button>
+                    </div>
                   </div>
                   {compareSeries.length > 0 ? (
-                    <MetricChart points={[]} series={compareSeries} />
+                    <MetricChart
+                      points={[]}
+                      series={compareSeries}
+                      language={language}
+                    />
                   ) : (
                     <p className="p-2 text-xs text-slate-500">—</p>
                   )}
@@ -1095,6 +1123,9 @@ export function HaproxyPage() {
                             }}
                           />
                         </th>
+                        <th className="min-w-40 px-2 py-1">
+                          {t("haproxy.backend")}
+                        </th>
                         <th className="px-2 py-1">{t("haproxy.type")}</th>
                         <th className="px-2 py-1">{t("haproxy.serverName")}</th>
                         <th className="px-2 py-1">{t("haproxy.address")}</th>
@@ -1112,6 +1143,19 @@ export function HaproxyPage() {
                       </tr>
                       <tr>
                         <th />
+                        <th className="px-2 pb-1">
+                          <input
+                            value={serverFilters.backend}
+                            onChange={(event) =>
+                              setServerFilters((current) => ({
+                                ...current,
+                                backend: event.target.value,
+                              }))
+                            }
+                            placeholder={t("haproxy.backend")}
+                            className="w-full rounded border border-slate-200 px-1 py-0.5 text-[10px] font-normal"
+                          />
+                        </th>
                         <th className="px-2 pb-1">
                           <select
                             value={serverFilters.type}
@@ -1136,6 +1180,8 @@ export function HaproxyPage() {
                             "check",
                             "weight",
                             "paths",
+                            "req",
+                            "h5xx",
                           ] as const
                         ).map((field) => (
                           <th key={field} className="px-2 pb-1">
@@ -1152,8 +1198,6 @@ export function HaproxyPage() {
                             />
                           </th>
                         ))}
-                        <th />
-                        <th />
                         <th />
                       </tr>
                     </thead>
@@ -1177,17 +1221,23 @@ export function HaproxyPage() {
                               }
                             />
                           </td>
-                          <td colSpan={10} className="px-2 py-1">
-                            <button
-                              type="button"
-                              onClick={() => toggleGroup(group.backend)}
-                              className="mr-1 w-3 text-slate-500"
-                            >
-                              {collapsedBackends.has(group.backend) ? "▸" : "▾"}
-                            </button>
-                            <span className="font-mono font-medium">
-                              {group.backend}
+                          <td className="whitespace-nowrap px-2 py-1">
+                            <span className="inline-flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => toggleGroup(group.backend)}
+                                className="w-3 text-slate-500"
+                              >
+                                {collapsedBackends.has(group.backend)
+                                  ? "▸"
+                                  : "▾"}
+                              </button>
+                              <span className="font-mono font-medium">
+                                {group.backend}
+                              </span>
                             </span>
+                          </td>
+                          <td colSpan={10} className="px-2 py-1">
                             {group.mode && (
                               <span
                                 className={`ml-2 rounded px-1 text-[10px] ${
@@ -1235,6 +1285,9 @@ export function HaproxyPage() {
                                     onChange={() => toggleServer(key)}
                                   />
                                 </td>
+                                <td className="whitespace-nowrap px-2 py-1">
+                                  {row.backend}
+                                </td>
                                 <td className="px-2 py-1">
                                   {mode ? (
                                     <span
@@ -1277,26 +1330,28 @@ export function HaproxyPage() {
                                 <td className="px-2 py-1 tabular-nums">
                                   {rate?.h5xx ?? "—"}
                                 </td>
-                                <td className="flex flex-wrap gap-1 px-2 py-1">
-                                  {(["ready", "drain", "maint"] as const).map(
-                                    (action) => (
-                                      <button
-                                        key={action}
-                                        type="button"
-                                        disabled={busy}
-                                        onClick={() =>
-                                          void serverAction(
-                                            row.backend,
-                                            row.server,
-                                            action,
-                                          )
-                                        }
-                                        className="rounded border border-slate-300 px-1.5 py-0.5 text-[10px] uppercase disabled:opacity-50"
-                                      >
-                                        {action}
-                                      </button>
-                                    ),
-                                  )}
+                                <td className="px-2 py-1">
+                                  <span className="flex flex-wrap gap-1">
+                                    {(["ready", "drain", "maint"] as const).map(
+                                      (action) => (
+                                        <button
+                                          key={action}
+                                          type="button"
+                                          disabled={busy}
+                                          onClick={() =>
+                                            void serverAction(
+                                              row.backend,
+                                              row.server,
+                                              action,
+                                            )
+                                          }
+                                          className="rounded border border-slate-300 px-1.5 py-0.5 text-[10px] uppercase disabled:opacity-50"
+                                        >
+                                          {action}
+                                        </button>
+                                      ),
+                                    )}
+                                  </span>
                                 </td>
                               </tr>
                             );
@@ -1307,7 +1362,7 @@ export function HaproxyPage() {
                       <tbody>
                         <tr>
                           <td
-                            colSpan={11}
+                            colSpan={12}
                             className="px-2 py-4 text-center text-slate-500"
                           >
                             {t("haproxy.noServers")}
@@ -1392,38 +1447,126 @@ interface ChartSeries {
   points: HaproxyMetricPoint[];
 }
 
+function buildTicks(
+  points: HaproxyMetricPoint[],
+  language: Language,
+  count = 5,
+): string[] {
+  if (points.length === 0) return [];
+  const format = new Intl.DateTimeFormat(localeFor(language), {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const indices = Array.from({ length: count }, (_, index) =>
+    Math.round((index * (points.length - 1)) / Math.max(1, count - 1)),
+  );
+  const seen = new Set<number>();
+  return indices
+    .filter((index) => {
+      if (seen.has(index)) return false;
+      seen.add(index);
+      return true;
+    })
+    .map((index) => format.format(new Date(points[index].timestamp)));
+}
+
+function niceMax(value: number): number {
+  if (value <= 0) return 1;
+  const exponent = 10 ** Math.floor(Math.log10(value));
+  const fraction = value / exponent;
+  const factor =
+    fraction <= 1
+      ? 1
+      : fraction <= 2
+        ? 2
+        : fraction <= 2.5
+          ? 2.5
+          : fraction <= 5
+            ? 5
+            : 10;
+  return factor * exponent;
+}
+
+function formatAxis(value: number, language: Language): string {
+  return new Intl.NumberFormat(localeFor(language), {
+    maximumFractionDigits: value < 10 ? 1 : 0,
+  }).format(value);
+}
+
 function MetricChart({
   points,
   series,
+  language,
 }: {
   points: HaproxyMetricPoint[];
   series?: ChartSeries[];
+  language: Language;
 }) {
   if (series && series.length > 0) {
     const width = 600;
     const height = 160;
-    const pad = 8;
+    const left = 46;
+    const right = 12;
+    const top = 8;
+    const bottom = 8;
+    const plotWidth = width - left - right;
+    const plotHeight = height - top - bottom;
     const maxReq = Math.max(
-      1,
+      0,
       ...series.flatMap((item) => item.points.map((point) => point.req)),
     );
+    const axisMax = niceMax(maxReq);
     const count = Math.max(...series.map((item) => item.points.length), 1);
     const x = (index: number) =>
-      pad + (index / Math.max(1, count - 1)) * (width - pad * 2);
-    const y = (value: number) =>
-      height - pad - (value / maxReq) * (height - pad * 2);
+      left + (index / Math.max(1, count - 1)) * plotWidth;
+    const y = (value: number) => top + (1 - value / axisMax) * plotHeight;
+    const grid = Array.from({ length: 5 }, (_, index) => {
+      const value = (axisMax * index) / 4;
+      const lineY = y(value);
+      return (
+        <g key={value}>
+          <line
+            x1={left}
+            x2={width - right}
+            y1={lineY}
+            y2={lineY}
+            stroke="#cbd5e1"
+            strokeWidth={0.7}
+            strokeDasharray={index === 0 ? undefined : "3 3"}
+          />
+          <text
+            x={left - 6}
+            y={lineY + 4}
+            textAnchor="end"
+            fontSize={10}
+            fill="#64748b"
+          >
+            {formatAxis(value, language)}
+          </text>
+        </g>
+      );
+    });
     return (
       <div className="space-y-1">
         <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-          {series.map((item) => (
-            <span key={item.label} className="flex items-center gap-1">
-              <span
-                className="h-0.5 w-4"
-                style={{ backgroundColor: item.color }}
-              />
-              {item.label}
-            </span>
-          ))}
+          {series.map((item) => {
+            const seriesMax = Math.max(
+              0,
+              ...item.points.map((point) => point.req),
+            );
+            return (
+              <span key={item.label} className="flex items-center gap-1">
+                <span
+                  className="h-0.5 w-4"
+                  style={{ backgroundColor: item.color }}
+                />
+                {item.label}
+                <span className="text-slate-400">max {seriesMax}/min</span>
+              </span>
+            );
+          })}
           <span className="ml-auto">max {maxReq}/min</span>
         </div>
         <svg
@@ -1432,6 +1575,7 @@ function MetricChart({
           aria-label="HAProxy req/min per serie"
           className="h-40 w-full rounded-md border border-slate-200 bg-slate-50"
         >
+          {grid}
           {series.map((item) => (
             <path
               key={item.label}
@@ -1447,6 +1591,16 @@ function MetricChart({
             />
           ))}
         </svg>
+        <div className="flex justify-between gap-1 px-1 text-[10px] text-slate-500">
+          {buildTicks(
+            series.reduce((best, item) =>
+              item.points.length > best.points.length ? item : best,
+            ).points,
+            language,
+          ).map((label) => (
+            <span key={label}>{label}</span>
+          ))}
+        </div>
       </div>
     );
   }
@@ -1459,17 +1613,49 @@ function MetricChart({
   }
   const width = 600;
   const height = 160;
-  const pad = 8;
-  const maxReq = Math.max(1, ...points.map((point) => point.req));
+  const left = 46;
+  const right = 12;
+  const top = 8;
+  const bottom = 8;
+  const plotWidth = width - left - right;
+  const plotHeight = height - top - bottom;
+  const maxReq = Math.max(0, ...points.map((point) => point.req));
+  const axisMax = niceMax(maxReq);
   const maxErr = Math.max(1, ...points.map((point) => point.h5xx));
   const x = (index: number) =>
-    pad + (index / Math.max(1, points.length - 1)) * (width - pad * 2);
+    left + (index / Math.max(1, points.length - 1)) * plotWidth;
   const y = (value: number, max: number) =>
-    height - pad - (value / max) * (height - pad * 2);
+    top + (1 - value / max) * plotHeight;
+  const grid = Array.from({ length: 5 }, (_, index) => {
+    const value = (axisMax * index) / 4;
+    const lineY = y(value, axisMax);
+    return (
+      <g key={value}>
+        <line
+          x1={left}
+          x2={width - right}
+          y1={lineY}
+          y2={lineY}
+          stroke="#cbd5e1"
+          strokeWidth={0.7}
+          strokeDasharray={index === 0 ? undefined : "3 3"}
+        />
+        <text
+          x={left - 6}
+          y={lineY + 4}
+          textAnchor="end"
+          fontSize={10}
+          fill="#64748b"
+        >
+          {formatAxis(value, language)}
+        </text>
+      </g>
+    );
+  });
   const reqPath = points
     .map(
       (point, index) =>
-        `${index === 0 ? "M" : "L"}${x(index)},${y(point.req, maxReq)}`,
+        `${index === 0 ? "M" : "L"}${x(index)},${y(point.req, axisMax)}`,
     )
     .join(" ");
   const errPath = points
@@ -1499,13 +1685,19 @@ function MetricChart({
         aria-label="HAProxy req/min e 5xx/min"
         className="h-40 w-full rounded-md border border-slate-200 bg-slate-50"
       >
+        {grid}
         <path
-          d={`${reqPath} L${x(points.length - 1)},${height - pad} L${x(0)},${height - pad} Z`}
+          d={`${reqPath} L${x(points.length - 1)},${top + plotHeight} L${x(0)},${top + plotHeight} Z`}
           fill="rgba(14,165,233,0.12)"
         />
         <path d={reqPath} fill="none" stroke="#0ea5e9" strokeWidth="1.5" />
         <path d={errPath} fill="none" stroke="#ef4444" strokeWidth="1.5" />
       </svg>
+      <div className="flex justify-between gap-1 px-1 text-[10px] text-slate-500">
+        {buildTicks(points, language).map((label) => (
+          <span key={label}>{label}</span>
+        ))}
+      </div>
     </div>
   );
 }
