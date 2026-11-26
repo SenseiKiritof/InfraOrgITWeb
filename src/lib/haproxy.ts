@@ -57,6 +57,7 @@ export interface HaproxyRoute {
   id: number;
   frontend: string;
   bind: string;
+  mode: string;
   host: string;
   path: string;
   backend: string;
@@ -66,6 +67,8 @@ export interface HaproxyRoute {
   collectedAt: string;
   proxyRouteId: number | null;
   proxyRouteLabel: string | null;
+  applicationName: string | null;
+  hostPort: number | null;
 }
 
 export interface HaproxyServer {
@@ -143,6 +146,26 @@ export interface HaproxyMetricPoint {
   qtime: number;
 }
 
+export interface HaproxyMetricSeries {
+  proxy: string;
+  server: string;
+  points: HaproxyMetricPoint[];
+}
+
+export function getHaproxyMetricsSeries(
+  id: number,
+  minutes: number,
+  kind = "server",
+): Promise<HaproxyMetricSeries[]> {
+  const params = new URLSearchParams({
+    minutes: String(minutes),
+    kind,
+  });
+  return apiFetch<HaproxyMetricSeries[]>(
+    `/api/haproxy/instances/${id}/metrics/series?${params.toString()}`,
+  );
+}
+
 export function getHaproxyLive(
   id: number,
 ): Promise<HaproxyLiveSnapshot | null> {
@@ -154,9 +177,18 @@ export function getHaproxyLive(
 export function getHaproxyMetrics(
   id: number,
   minutes: number,
+  kind = "frontend",
+  proxy?: string,
+  server?: string,
 ): Promise<HaproxyMetricPoint[]> {
+  const params = new URLSearchParams({
+    minutes: String(minutes),
+    kind,
+  });
+  if (proxy) params.set("proxy", proxy);
+  if (server) params.set("server", server);
   return apiFetch<HaproxyMetricPoint[]>(
-    `/api/haproxy/instances/${id}/metrics?minutes=${minutes}&kind=frontend`,
+    `/api/haproxy/instances/${id}/metrics?${params.toString()}`,
   );
 }
 
