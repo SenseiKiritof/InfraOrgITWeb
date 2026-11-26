@@ -1070,26 +1070,6 @@ export function HaproxyPage() {
                   <table className="w-full text-left text-xs">
                     <thead className="border-b border-slate-200 text-slate-500">
                       <tr>
-                        <th colSpan={11} className="px-2 pt-1">
-                          <label className="flex items-center gap-2 text-[10px] font-normal">
-                            <span className="text-slate-500">
-                              {t("haproxy.backend")}
-                            </span>
-                            <input
-                              value={serverFilters.backend}
-                              onChange={(event) =>
-                                setServerFilters((current) => ({
-                                  ...current,
-                                  backend: event.target.value,
-                                }))
-                              }
-                              placeholder={t("haproxy.filter")}
-                              className="w-56 rounded border border-slate-200 px-1 py-0.5 text-[10px] font-normal"
-                            />
-                          </label>
-                        </th>
-                      </tr>
-                      <tr>
                         <th className="px-2 py-1">
                           <input
                             type="checkbox"
@@ -1108,6 +1088,7 @@ export function HaproxyPage() {
                             }}
                           />
                         </th>
+                        <th className="px-2 py-1">{t("haproxy.backend")}</th>
                         <th className="px-2 py-1">{t("haproxy.type")}</th>
                         <th className="px-2 py-1">{t("haproxy.serverName")}</th>
                         <th className="px-2 py-1">{t("haproxy.address")}</th>
@@ -1125,6 +1106,19 @@ export function HaproxyPage() {
                       </tr>
                       <tr>
                         <th />
+                        <th className="px-2 pb-1">
+                          <input
+                            value={serverFilters.backend}
+                            onChange={(event) =>
+                              setServerFilters((current) => ({
+                                ...current,
+                                backend: event.target.value,
+                              }))
+                            }
+                            placeholder={t("haproxy.backend")}
+                            className="w-full rounded border border-slate-200 px-1 py-0.5 text-[10px] font-normal"
+                          />
+                        </th>
                         <th className="px-2 pb-1">
                           <select
                             value={serverFilters.type}
@@ -1149,6 +1143,8 @@ export function HaproxyPage() {
                             "check",
                             "weight",
                             "paths",
+                            "req",
+                            "h5xx",
                           ] as const
                         ).map((field) => (
                           <th key={field} className="px-2 pb-1">
@@ -1165,8 +1161,6 @@ export function HaproxyPage() {
                             />
                           </th>
                         ))}
-                        <th />
-                        <th />
                         <th />
                       </tr>
                     </thead>
@@ -1190,7 +1184,7 @@ export function HaproxyPage() {
                               }
                             />
                           </td>
-                          <td colSpan={10} className="px-2 py-1">
+                          <td className="px-2 py-1">
                             <button
                               type="button"
                               onClick={() => toggleGroup(group.backend)}
@@ -1201,6 +1195,8 @@ export function HaproxyPage() {
                             <span className="font-mono font-medium">
                               {group.backend}
                             </span>
+                          </td>
+                          <td colSpan={10} className="px-2 py-1">
                             {group.mode && (
                               <span
                                 className={`ml-2 rounded px-1 text-[10px] ${
@@ -1248,6 +1244,7 @@ export function HaproxyPage() {
                                     onChange={() => toggleServer(key)}
                                   />
                                 </td>
+                                <td className="px-2 py-1">{row.backend}</td>
                                 <td className="px-2 py-1">
                                   {mode ? (
                                     <span
@@ -1320,7 +1317,7 @@ export function HaproxyPage() {
                       <tbody>
                         <tr>
                           <td
-                            colSpan={11}
+                            colSpan={12}
                             className="px-2 py-4 text-center text-slate-500"
                           >
                             {t("haproxy.noServers")}
