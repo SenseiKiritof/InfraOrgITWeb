@@ -1526,7 +1526,7 @@ function MetricChart({
       const value = (axisMax * index) / 4;
       const lineY = y(value);
       return (
-        <g key={index}>
+        <g key={value}>
           <line
             x1={left}
             x2={width - right}
@@ -1630,7 +1630,7 @@ function MetricChart({
     const value = (axisMax * index) / 4;
     const lineY = y(value, axisMax);
     return (
-      <g key={index}>
+      <g key={value}>
         <line
           x1={left}
           x2={width - right}
