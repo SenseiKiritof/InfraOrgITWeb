@@ -61,6 +61,7 @@ export function HaproxyPage() {
     new Set(),
   );
   const [showCompare, setShowCompare] = useState(false);
+  const [compareRange, setCompareRange] = useState(60);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const instances = useQuery({
@@ -108,6 +109,13 @@ export function HaproxyPage() {
     queryKey: ["haproxy", "server-metrics", selected?.id],
     queryFn: () => getHaproxyMetricsSeries(selected?.id ?? 0, 60, "server"),
     enabled: selected !== undefined && tab === "servers",
+    refetchInterval: 30_000,
+  });
+  const compareMetrics = useQuery({
+    queryKey: ["haproxy", "compare-metrics", selected?.id, compareRange],
+    queryFn: () =>
+      getHaproxyMetricsSeries(selected?.id ?? 0, compareRange, "server"),
+    enabled: selected !== undefined && tab === "servers" && showCompare,
     refetchInterval: 30_000,
   });
 
@@ -256,12 +264,6 @@ export function HaproxyPage() {
   const visibleSelected = serverRows.filter((row) =>
     selectedServers.has(serverKey(row)),
   );
-  const seriesByKey = new Map(
-    (serverMetrics.data ?? []).map((series) => [
-      `${series.proxy}\u0000${series.server}`,
-      series,
-    ]),
-  );
   const serverGroups = (() => {
     const groups = new Map<string, HaproxyServer[]>();
     for (const row of serverRows) {
@@ -279,15 +281,26 @@ export function HaproxyPage() {
         h5xx: rows.reduce((sum, row) => sum + (rateFor(row)?.h5xx ?? 0), 0),
       }));
   })();
+  const compareSeriesByKey = new Map(
+    (compareMetrics.data ?? []).map((series) => [
+      `${series.proxy}\u0000${series.server}`,
+      series,
+    ]),
+  );
   const compareSeries: ChartSeries[] = showCompare
     ? visibleSelected
         .map((row, index) => ({
           label: `${row.backend} / ${row.server}`,
           color: chartColors[index % chartColors.length],
-          points: seriesByKey.get(serverKey(row))?.points ?? [],
+          points: compareSeriesByKey.get(serverKey(row))?.points ?? [],
         }))
         .filter((series) => series.points.length > 0)
     : [];
+  const compareTimestamps = compareSeries
+    .flatMap((series) => series.points.map((point) => point.timestamp))
+    .sort();
+  const compareStart = compareTimestamps[0];
+  const compareEnd = compareTimestamps.at(-1);
   const toggleGroup = (backend: string) =>
     setCollapsedBackends((current) => {
       const next = new Set(current);
@@ -875,20 +888,59 @@ export function HaproxyPage() {
               )}
               {tab === "servers" && showCompare && (
                 <div className="rounded-md border border-slate-200 bg-white p-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-xs font-medium">
                       {t("haproxy.compare")}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => setShowCompare(false)}
-                      className="text-xs underline"
-                    >
-                      {t("common.close")}
-                    </button>
+                    <div className="flex items-center gap-1">
+                      {(
+                        [
+                          [60, t("haproxy.range1h")],
+                          [360, t("haproxy.range6h")],
+                          [1440, t("haproxy.range24h")],
+                        ] as const
+                      ).map(([value, label]) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setCompareRange(value)}
+                          className={`rounded border px-2 py-0.5 text-[10px] ${
+                            compareRange === value
+                              ? "border-slate-900 bg-slate-900 text-white"
+                              : "border-slate-300"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setShowCompare(false)}
+                        className="ml-2 text-xs underline"
+                      >
+                        {t("common.close")}
+                      </button>
+                    </div>
                   </div>
+                  {compareStart && compareEnd && (
+                    <p className="px-1 pt-1 text-[10px] text-slate-500">
+                      {formatDateTime(compareStart, language)} →{" "}
+                      {formatDateTime(compareEnd, language)}
+                    </p>
+                  )}
                   {compareSeries.length > 0 ? (
-                    <MetricChart points={[]} series={compareSeries} />
+                    <MetricChart
+                      points={[]}
+                      series={compareSeries}
+                      axis={
+                        compareStart && compareEnd
+                          ? {
+                              start: formatDateTime(compareStart, language),
+                              end: formatDateTime(compareEnd, language),
+                            }
+                          : undefined
+                      }
+                    />
                   ) : (
                     <p className="p-2 text-xs text-slate-500">—</p>
                   )}
@@ -1088,7 +1140,9 @@ export function HaproxyPage() {
                             }}
                           />
                         </th>
-                        <th className="px-2 py-1">{t("haproxy.backend")}</th>
+                        <th className="min-w-40 px-2 py-1">
+                          {t("haproxy.backend")}
+                        </th>
                         <th className="px-2 py-1">{t("haproxy.type")}</th>
                         <th className="px-2 py-1">{t("haproxy.serverName")}</th>
                         <th className="px-2 py-1">{t("haproxy.address")}</th>
@@ -1184,16 +1238,20 @@ export function HaproxyPage() {
                               }
                             />
                           </td>
-                          <td className="px-2 py-1">
-                            <button
-                              type="button"
-                              onClick={() => toggleGroup(group.backend)}
-                              className="mr-1 w-3 text-slate-500"
-                            >
-                              {collapsedBackends.has(group.backend) ? "▸" : "▾"}
-                            </button>
-                            <span className="font-mono font-medium">
-                              {group.backend}
+                          <td className="whitespace-nowrap px-2 py-1">
+                            <span className="inline-flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => toggleGroup(group.backend)}
+                                className="w-3 text-slate-500"
+                              >
+                                {collapsedBackends.has(group.backend)
+                                  ? "▸"
+                                  : "▾"}
+                              </button>
+                              <span className="font-mono font-medium">
+                                {group.backend}
+                              </span>
                             </span>
                           </td>
                           <td colSpan={10} className="px-2 py-1">
@@ -1244,7 +1302,9 @@ export function HaproxyPage() {
                                     onChange={() => toggleServer(key)}
                                   />
                                 </td>
-                                <td className="px-2 py-1">{row.backend}</td>
+                                <td className="whitespace-nowrap px-2 py-1">
+                                  {row.backend}
+                                </td>
                                 <td className="px-2 py-1">
                                   {mode ? (
                                     <span
@@ -1405,9 +1465,11 @@ interface ChartSeries {
 function MetricChart({
   points,
   series,
+  axis,
 }: {
   points: HaproxyMetricPoint[];
   series?: ChartSeries[];
+  axis?: { start: string; end: string };
 }) {
   if (series && series.length > 0) {
     const width = 600;
@@ -1425,15 +1487,22 @@ function MetricChart({
     return (
       <div className="space-y-1">
         <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-          {series.map((item) => (
-            <span key={item.label} className="flex items-center gap-1">
-              <span
-                className="h-0.5 w-4"
-                style={{ backgroundColor: item.color }}
-              />
-              {item.label}
-            </span>
-          ))}
+          {series.map((item) => {
+            const seriesMax = Math.max(
+              0,
+              ...item.points.map((point) => point.req),
+            );
+            return (
+              <span key={item.label} className="flex items-center gap-1">
+                <span
+                  className="h-0.5 w-4"
+                  style={{ backgroundColor: item.color }}
+                />
+                {item.label}
+                <span className="text-slate-400">max {seriesMax}/min</span>
+              </span>
+            );
+          })}
           <span className="ml-auto">max {maxReq}/min</span>
         </div>
         <svg
@@ -1457,6 +1526,12 @@ function MetricChart({
             />
           ))}
         </svg>
+        {axis && (
+          <div className="flex justify-between px-1 text-[10px] text-slate-500">
+            <span>{axis.start}</span>
+            <span>{axis.end}</span>
+          </div>
+        )}
       </div>
     );
   }
