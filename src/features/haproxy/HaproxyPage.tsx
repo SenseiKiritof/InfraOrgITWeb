@@ -49,6 +49,8 @@ export function HaproxyPage() {
     check: "",
     weight: "",
     paths: "",
+    req: "",
+    h5xx: "",
   });
   const [selectedServers, setSelectedServers] = useState<Set<string>>(
     new Set(),
@@ -222,6 +224,13 @@ export function HaproxyPage() {
     const entry = routesByBackend.get(backend);
     return entry?.mode === "tcp" ? [] : (entry?.paths ?? []);
   };
+  const serverKey = (row: HaproxyServer) => `${row.backend}\u0000${row.server}`;
+  const serverRates = new Map<string, HaproxyMetricPoint>();
+  for (const series of serverMetrics.data ?? []) {
+    const last = series.points.at(-1);
+    if (last) serverRates.set(`${series.proxy}\u0000${series.server}`, last);
+  }
+  const rateFor = (row: HaproxyServer) => serverRates.get(serverKey(row));
   const serverRows = (servers.data ?? []).filter((row) => {
     const mode = routesByBackend.get(row.backend)?.mode ?? "";
     return (
@@ -232,10 +241,11 @@ export function HaproxyPage() {
       matches(row.status, serverFilters.status) &&
       matches(row.checkStatus ?? "", serverFilters.check) &&
       matches(String(row.weight ?? ""), serverFilters.weight) &&
-      matches(pathsFor(row.backend).join(" "), serverFilters.paths)
+      matches(pathsFor(row.backend).join(" "), serverFilters.paths) &&
+      matches(String(rateFor(row)?.req ?? ""), serverFilters.req) &&
+      matches(String(rateFor(row)?.h5xx ?? ""), serverFilters.h5xx)
     );
   });
-  const serverKey = (row: HaproxyServer) => `${row.backend}\u0000${row.server}`;
   const toggleServer = (key: string) =>
     setSelectedServers((current) => {
       const next = new Set(current);
@@ -246,12 +256,6 @@ export function HaproxyPage() {
   const visibleSelected = serverRows.filter((row) =>
     selectedServers.has(serverKey(row)),
   );
-  const serverRates = new Map<string, HaproxyMetricPoint>();
-  for (const series of serverMetrics.data ?? []) {
-    const last = series.points.at(-1);
-    if (last) serverRates.set(`${series.proxy}\u0000${series.server}`, last);
-  }
-  const rateFor = (row: HaproxyServer) => serverRates.get(serverKey(row));
   const seriesByKey = new Map(
     (serverMetrics.data ?? []).map((series) => [
       `${series.proxy}\u0000${series.server}`,
@@ -839,17 +843,6 @@ export function HaproxyPage() {
                   <span className="text-slate-600">
                     {t("haproxy.selected", { count: selectedServers.size })}
                   </span>
-                  <input
-                    value={serverFilters.backend}
-                    onChange={(event) =>
-                      setServerFilters((current) => ({
-                        ...current,
-                        backend: event.target.value,
-                      }))
-                    }
-                    placeholder={t("haproxy.backend")}
-                    className="w-40 rounded border border-slate-300 px-2 py-0.5 text-[10px]"
-                  />
                   {(["ready", "drain", "maint"] as const).map((action) => (
                     <button
                       key={action}
@@ -1076,6 +1069,26 @@ export function HaproxyPage() {
                 ) : (
                   <table className="w-full text-left text-xs">
                     <thead className="border-b border-slate-200 text-slate-500">
+                      <tr>
+                        <th colSpan={11} className="px-2 pt-1">
+                          <label className="flex items-center gap-2 text-[10px] font-normal">
+                            <span className="text-slate-500">
+                              {t("haproxy.backend")}
+                            </span>
+                            <input
+                              value={serverFilters.backend}
+                              onChange={(event) =>
+                                setServerFilters((current) => ({
+                                  ...current,
+                                  backend: event.target.value,
+                                }))
+                              }
+                              placeholder={t("haproxy.filter")}
+                              className="w-56 rounded border border-slate-200 px-1 py-0.5 text-[10px] font-normal"
+                            />
+                          </label>
+                        </th>
+                      </tr>
                       <tr>
                         <th className="px-2 py-1">
                           <input
