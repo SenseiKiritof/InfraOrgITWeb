@@ -1139,7 +1139,7 @@ export function HaproxyPage() {
                         <th className="px-2 py-1">
                           {t("haproxy.errors5xxShort")}
                         </th>
-                        <th className="px-2 py-1" />
+                        <th className="sticky right-0 w-24 bg-white px-2 py-1" />
                       </tr>
                       <tr>
                         <th />
@@ -1198,7 +1198,7 @@ export function HaproxyPage() {
                             />
                           </th>
                         ))}
-                        <th />
+                        <th className="sticky right-0 bg-white" />
                       </tr>
                     </thead>
                     {serverGroups.map((group) => (
@@ -1330,26 +1330,28 @@ export function HaproxyPage() {
                                 <td className="px-2 py-1 tabular-nums">
                                   {rate?.h5xx ?? "—"}
                                 </td>
-                                <td className="flex flex-wrap gap-1 px-2 py-1">
-                                  {(["ready", "drain", "maint"] as const).map(
-                                    (action) => (
-                                      <button
-                                        key={action}
-                                        type="button"
-                                        disabled={busy}
-                                        onClick={() =>
-                                          void serverAction(
-                                            row.backend,
-                                            row.server,
-                                            action,
-                                          )
-                                        }
-                                        className="rounded border border-slate-300 px-1.5 py-0.5 text-[10px] uppercase disabled:opacity-50"
-                                      >
-                                        {action}
-                                      </button>
-                                    ),
-                                  )}
+                                <td className="sticky right-0 whitespace-nowrap bg-white px-2 py-1">
+                                  <span className="inline-flex gap-1">
+                                    {(["ready", "drain", "maint"] as const).map(
+                                      (action) => (
+                                        <button
+                                          key={action}
+                                          type="button"
+                                          disabled={busy}
+                                          onClick={() =>
+                                            void serverAction(
+                                              row.backend,
+                                              row.server,
+                                              action,
+                                            )
+                                          }
+                                          className="rounded border border-slate-300 px-1 py-0.5 text-[10px] uppercase disabled:opacity-50"
+                                        >
+                                          {action}
+                                        </button>
+                                      ),
+                                    )}
+                                  </span>
                                 </td>
                               </tr>
                             );
