@@ -2044,7 +2044,7 @@ function MetricChart({
   const unit = metricUnit(metric);
   if (series && series.length > 0) {
     const width = 600;
-    const height = 160;
+    const height = 144;
     const left = 46;
     const right = 12;
     const top = 8;
@@ -2140,7 +2140,7 @@ function MetricChart({
             viewBox={`0 0 ${width} ${height}`}
             role="img"
             aria-label={`HAProxy ${metric} per serie`}
-            className="aspect-[15/4] w-full cursor-crosshair rounded-md bg-slate-50 ring-1 ring-slate-200"
+            className="aspect-[25/6] w-full cursor-crosshair rounded-md bg-slate-50 ring-1 ring-slate-200"
             onPointerMove={move}
             onPointerLeave={() => setHover(null)}
           >
@@ -2332,7 +2332,7 @@ function MetricLineChart({
 }) {
   const [hover, setHover] = useState<number | null>(null);
   const width = 600;
-  const height = 160;
+  const height = 144;
   const left = 46;
   const right = 12;
   const top = 8;
@@ -2418,7 +2418,7 @@ function MetricLineChart({
           viewBox={`0 0 ${width} ${height}`}
           role="img"
           aria-label={label}
-          className="aspect-[15/4] w-full cursor-crosshair rounded-md bg-slate-50 ring-1 ring-slate-200"
+          className="aspect-[25/6] w-full cursor-crosshair rounded-md bg-slate-50 ring-1 ring-slate-200"
           onPointerMove={move}
           onPointerLeave={() => setHover(null)}
         >
