@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   type PointerEvent as ReactPointerEvent,
+  useCallback,
+  useLayoutEffect,
   useMemo,
   useState,
 } from "react";
@@ -2028,6 +2030,24 @@ interface ChartLine {
   area?: string;
 }
 
+function useChartWidth(fallback = 600) {
+  const [element, setElement] = useState<HTMLDivElement | null>(null);
+  const [width, setWidth] = useState(fallback);
+  const ref = useCallback((node: HTMLDivElement | null) => {
+    setElement(node);
+  }, []);
+  useLayoutEffect(() => {
+    if (!element || typeof ResizeObserver === "undefined") return;
+    const update = () =>
+      setWidth(Math.max(320, Math.round(element.clientWidth)));
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [element]);
+  return { ref, width };
+}
+
 function MetricChart({
   points,
   series,
@@ -2041,10 +2061,10 @@ function MetricChart({
 }) {
   const { t } = useI18n();
   const [hover, setHover] = useState<number | null>(null);
+  const { ref: chartRef, width } = useChartWidth();
   const unit = metricUnit(metric);
   if (series && series.length > 0) {
-    const width = 600;
-    const height = 144;
+    const height = 210;
     const left = 46;
     const right = 12;
     const top = 8;
@@ -2135,12 +2155,12 @@ function MetricChart({
             {unit}
           </span>
         </div>
-        <div className="relative">
+        <div ref={chartRef} className="relative">
           <svg
             viewBox={`0 0 ${width} ${height}`}
             role="img"
             aria-label={`HAProxy ${metric} per serie`}
-            className="aspect-[25/6] w-full cursor-crosshair rounded-md bg-slate-50 ring-1 ring-slate-200"
+            className="h-[210px] w-full cursor-crosshair rounded-md bg-slate-50 ring-1 ring-slate-200"
             onPointerMove={move}
             onPointerLeave={() => setHover(null)}
           >
@@ -2331,8 +2351,8 @@ function MetricLineChart({
   label: string;
 }) {
   const [hover, setHover] = useState<number | null>(null);
-  const width = 600;
-  const height = 144;
+  const { ref: chartRef, width } = useChartWidth();
+  const height = 210;
   const left = 46;
   const right = 12;
   const top = 8;
@@ -2413,12 +2433,12 @@ function MetricLineChart({
           </span>
         ))}
       </div>
-      <div className="relative">
+      <div ref={chartRef} className="relative">
         <svg
           viewBox={`0 0 ${width} ${height}`}
           role="img"
           aria-label={label}
-          className="aspect-[25/6] w-full cursor-crosshair rounded-md bg-slate-50 ring-1 ring-slate-200"
+          className="h-[210px] w-full cursor-crosshair rounded-md bg-slate-50 ring-1 ring-slate-200"
           onPointerMove={move}
           onPointerLeave={() => setHover(null)}
         >
