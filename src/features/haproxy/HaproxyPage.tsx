@@ -298,13 +298,28 @@ export function HaproxyPage() {
     const term = needle.trim().toLowerCase();
     return term.length === 0 || value.toLowerCase().includes(term);
   };
+  const exact = (value: string, selected: string) =>
+    selected === "" || value === selected;
+  const distinct = (values: string[]) =>
+    [...new Set(values.filter((value) => value !== ""))].sort((a, b) =>
+      a.localeCompare(b),
+    );
   const modeLabel = (mode: string) => (mode === "tcp" ? "TCP" : "HTTP");
+  const routeOptions = {
+    frontend: distinct((routes.data ?? []).map((row) => row.frontend)),
+    backend: distinct((routes.data ?? []).map((row) => row.backend)),
+    host: distinct((routes.data ?? []).map((row) => row.host)),
+    bind: distinct((routes.data ?? []).map((row) => row.bind)),
+    inventory: distinct(
+      (routes.data ?? []).map((row) => row.proxyRouteLabel ?? ""),
+    ),
+  };
   const routeRows = (routes.data ?? []).filter(
     (row) =>
       (routeFilters.mode === "" || row.mode === routeFilters.mode) &&
       matches(`${row.host}${row.path}`, routeFilters.text) &&
-      matches(row.frontend, routeFilters.frontend) &&
-      matches(row.backend, routeFilters.backend) &&
+      exact(row.frontend, routeFilters.frontend) &&
+      exact(row.backend, routeFilters.backend) &&
       matches(row.bind, routeFilters.bind) &&
       matches(row.proxyRouteLabel ?? "", routeFilters.inventory),
   );
@@ -332,17 +347,37 @@ export function HaproxyPage() {
     if (last) serverRates.set(`${series.proxy}\u0000${series.server}`, last);
   }
   const rateFor = (row: HaproxyServer) => serverRates.get(serverKey(row));
+  const serverOptions = {
+    backend: distinct((servers.data ?? []).map((row) => row.backend)),
+    server: distinct((servers.data ?? []).map((row) => row.server)),
+    address: distinct((servers.data ?? []).map((row) => row.address)),
+    application: distinct(
+      (servers.data ?? []).flatMap((row) => row.applicationNames),
+    ),
+    status: distinct((servers.data ?? []).map((row) => row.status)),
+    check: distinct((servers.data ?? []).map((row) => row.checkStatus ?? "")),
+    weight: [
+      ...new Set(
+        (servers.data ?? [])
+          .map((row) => row.weight)
+          .filter((weight): weight is number => weight !== null),
+      ),
+    ]
+      .sort((a, b) => a - b)
+      .map(String),
+  };
   const serverRows = (servers.data ?? []).filter((row) => {
     const mode = routesByBackend.get(row.backend)?.mode ?? "";
     return (
       (serverFilters.type === "" || mode === serverFilters.type) &&
-      matches(row.backend, serverFilters.backend) &&
+      exact(row.backend, serverFilters.backend) &&
       matches(row.server, serverFilters.server) &&
       matches(row.address, serverFilters.address) &&
-      matches(row.applicationNames.join(" "), serverFilters.application) &&
-      matches(row.status, serverFilters.status) &&
-      matches(row.checkStatus ?? "", serverFilters.check) &&
-      matches(String(row.weight ?? ""), serverFilters.weight) &&
+      (serverFilters.application === "" ||
+        row.applicationNames.includes(serverFilters.application)) &&
+      exact(row.status, serverFilters.status) &&
+      exact(row.checkStatus ?? "", serverFilters.check) &&
+      exact(String(row.weight ?? ""), serverFilters.weight) &&
       matches(pathsFor(row.backend).join(" "), serverFilters.paths) &&
       matches(String(rateFor(row)?.req ?? ""), serverFilters.req) &&
       matches(String(rateFor(row)?.h5xx ?? ""), serverFilters.h5xx)
@@ -675,7 +710,7 @@ export function HaproxyPage() {
             />
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
-            <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+            <div className="min-w-0 rounded-md border border-slate-200 bg-slate-50 p-3">
               <div className="flex items-center justify-between gap-2">
                 <h3 className="text-xs font-medium text-slate-600">
                   {t("haproxy.serversByStatus")}
@@ -721,7 +756,7 @@ export function HaproxyPage() {
                 </>
               )}
             </div>
-            <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+            <div className="min-w-0 rounded-md border border-slate-200 bg-slate-50 p-3">
               <h3 className="text-xs font-medium text-slate-600">
                 {t("haproxy.serversNotUp")}
               </h3>
@@ -741,12 +776,12 @@ export function HaproxyPage() {
                           setSelectedId(row.instance.id);
                           setTab("servers");
                         }}
-                        className="flex w-full items-center gap-2 rounded px-1 py-0.5 text-left text-xs hover:bg-white"
+                        className="flex w-full min-w-0 items-center gap-2 rounded px-1 py-0.5 text-left text-xs hover:bg-white"
                       >
-                        <span className="truncate font-medium">
+                        <span className="min-w-0 truncate font-medium">
                           {row.instance.name}
                         </span>
-                        <span className="truncate font-mono text-slate-500">
+                        <span className="min-w-0 truncate font-mono text-slate-500">
                           {row.server.backend} / {row.server.server}
                         </span>
                         <span className="ml-auto shrink-0">
@@ -898,7 +933,7 @@ export function HaproxyPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex rounded-md border border-slate-300 p-0.5">
+            <div className="flex max-w-full flex-wrap rounded-md border border-slate-300 p-0.5">
               <button
                 type="button"
                 onClick={() => setTab("overview")}
@@ -1409,13 +1444,14 @@ export function HaproxyPage() {
                                   text: event.target.value,
                                 }))
                               }
+                              list="haproxy-route-hosts"
                               placeholder={t("haproxy.filter")}
                               className="w-full rounded border border-slate-200 px-1 py-0.5 text-[10px] font-normal"
                             />
                           </th>
                           {showFrontendColumn && (
                             <th className="px-2 pb-1">
-                              <input
+                              <select
                                 value={routeFilters.frontend}
                                 onChange={(event) =>
                                   setRouteFilters((current) => ({
@@ -1423,13 +1459,19 @@ export function HaproxyPage() {
                                     frontend: event.target.value,
                                   }))
                                 }
-                                placeholder={t("haproxy.filter")}
                                 className="w-full rounded border border-slate-200 px-1 py-0.5 text-[10px] font-normal"
-                              />
+                              >
+                                <option value="">{t("haproxy.all")}</option>
+                                {routeOptions.frontend.map((value) => (
+                                  <option key={value} value={value}>
+                                    {value}
+                                  </option>
+                                ))}
+                              </select>
                             </th>
                           )}
                           <th className="px-2 pb-1">
-                            <input
+                            <select
                               value={routeFilters.backend}
                               onChange={(event) =>
                                 setRouteFilters((current) => ({
@@ -1437,9 +1479,15 @@ export function HaproxyPage() {
                                   backend: event.target.value,
                                 }))
                               }
-                              placeholder={t("haproxy.filter")}
                               className="w-full rounded border border-slate-200 px-1 py-0.5 text-[10px] font-normal"
-                            />
+                            >
+                              <option value="">{t("haproxy.all")}</option>
+                              {routeOptions.backend.map((value) => (
+                                <option key={value} value={value}>
+                                  {value}
+                                </option>
+                              ))}
+                            </select>
                           </th>
                           <th className="px-2 pb-1">
                             <input
@@ -1450,6 +1498,7 @@ export function HaproxyPage() {
                                   bind: event.target.value,
                                 }))
                               }
+                              list="haproxy-route-binds"
                               placeholder={t("haproxy.filter")}
                               className="w-full rounded border border-slate-200 px-1 py-0.5 text-[10px] font-normal"
                             />
@@ -1463,6 +1512,7 @@ export function HaproxyPage() {
                                   inventory: event.target.value,
                                 }))
                               }
+                              list="haproxy-route-inventory"
                               placeholder={t("haproxy.filter")}
                               className="w-full rounded border border-slate-200 px-1 py-0.5 text-[10px] font-normal"
                             />
@@ -1529,6 +1579,21 @@ export function HaproxyPage() {
                         )}
                       </tbody>
                     </table>
+                    <datalist id="haproxy-route-hosts">
+                      {routeOptions.host.map((value) => (
+                        <option key={value} value={value} />
+                      ))}
+                    </datalist>
+                    <datalist id="haproxy-route-binds">
+                      {routeOptions.bind.map((value) => (
+                        <option key={value} value={value} />
+                      ))}
+                    </datalist>
+                    <datalist id="haproxy-route-inventory">
+                      {routeOptions.inventory.map((value) => (
+                        <option key={value} value={value} />
+                      ))}
+                    </datalist>
                   </>
                 ) : (
                   <table className="w-full text-left text-xs">
@@ -1576,7 +1641,7 @@ export function HaproxyPage() {
                       <tr>
                         <th />
                         <th className="px-2 pb-1">
-                          <input
+                          <select
                             value={serverFilters.backend}
                             onChange={(event) =>
                               setServerFilters((current) => ({
@@ -1584,9 +1649,15 @@ export function HaproxyPage() {
                                 backend: event.target.value,
                               }))
                             }
-                            placeholder={t("haproxy.backend")}
                             className="w-full rounded border border-slate-200 px-1 py-0.5 text-[10px] font-normal"
-                          />
+                          >
+                            <option value="">{t("haproxy.all")}</option>
+                            {serverOptions.backend.map((value) => (
+                              <option key={value} value={value}>
+                                {value}
+                              </option>
+                            ))}
+                          </select>
                         </th>
                         <th className="px-2 pb-1">
                           <select
@@ -1604,19 +1675,111 @@ export function HaproxyPage() {
                             <option value="tcp">TCP</option>
                           </select>
                         </th>
-                        {(
-                          [
-                            "server",
-                            "address",
-                            "application",
-                            "status",
-                            "check",
-                            "weight",
-                            "paths",
-                            "req",
-                            "h5xx",
-                          ] as const
-                        ).map((field) => (
+                        <th className="px-2 pb-1">
+                          <input
+                            value={serverFilters.server}
+                            onChange={(event) =>
+                              setServerFilters((current) => ({
+                                ...current,
+                                server: event.target.value,
+                              }))
+                            }
+                            list="haproxy-server-names"
+                            placeholder={t("haproxy.filter")}
+                            className="w-full rounded border border-slate-200 px-1 py-0.5 text-[10px] font-normal"
+                          />
+                        </th>
+                        <th className="px-2 pb-1">
+                          <input
+                            value={serverFilters.address}
+                            onChange={(event) =>
+                              setServerFilters((current) => ({
+                                ...current,
+                                address: event.target.value,
+                              }))
+                            }
+                            list="haproxy-server-addresses"
+                            placeholder={t("haproxy.filter")}
+                            className="w-full rounded border border-slate-200 px-1 py-0.5 text-[10px] font-normal"
+                          />
+                        </th>
+                        <th className="px-2 pb-1">
+                          <select
+                            value={serverFilters.application}
+                            onChange={(event) =>
+                              setServerFilters((current) => ({
+                                ...current,
+                                application: event.target.value,
+                              }))
+                            }
+                            className="w-full rounded border border-slate-200 px-1 py-0.5 text-[10px] font-normal"
+                          >
+                            <option value="">{t("haproxy.all")}</option>
+                            {serverOptions.application.map((value) => (
+                              <option key={value} value={value}>
+                                {value}
+                              </option>
+                            ))}
+                          </select>
+                        </th>
+                        <th className="px-2 pb-1">
+                          <select
+                            value={serverFilters.status}
+                            onChange={(event) =>
+                              setServerFilters((current) => ({
+                                ...current,
+                                status: event.target.value,
+                              }))
+                            }
+                            className="w-full rounded border border-slate-200 px-1 py-0.5 text-[10px] font-normal"
+                          >
+                            <option value="">{t("haproxy.all")}</option>
+                            {serverOptions.status.map((value) => (
+                              <option key={value} value={value}>
+                                {value}
+                              </option>
+                            ))}
+                          </select>
+                        </th>
+                        <th className="px-2 pb-1">
+                          <select
+                            value={serverFilters.check}
+                            onChange={(event) =>
+                              setServerFilters((current) => ({
+                                ...current,
+                                check: event.target.value,
+                              }))
+                            }
+                            className="w-full rounded border border-slate-200 px-1 py-0.5 text-[10px] font-normal"
+                          >
+                            <option value="">{t("haproxy.all")}</option>
+                            {serverOptions.check.map((value) => (
+                              <option key={value} value={value}>
+                                {value}
+                              </option>
+                            ))}
+                          </select>
+                        </th>
+                        <th className="px-2 pb-1">
+                          <select
+                            value={serverFilters.weight}
+                            onChange={(event) =>
+                              setServerFilters((current) => ({
+                                ...current,
+                                weight: event.target.value,
+                              }))
+                            }
+                            className="w-full rounded border border-slate-200 px-1 py-0.5 text-[10px] font-normal"
+                          >
+                            <option value="">{t("haproxy.all")}</option>
+                            {serverOptions.weight.map((value) => (
+                              <option key={value} value={value}>
+                                {value}
+                              </option>
+                            ))}
+                          </select>
+                        </th>
+                        {(["paths", "req", "h5xx"] as const).map((field) => (
                           <th key={field} className="px-2 pb-1">
                             <input
                               value={serverFilters[field]}
@@ -1833,6 +1996,16 @@ export function HaproxyPage() {
                   </table>
                 )}
               </div>
+              <datalist id="haproxy-server-names">
+                {serverOptions.server.map((value) => (
+                  <option key={value} value={value} />
+                ))}
+              </datalist>
+              <datalist id="haproxy-server-addresses">
+                {serverOptions.address.map((value) => (
+                  <option key={value} value={value} />
+                ))}
+              </datalist>
             </div>
           )}
         </div>
