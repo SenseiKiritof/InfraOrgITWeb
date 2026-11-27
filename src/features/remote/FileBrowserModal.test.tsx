@@ -181,6 +181,8 @@ describe("FileBrowserModal", () => {
     Reflect.deleteProperty(window, "external");
     Reflect.deleteProperty(window, "infraorgitDesktop");
     Reflect.deleteProperty(navigator, "clipboard");
+    Reflect.deleteProperty(URL, "createObjectURL");
+    Reflect.deleteProperty(URL, "revokeObjectURL");
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
@@ -793,20 +795,21 @@ describe("FileBrowserModal", () => {
 
   it("con sessione scaduta il download porta al login senza navigare al file", async () => {
     vi.mocked(getSession).mockResolvedValueOnce(null);
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (input: RequestInfo | URL) => {
-        const url = String(input);
-        if (url.includes("/api/server-access/me")) return access();
-        if (url.includes("/api/servers/7/files")) {
-          return json({
-            path: "/home/test",
-            items: [fileEntry("hello.txt")],
-          });
-        }
-        return serversPage([sftpServer]);
-      }),
-    );
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/server-access/me")) return access();
+      if (url.includes("/files/download")) {
+        return new Response("mai richiesto", { status: 500 });
+      }
+      if (url.includes("/api/servers/7/files")) {
+        return json({
+          path: "/home/test",
+          items: [fileEntry("hello.txt")],
+        });
+      }
+      return serversPage([sftpServer]);
+    });
+    vi.stubGlobal("fetch", fetchMock);
 
     renderPanel();
     await screen.findByText("hello.txt");
@@ -814,6 +817,85 @@ describe("FileBrowserModal", () => {
 
     await waitFor(() => expect(redirectToLogin).toHaveBeenCalledTimes(1));
     expect(getSession).toHaveBeenCalled();
+    expect(
+      fetchMock.mock.calls.some(([input]) =>
+        String(input).includes("/files/download"),
+      ),
+    ).toBe(false);
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("scarica il file via fetch mostrando avanzamento, percentuale e MB", async () => {
+    const chunks = [new Uint8Array(512), new Uint8Array(512)];
+    let index = 0;
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, _init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes("/api/server-access/me")) return access();
+        if (url.includes("/files/download")) {
+          return {
+            ok: true,
+            status: 200,
+            headers: new Headers({
+              "Content-Length": "1024",
+              "Content-Type": "application/octet-stream",
+            }),
+            body: {
+              getReader: () => ({
+                read: async () =>
+                  index < chunks.length
+                    ? { done: false, value: chunks[index++] }
+                    : { done: true, value: undefined },
+              }),
+            },
+          } as unknown as Response;
+        }
+        if (url.includes("/api/servers/7/files")) {
+          return json({
+            path: "/home/test",
+            items: [fileEntry("hello.txt")],
+          });
+        }
+        return serversPage([sftpServer]);
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const createObjectURL = vi.fn(() => "blob:hello");
+    const revokeObjectURL = vi.fn();
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: createObjectURL,
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: revokeObjectURL,
+    });
+    const clicked: { anchor: HTMLAnchorElement | null } = { anchor: null };
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      clicked.anchor = this;
+    });
+
+    renderPanel();
+    await screen.findByText("hello.txt");
+    fireEvent.click(screen.getByRole("link", { name: "Scarica" }));
+
+    expect(
+      await screen.findByText("Download completato · hello.txt"),
+    ).toBeTruthy();
+    expect(screen.getByText("100%")).toBeTruthy();
+    expect(screen.getByText("1 kB / 1 kB")).toBeTruthy();
+    expect(clicked.anchor?.download).toBe("hello.txt");
+    expect(clicked.anchor?.getAttribute("href")).toBe("blob:hello");
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(revokeObjectURL).toHaveBeenCalledWith("blob:hello"),
+    );
+    const download = fetchMock.mock.calls.find(([input]) =>
+      String(input).includes("/files/download"),
+    );
+    expect(download?.[1]).toMatchObject({ credentials: "include" });
   });
 
   it("filtra per nome, estensione e tipo e svuota il filtro", async () => {
