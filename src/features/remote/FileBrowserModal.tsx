@@ -18,6 +18,7 @@ import {
   type ChangeEvent,
   type FormEvent,
   type DragEvent as ReactDragEvent,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -196,6 +197,10 @@ export function FileBrowserModal({
   const [sort, setSort] = useState<SortState>(null);
   const [showHidden, setShowHidden] = useState(storedShowHidden);
   const [selectedPaths, setSelectedPaths] = useState<string[]>([]);
+  const openPath = useCallback((next: string | null) => {
+    setSelectedPaths([]);
+    setPath(next);
+  }, []);
   const [draggingFiles, setDraggingFiles] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<{
     done: number;
@@ -294,7 +299,7 @@ export function FileBrowserModal({
       if (path === null || path === "/" || busy) return;
       event.preventDefault();
       event.stopPropagation();
-      setPath(parentOf(path));
+      openPath(parentOf(path));
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
@@ -308,6 +313,7 @@ export function FileBrowserModal({
     busy,
     configOpen,
     serverId,
+    openPath,
   ]);
 
   const previousServer = useRef(selectedId);
@@ -400,13 +406,6 @@ export function FileBrowserModal({
   useEffect(() => {
     if (path !== null) notifyPath.current?.(path);
   }, [path]);
-
-  // La selezione vale per la cartella aperta: cambiando percorso o server
-  // riparte vuota, e non sopravvive alle righe sparite da un nuovo elenco.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: si azzera al cambio di percorso/server
-  useEffect(() => {
-    setSelectedPaths([]);
-  }, [path, selectedId]);
 
   useEffect(() => {
     setSelectedPaths((current) => {
@@ -648,7 +647,7 @@ export function FileBrowserModal({
       setConfigOpen(false);
       setLoadError(null);
       setLoadErrorCode(null);
-      setPath(null);
+      openPath(null);
       setReloadKey((value) => value + 1);
     } catch (cause) {
       setConfigError(
@@ -1332,7 +1331,7 @@ export function FileBrowserModal({
           <div className="flex items-center gap-1">
             <button
               type="button"
-              onClick={() => setPath(parentOf(path ?? "/"))}
+              onClick={() => openPath(parentOf(path ?? "/"))}
               disabled={path === null || path === "/"}
               className="rounded-md border border-slate-300 px-2 py-1.5 disabled:opacity-40"
             >
@@ -1452,7 +1451,7 @@ export function FileBrowserModal({
           >
             <button
               type="button"
-              onClick={() => setPath("/")}
+              onClick={() => openPath("/")}
               aria-current={segments.length === 0 ? "page" : undefined}
               className={`shrink-0 rounded px-0.5 hover:text-slate-900 ${
                 segments.length === 0 ? "font-semibold text-slate-900" : ""
@@ -1470,7 +1469,7 @@ export function FileBrowserModal({
                 >
                   <button
                     type="button"
-                    onClick={() => setPath(target)}
+                    onClick={() => openPath(target)}
                     aria-current={current ? "page" : undefined}
                     className={`rounded px-0.5 hover:text-slate-900 ${
                       current ? "font-semibold text-slate-900" : ""
@@ -1617,7 +1616,7 @@ export function FileBrowserModal({
                       onDoubleClick={() => {
                         // Un file si scarica già al singolo clic; il doppio
                         // clic serve solo ad aprire una cartella.
-                        if (entry.isDirectory) setPath(entry.path);
+                        if (entry.isDirectory) openPath(entry.path);
                       }}
                     >
                       <button
@@ -1645,7 +1644,7 @@ export function FileBrowserModal({
                         }}
                         onClick={() => {
                           if (entry.isDirectory) {
-                            setPath(entry.path);
+                            openPath(entry.path);
                           } else {
                             void downloadEntry(entry);
                           }
