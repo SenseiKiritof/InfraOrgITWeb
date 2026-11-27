@@ -149,7 +149,7 @@ const it = {
   "mcpAgents.refresh": "Aggiorna",
   "mcpAgents.noticeTitle": "Approvazione dell'agente",
   "mcpAgents.notice":
-    "Il primo uso di un client crea un agente in attesa. Approva l'agente con i permessi che può usare; potrai modificarli o revocarlo in qualsiasi momento. L'MCP può chiedere un permesso e tu decidi se approvarlo.",
+    "Il primo uso di un client crea un agente in attesa. Approva l'agente con i permessi che può usare; potrai modificarli o revocarlo in qualsiasi momento. Ogni token API o client OAuth è un agente separato: il client deve usare il token dell'agente approvato. L'MCP può chiedere un permesso e tu decidi se approvarlo.",
   "mcpAgents.pending": "Agenti in attesa",
   "mcpAgents.pendingNone": "Nessun agente in attesa.",
   "mcpAgents.requests": "Richieste di permesso",
@@ -174,6 +174,8 @@ const it = {
   "mcpAgents.statusDenied": "Negato",
   "mcpAgents.reachability": "Test di raggiungibilità",
   "mcpAgents.actions": "Azioni applicazione",
+  "mcpAgents.permissionsRequired":
+    "Seleziona almeno un permesso per approvare l'agente.",
   "common.port": "Porta",
   "common.hostname": "Hostname",
   "common.ip": "IP",
@@ -1223,7 +1225,7 @@ const en: Record<TranslationKey, string> = {
   "mcpAgents.refresh": "Refresh",
   "mcpAgents.noticeTitle": "Agent approval",
   "mcpAgents.notice":
-    "The first use of a client creates a pending agent. Approve it with the permissions it may use; you can change or revoke them at any time. MCP can request a permission and you decide whether to approve it.",
+    "The first use of a client creates a pending agent. Approve it with the permissions it may use; you can change or revoke them at any time. Each API token or OAuth client is a separate agent, so the client must use the token of the approved agent. MCP can request a permission and you decide whether to approve it.",
   "mcpAgents.pending": "Pending agents",
   "mcpAgents.pendingNone": "No pending agents.",
   "mcpAgents.requests": "Permission requests",
@@ -1248,6 +1250,8 @@ const en: Record<TranslationKey, string> = {
   "mcpAgents.statusDenied": "Denied",
   "mcpAgents.reachability": "Reachability tests",
   "mcpAgents.actions": "Application actions",
+  "mcpAgents.permissionsRequired":
+    "Select at least one permission to approve the agent.",
   "common.port": "Port",
   "common.hostname": "Hostname",
   "common.ip": "IP",
