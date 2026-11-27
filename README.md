@@ -76,6 +76,8 @@ proxy with routes, servers and sample age. It also shows a stacked server
 distribution, the servers that are not `UP` (with a link to the instance
 Servers tab) and the applications reached through the route inventory.
 
+![HAProxy fleet overview with per-instance series, server status distribution and the not-UP list](docs/screenshots/haproxy-overview.png)
+
 Each instance has **Overview**, **Routes**, **Servers**, **Certificates** and
 **Protocol** tabs. Overview normalizes one- and five-minute samples to
 requests/min, adds 4xx and 5xx and a response-time chart, and exposes 4xx/5xx
@@ -84,6 +86,8 @@ support per-column filters, backend grouping, bulk server actions and a compare
 chart for 1/6/24 h or 7 days by requests, 5xx or response time. The Servers tab
 includes the application column from the route inventory, and the certificate
 and protocol tabs show expiry metadata, HTTP/2, HTTP/3 and QUIC counters.
+
+![HAProxy Servers tab with select filters, backend grouping and the application column](docs/screenshots/haproxy-servers.png)
 
 ### Check OS lifecycle
 
