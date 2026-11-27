@@ -817,6 +817,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
       paneOwnerAt(sessionsNow, filesNow, activePaneRef.current),
     );
     setSessions(compacted.sessions);
+    setFileSessions(compacted.files);
     setLayout(compacted.layout);
     const timer = timers.current.get(id);
     if (timer) clearTimeout(timer);
@@ -1000,6 +1001,7 @@ export function ConsoleProvider({ children }: { children: ReactNode }) {
       paneOwnerAt(sessionsNow, filesNow, activePaneRef.current),
     );
     setFileSessions(compacted.files);
+    setSessions(compacted.sessions);
     setLayout(compacted.layout);
     setActivePane(compacted.activePane ?? 0);
   }, []);
