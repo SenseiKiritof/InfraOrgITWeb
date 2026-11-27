@@ -782,6 +782,93 @@ describe("ConsoleProvider", () => {
     );
   });
 
+  it("chiudendo la console sposta la sessione file nel pannello rimasto", async () => {
+    stubFilesFetch();
+    renderIt(
+      <ConsoleProvider>
+        <Opener serverId={44} serverName="srv-alpha" />
+        <FilesOpener serverId={44} />
+      </ConsoleProvider>,
+    );
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
+    fireEvent.click(screen.getByText("Apri file 44"));
+    await screen.findByText("sub");
+    expect(visiblePanes()).toHaveLength(1);
+    expect(visibleFilePanes()).toHaveLength(1);
+    expect(visibleFilePanes()[0].style.left).toBe("50%");
+
+    fireEvent.click(within(visiblePanes()[0]).getByText("Chiudi"));
+
+    expect(screen.queryAllByTestId(/^console-pane-/)).toHaveLength(0);
+    expect(visibleFilePanes()).toHaveLength(1);
+    expect(visibleFilePanes()[0].style.left).toBe("0%");
+    expect(fileTabButton("srv-alpha")).toBeTruthy();
+    expect(screen.queryByTestId("console-empty-pane-0")).toBeNull();
+    expect(screen.getByLabelText("1 pannello")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("chiudendo la sessione file sposta la console nel pannello rimasto", async () => {
+    stubFilesFetch();
+    renderIt(
+      <ConsoleProvider>
+        <Opener serverId={44} serverName="srv-alpha" />
+        <FilesOpener serverId={44} />
+      </ConsoleProvider>,
+    );
+    fireEvent.click(screen.getByText("Apri file 44"));
+    await screen.findByText("sub");
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
+    expect(visibleFilePanes()).toHaveLength(1);
+    expect(visibleFilePanes()[0].style.left).toBe("0%");
+    expect(visiblePanes()).toHaveLength(1);
+    expect(visiblePanes()[0].style.left).toBe("50%");
+
+    fireEvent.click(
+      within(fileDialog("srv-alpha") as HTMLElement).getByLabelText(
+        "Chiudi la sessione file di srv-alpha",
+      ),
+    );
+
+    await waitFor(() => expect(queryFileTab("srv-alpha")).toBeNull());
+    expect(screen.queryAllByTestId(/^file-pane-/)).toHaveLength(0);
+    expect(visiblePanes()).toHaveLength(1);
+    expect(visiblePanes()[0]).toHaveTextContent("srv-alpha");
+    expect(visiblePanes()[0].style.left).toBe("0%");
+    expect(screen.queryByTestId("console-empty-pane-0")).toBeNull();
+    expect(screen.getByLabelText("1 pannello")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("chiudendo la console promuove la sessione file ridotta", async () => {
+    stubFilesFetch();
+    renderIt(
+      <ConsoleProvider>
+        <Opener serverId={44} serverName="srv-alpha" />
+        <FilesOpener serverId={44} />
+      </ConsoleProvider>,
+    );
+    fireEvent.click(screen.getByText("Apri console srv-alpha"));
+    fireEvent.click(screen.getByText("Apri file 44"));
+    await screen.findByText("sub");
+    fireEvent.click(
+      await screen.findByLabelText("Riduci la sessione file di srv-alpha"),
+    );
+    expect(visibleFilePanes()).toHaveLength(0);
+
+    fireEvent.click(within(visiblePanes()[0]).getByText("Chiudi"));
+
+    expect(screen.queryAllByTestId(/^console-pane-/)).toHaveLength(0);
+    expect(visibleFilePanes()).toHaveLength(1);
+    expect(visibleFilePanes()[0].style.left).toBe("0%");
+    expect(fileTabButton("srv-alpha")).toBeTruthy();
+    expect(screen.queryByTestId("console-empty-pane-0")).toBeNull();
+  });
+
   it("il pannello vuoto elenca console e sessioni file", async () => {
     stubFilesFetch();
     renderIt(

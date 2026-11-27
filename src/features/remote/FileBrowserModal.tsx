@@ -876,15 +876,115 @@ export function FileBrowserModal({
     }
   };
 
-  // La navigazione nativa non passa da apiFetch: un 401 mostrerebbe il
-  // ProblemDetails al posto della SPA. La sessione va rinnovata prima.
-  const navigateToDownload = async (url: string) => {
+  // Il download passa da fetch, non da una navigazione top-level: un 401
+  // mostrerebbe il ProblemDetails (o il login Keycloak) al posto della SPA.
+  const downloadInBrowser = async (entry: RemoteFileEntry, url: string) => {
     const fresh = await getSession();
     if (!fresh) {
       redirectToLogin();
       return;
     }
-    window.location.assign(url);
+    const running: DownloadNote = {
+      name: entry.name,
+      state: "running",
+      percent: null,
+      receivedBytes: null,
+      totalBytes: null,
+    };
+    const failed = (message: string) =>
+      setDownloadNote({ ...running, state: "failed", message });
+    setDownloadNote(running);
+    let response: Response;
+    try {
+      response = await fetch(url, { credentials: "include" });
+      if (response.status === 401) {
+        // L'access token può essere scaduto: /api/session lo rinnova e la
+        // richiesta viene ripetuta una sola volta.
+        const renewed = await getSession();
+        if (!renewed) {
+          redirectToLogin();
+          return;
+        }
+        response = await fetch(url, { credentials: "include" });
+        if (response.status === 401) {
+          redirectToLogin();
+          return;
+        }
+      }
+    } catch (cause) {
+      failed(cause instanceof Error ? cause.message : t("files.downloadError"));
+      return;
+    }
+    if (!response.ok) {
+      failed(t("files.downloadError"));
+      return;
+    }
+    const reader = response.body?.getReader();
+    if (!reader) {
+      // Stream non leggibile: si riprende la navigazione con la sessione rinnovata.
+      window.location.assign(url);
+      return;
+    }
+    const declared = Number(response.headers.get("Content-Length") ?? "");
+    // Il backend in streaming non invia Content-Length: la dimensione
+    // dell'elenco basta a mostrare percentuale e totale.
+    const totalBytes =
+      Number.isFinite(declared) && declared > 0
+        ? declared
+        : entry.size > 0
+          ? entry.size
+          : null;
+    const chunks: Uint8Array[] = [];
+    let receivedBytes = 0;
+    let lastUpdate = 0;
+    const report = (force: boolean) => {
+      const now = Date.now();
+      if (!force && now - lastUpdate < 150) return;
+      lastUpdate = now;
+      setDownloadNote({
+        name: entry.name,
+        state: "running",
+        percent:
+          totalBytes === null
+            ? null
+            : Math.min(100, Math.round((receivedBytes / totalBytes) * 100)),
+        receivedBytes,
+        totalBytes,
+      });
+    };
+    report(true);
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (!value) continue;
+        chunks.push(value);
+        receivedBytes += value.byteLength;
+        report(false);
+      }
+    } catch (cause) {
+      failed(cause instanceof Error ? cause.message : t("files.downloadError"));
+      return;
+    }
+    const blob = new Blob(chunks as BlobPart[], {
+      type: response.headers.get("Content-Type") ?? "application/octet-stream",
+    });
+    const objectUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = objectUrl;
+    anchor.download = entry.name;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    // La revoca immediata annullerebbe il salvataggio in alcuni browser.
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+    setDownloadNote({
+      name: entry.name,
+      state: "done",
+      percent: 100,
+      receivedBytes,
+      totalBytes: totalBytes ?? receivedBytes,
+    });
   };
 
   const downloadEntry = async (entry: RemoteFileEntry) => {
@@ -932,12 +1032,9 @@ export function FileBrowserModal({
       }
     }
     const url = serverFileDownloadUrl(selectedId, entry.path);
-    // Native e web: navigazione normale, il webview desktop la intercetta.
+    // Native e web: fetch autenticata con avanzamento nella riga del browser.
     if (downloadRoute !== "bridge") {
-      // Il download nativo arriva da desktop.download.status, quello del
-      // browser ha la sua UI: il riquadro dell'app non deve restare indietro.
-      setDownloadNote(null);
-      await navigateToDownload(url);
+      await downloadInBrowser(entry, url);
       return;
     }
     setDownloadNote({
@@ -971,7 +1068,7 @@ export function FileBrowserModal({
       totalBytes: null,
       message: t("desktopDownload.failed"),
     });
-    await navigateToDownload(url);
+    await downloadInBrowser(entry, url);
   };
 
   if (!open) return null;
