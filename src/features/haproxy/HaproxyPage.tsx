@@ -184,6 +184,12 @@ export function HaproxyPage() {
     enabled: selected !== undefined && tab === "servers" && showCompare,
     refetchInterval: 30_000,
   });
+  const metricsEmpty = metrics.isSuccess && (metrics.data?.length ?? 0) === 0;
+  const aggregateMetricsEmpty =
+    aggregateMetrics.isSuccess &&
+    !(aggregateMetrics.data ?? []).some((entry) => entry.points.length > 0);
+  const compareMetricsEmpty =
+    compareMetrics.isSuccess && (compareMetrics.data?.length ?? 0) === 0;
 
   const uploadCertificate = async (file: File | undefined) => {
     if (!file || !selected) return;
@@ -280,6 +286,14 @@ export function HaproxyPage() {
   const errors5xxPercent = lastMetricPoint
     ? errorPercent(lastMetricPoint.h5xx, lastMetricPoint.req)
     : null;
+  const uptimeLabel = (seconds: number) => {
+    const total = Math.max(0, Math.floor(seconds));
+    return t("haproxy.uptime", {
+      days: Math.floor(total / 86_400),
+      hours: Math.floor((total % 86_400) / 3_600),
+      minutes: Math.floor((total % 3_600) / 60),
+    });
+  };
   const matches = (value: string, needle: string) => {
     const term = needle.trim().toLowerCase();
     return term.length === 0 || value.toLowerCase().includes(term);
@@ -621,8 +635,9 @@ export function HaproxyPage() {
                 <button
                   key={value}
                   type="button"
+                  disabled={aggregateMetricsEmpty}
                   onClick={() => setAggregateRange(value)}
-                  className={`rounded border px-2 py-0.5 text-[10px] ${
+                  className={`rounded border px-2 py-0.5 text-[10px] disabled:cursor-not-allowed disabled:opacity-40 ${
                     aggregateRange === value
                       ? "border-slate-900 bg-slate-900 text-white"
                       : "border-slate-300"
@@ -975,8 +990,9 @@ export function HaproxyPage() {
                   <button
                     key={value}
                     type="button"
+                    disabled={metricsEmpty}
                     onClick={() => setRange(Number(value))}
-                    className={`rounded border px-2 py-0.5 text-xs ${
+                    className={`rounded border px-2 py-0.5 text-xs disabled:cursor-not-allowed disabled:opacity-40 ${
                       range === Number(value)
                         ? "border-slate-900 bg-slate-900 text-white"
                         : "border-slate-300"
@@ -994,9 +1010,7 @@ export function HaproxyPage() {
                 </span>
                 <span className="text-xs text-slate-500">
                   {live.data?.process
-                    ? t("haproxy.uptime", {
-                        value: live.data.process.uptime,
-                      })
+                    ? uptimeLabel(live.data.process.uptime)
                     : "—"}
                 </span>
               </div>
@@ -1312,8 +1326,9 @@ export function HaproxyPage() {
                         <button
                           key={value}
                           type="button"
+                          disabled={compareMetricsEmpty}
                           onClick={() => setCompareRange(value)}
-                          className={`rounded border px-2 py-0.5 text-[10px] ${
+                          className={`rounded border px-2 py-0.5 text-[10px] disabled:cursor-not-allowed disabled:opacity-40 ${
                             compareRange === value
                               ? "border-slate-900 bg-slate-900 text-white"
                               : "border-slate-300"
