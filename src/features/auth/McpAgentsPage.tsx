@@ -128,6 +128,10 @@ export function McpAgentsPage() {
     const permissions: McpAgentPermissionInput[] = approve
       ? permissionsFromDraft(draftFor(agent))
       : [];
+    if (approve && permissions.length === 0) {
+      setError(t("mcpAgents.permissionsRequired"));
+      return;
+    }
     await run(String(agent.id), async () => {
       const updated = approve
         ? await approveMcpAgent(agent.id, permissions, csrf)
@@ -193,6 +197,8 @@ export function McpAgentsPage() {
   const renderAgent = (agent: McpAgent) => {
     const draft = draftFor(agent);
     const busy = busyKey === String(agent.id);
+    const hasSelection = MCP_ACTIONS.some((action) => draft[action].enabled);
+    const needsPermission = agent.status === "Pending" && !hasSelection;
     return (
       <article
         key={agent.id}
@@ -260,11 +266,17 @@ export function McpAgentsPage() {
           ))}
         </div>
 
+        {needsPermission && (
+          <p className="mt-2 text-xs text-amber-700">
+            {t("mcpAgents.permissionsRequired")}
+          </p>
+        )}
+
         <div className="mt-4 flex flex-wrap gap-2">
           {agent.status !== "Approved" && (
             <button
               type="button"
-              disabled={busy}
+              disabled={busy || needsPermission}
               onClick={() => void decideAgent(agent, true)}
               className="rounded-md border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-800 hover:bg-emerald-100 disabled:opacity-40"
             >
